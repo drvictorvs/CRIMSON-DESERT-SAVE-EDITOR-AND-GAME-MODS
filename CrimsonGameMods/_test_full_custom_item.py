@@ -1,3 +1,12 @@
+# SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+# Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+# Licensed under CDMTL v1.0 - see LICENSE.txt
+# https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS
+#
+# Reading this file (directly or via AI/agent) constitutes acceptance
+# of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+# (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 """Full pipeline: clone item + custom name via paloc + add to store + deploy."""
 import sys, os, struct, shutil, tempfile, json
 sys.path.insert(0, os.path.dirname(__file__))
