@@ -162,6 +162,140 @@ Each `target.file` is converted to a snake_case table name by stripping
 A loader receiving an unknown `target.file` **must** skip that target
 section (warn but don't fail the document).
 
+### Localization target — `paloc.pamt`
+
+Paloc records have a different identity scheme from PABGB tables (no u32
+record key — records are addressed by the tuple `(category u8, key string)`).
+A v3.1 loader **must** map intent fields as follows for `target.file ==
+"paloc.pamt"`:
+
+| Intent field | Paloc semantics |
+|---|---|
+| `entry` | Paloc record's `key` string (e.g. `"4290772592"`) |
+| `key` | Category byte: `0x70` for item names, `0x71` for descriptions, `0x07` for items, `0x03` for characters, `0x2F` for UI text |
+| `field` | Always `"value"` — the only patchable field |
+| `new` | New localized text (UTF-8 string) |
+
+Example — set the name and description for a custom item under key `999001`:
+
+```json
+{
+  "target": { "file": "paloc.pamt" },
+  "intents": [
+    { "entry": "4290772592", "key": 112, "field": "value", "new": "Custom Sword" },
+    { "entry": "4290772593", "key": 113, "field": "value", "new": "Hits like a truck." }
+  ]
+}
+```
+
+Where `4290772592 = (999001 << 32) | 0x70` (name lookup) and `4290772593 = (999001 << 32) | 0x71` (description lookup). `key` values `112` and `113` are decimal `0x70` and `0x71`.
+
+---
+
+## Asset target type (v3.1, additive)
+
+In addition to the field-level intent shape above, v3.1 supports a
+**binary asset target type** for textures, audio, and other binary files
+that the game expects in their original on-disk format. Use this when the
+data isn't a typed PABGB table (DDS textures, WEM/BNK audio, ReShade
+configs, etc.).
+
+### Schema
+
+```json
+{
+  "target": { "file": "0009/character/texture/macduff/diffuse.dds" },
+  "type": "asset",
+  "source": "assets/macduff_diffuse.dds",
+  "sha256": "abc123..."
+}
+```
+
+### Field reference
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `target.file` | yes | string | The vpath inside the game's archive structure. First path segment **should** be a 4-digit PAZ group prefix (`0009/`, `0012/`, `0014/`, etc.) for unambiguous routing. |
+| `type` | yes | string | Must be exactly `"asset"`. (Field-level targets omit this; loaders treat absent `type` as field-level for backward compat with v3.0/v3.1 base.) |
+| `source` | yes | string | Path to the binary file, **relative to the `.field.json` location**. Convention: place assets under an `assets/` subfolder. Forward or back slashes accepted; loaders normalize. |
+| `sha256` | optional | string | Hex SHA-256 of the source file. When present, loaders **must** verify and reject the mod if the hash mismatches. Helps detect accidentally truncated mods or asset swap during distribution. |
+
+### Path resolution
+
+`source` is resolved relative to the directory containing the
+`.field.json` file. Absolute paths and `..` segments are **not allowed**
+(reject the mod with a clear error). This keeps mods self-contained and
+prevents path-traversal exploits.
+
+```
+mymod/
+├── mymod.field.json          ← references assets/...
+└── assets/
+    ├── textures/
+    │   └── macduff_diffuse.dds
+    └── audio/
+        └── voice_attack01.wem
+```
+
+### File-extension dispatch
+
+The vpath's file extension determines which game subsystem the asset
+plugs into. Loaders **must** route as follows:
+
+| Extension | Asset class | Notes |
+|---|---|---|
+| `.dds` | Texture | DXT1/DXT5 → standard injection. DX10/BC7 → requires PATHC entry registration with template index. |
+| `.wem` | Wwise audio (event-driven) | Direct PAZ injection — Wwise reads from base PAZ groups, not overlay. |
+| `.bnk` | Wwise SoundBank | Same as `.wem` — direct PAZ injection in the WEM's native group. |
+| `.ttf` / `.otf` | Font | Standard PAZ overlay (legacy compatible). |
+| `.fx` / `.fxh` / `.ini` | ReShade preset / shader / config | Text file replacement, typically in the game-root directory. |
+| (unknown) | Unsupported | Loader **must** skip and emit a warning. |
+
+### Mixed mods
+
+A single `.field.json` MAY contain field-level targets, the `paloc.pamt`
+target, and asset-type targets in any combination — they all live in the
+same `targets` array. This is the recommended way to ship a complete
+"reskin + buff" mod as a single file plus an `assets/` folder.
+
+```json
+{
+  "format": 3,
+  "format_minor": 1,
+  "modinfo": { "title": "Macduff Overhaul", "version": "1.0" },
+  "targets": [
+    {
+      "target": { "file": "iteminfo.pabgb" },
+      "intents": [
+        { "entry": "Macduff_Sword", "field": "damage", "new": 999000 }
+      ]
+    },
+    {
+      "target": { "file": "paloc.pamt" },
+      "intents": [
+        { "entry": "4290772592", "key": 112, "field": "value", "new": "999K Sword" }
+      ]
+    },
+    {
+      "target": { "file": "0009/character/texture/macduff/diffuse.dds" },
+      "type": "asset",
+      "source": "assets/macduff_diffuse.dds",
+      "sha256": "abc123..."
+    }
+  ]
+}
+```
+
+### Validation requirements
+
+A v3.1 loader **must**:
+
+1. Resolve `source` paths and reject absolute paths or paths containing `..`.
+2. Read the asset file and fail loudly if missing.
+3. If `sha256` is present, verify and reject on mismatch.
+4. Validate the asset against its expected format using `dmm_parser` helpers (`classify_dds`, `classify_wem`, `parse_bnk`) when available.
+5. Skip with a warning — not fatal — when the file extension is not in the dispatch table.
+
 ---
 
 ## Field path syntax
