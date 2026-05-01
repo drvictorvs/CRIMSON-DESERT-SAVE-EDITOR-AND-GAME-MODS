@@ -958,16 +958,35 @@ def _diff_table_field_level(vanilla_pabgh: bytes, vanilla_pabgb: bytes,
         # Unknown table or parse failure — caller falls back to blob diff.
         return ([], "")
 
+    # Sanity: empty parse on either side means there's nothing to diff
+    # OR the parser returned an unexpected shape. Either way, fall back.
+    if not vanilla_items or not modded_items:
+        return ([], "")
+
     # Index by entry identity. Most tables key by string_key (entry name);
-    # numeric `key` is the stable cross-update fallback. Some tables only
-    # have `key` (no string_key), so prefer key as the identity.
+    # numeric `key` is the stable cross-update fallback.
     def _identity(item: dict) -> tuple:
         sk = item.get("string_key", "") or ""
         k  = item.get("key")
         return (sk, k)
 
+    # Check the table actually has a usable identity field. Some sequential
+    # tables (e.g. aievent_table_info) use non-standard keys (key_hash etc.)
+    # and don't expose top-level `key`/`string_key`. For those, the identity
+    # tuple collapses to ("", None) and the per-record diff would silently
+    # corrupt — fall back to blob diff which keys by raw record offset.
+    sample = vanilla_items[0]
+    if not (sample.get("string_key") or sample.get("key") is not None):
+        return ([], "")
+
     v_by_id = {_identity(it): it for it in vanilla_items}
     m_by_id = {_identity(it): it for it in modded_items}
+
+    # Identity collision check: if the dict shrinks vs the source list, two
+    # records share the same identity tuple, which means the diff would be
+    # wrong (merge would clobber). Fall back to blob diff in that case.
+    if len(v_by_id) != len(vanilla_items) or len(m_by_id) != len(modded_items):
+        return ([], "")
 
     intents: list[dict] = []
     # Walk only entries present on both sides — record add/remove not
