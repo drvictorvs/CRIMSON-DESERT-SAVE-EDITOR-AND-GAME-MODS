@@ -1737,22 +1737,16 @@ def complete_mission_entry(
 
 
 def _compute_dye_mask(entry: dict, is_base: bool) -> int:
-    mask = 0
-    if not is_base:
-        mask |= 0x01
-    if entry.get('r', 0) > 0:
-        mask |= 0x02
-    if entry.get('g', 0) > 0:
-        mask |= 0x04
-    if entry.get('b', 0) > 0:
-        mask |= 0x08
-    mask |= 0x10
-    if entry.get('has_grime', False):
-        mask |= 0x20
+    mask = 0x01  # _dyeSlotNo — always include
+    mask |= 0x02  # _dyeColorR (always include — 0 is valid black)
+    mask |= 0x04  # _dyeColorG
+    mask |= 0x08  # _dyeColorB
+    mask |= 0x10  # _dyeColorA
+    mask |= 0x20  # _grimeOpacity
     if entry.get('group', 0) != 0:
-        mask |= 0x40
+        mask |= 0x40  # _dyeColorGroupInfoKey
     if entry.get('material', 0) != 0:
-        mask |= 0x80
+        mask |= 0x80  # _texturePalleteKey
     return mask
 
 
@@ -3114,7 +3108,7 @@ def fill_socket_slots(
         target_slots=slot_gem_map,
         expected_mask=0x00,
         build_target_elem=_build_filled,
-        valid_count_fn=lambda old, n: min(old + n, 0xFF),
+        valid_count_fn=lambda old, n: old,
         fn_name="fill_socket_slots",
         verb="Filled",
     )
@@ -3142,7 +3136,7 @@ def clear_socket_slots(
         target_slots={idx: None for idx in slot_indices},
         expected_mask=0x03,
         build_target_elem=_build_empty,
-        valid_count_fn=lambda old, n: max(old - n, 0),
+        valid_count_fn=lambda old, n: old,
         fn_name="clear_socket_slots",
         verb="Cleared",
     )
