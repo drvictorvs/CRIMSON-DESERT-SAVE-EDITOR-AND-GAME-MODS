@@ -430,6 +430,14 @@ class ItemBuffsTab(QWidget):
             self._buff_apply_game_btn = apply_game_btn
             action_row.addWidget(apply_game_btn)
 
+            apply_v2_btn = QPushButton("Apply V2")
+            apply_v2_btn.setStyleSheet("QPushButton {"
+                "background-color: #1565C0; color: white; font-weight: bold; }")
+            apply_v2_btn.setToolTip(
+                "LZ4 compressed overlay (84% smaller). Experimental.")
+            apply_v2_btn.clicked.connect(self._buff_apply_to_game_v2)
+            action_row.addWidget(apply_v2_btn)
+
             import_mod_btn = QPushButton("Import")
             import_mod_btn.setStyleSheet("QPushButton {"
                 "background-color: #00695C; color: white; font-weight: bold; }")
@@ -823,6 +831,16 @@ class ItemBuffsTab(QWidget):
             apply_game_btn.clicked.connect(self._buff_apply_to_game)
             self._buff_apply_game_btn = apply_game_btn
             bottom_bar.addWidget(apply_game_btn)
+
+            apply_v2_btn = QPushButton("Apply to Game V2")
+            apply_v2_btn.setStyleSheet(
+                "background-color: #1565C0; color: white; font-weight: bold;")
+            apply_v2_btn.setToolTip(
+                "Same as Apply to Game but uses LZ4 compression for .pabgb\n"
+                "files (84% smaller overlay). Experimental — may fix infinite\n"
+                "loading caused by large uncompressed overlays.")
+            apply_v2_btn.clicked.connect(self._buff_apply_to_game_v2)
+            bottom_bar.addWidget(apply_v2_btn)
 
             # Primary action 3: Import Mod Folder (teal, power-user friendly)
             import_mod_btn = QPushButton("Import Mod Folder")
@@ -2803,7 +2821,7 @@ class ItemBuffsTab(QWidget):
             # would see UP v2 slot-expansion disappear, imbue class whitelists
             # disappear, etc. — the overlay would drift to partial state.
             internal_dir = "gamedata/binary__/client/bin"
-            # equipslotinfo — staged by UP v2 / UP v1
+            # equipslotinfo — staged by UP v2 / UP v1 (deployed to 0059)
             if (not hasattr(self, '_staged_equip_files')
                     or self._staged_equip_files is None):
                 self._staged_equip_files = {}
@@ -2812,29 +2830,27 @@ class ItemBuffsTab(QWidget):
                     continue  # current-session edit already present
                 try:
                     data = bytes(crimson_rs.extract_file(
-                        game_path, buff_dir, internal_dir, fname))
+                        game_path, "0059", internal_dir, fname))
                     if data:
                         self._staged_equip_files[fname] = data
-                        log.info("Rehydrated %s from overlay %s/ (%d bytes)",
-                                 fname, buff_dir, len(data))
+                        log.info("Rehydrated %s from overlay 0059/ (%d bytes)",
+                                 fname, len(data))
                 except Exception:
-                    # File not in overlay — that's fine, it just means UP v2
-                    # wasn't applied previously.
                     pass
-            # skill.pabgb/pabgh — staged by imbue
+            # skill files — pabgb in LZ4 group (buff_dir), pabgh in NONE group (0066)
             if (not hasattr(self, '_staged_skill_files')
                     or self._staged_skill_files is None):
                 self._staged_skill_files = {}
-            for fname in ("skill.pabgb", "skill.pabgh"):
+            for fname, group in (("skill.pabgb", buff_dir), ("skill.pabgh", "0066")):
                 if fname in self._staged_skill_files:
                     continue
                 try:
                     data = bytes(crimson_rs.extract_file(
-                        game_path, buff_dir, internal_dir, fname))
+                        game_path, group, internal_dir, fname))
                     if data:
                         self._staged_skill_files[fname] = data
                         log.info("Rehydrated %s from overlay %s/ (%d bytes)",
-                                 fname, buff_dir, len(data))
+                                 fname, group, len(data))
                 except Exception:
                     pass
 
@@ -2993,14 +3009,12 @@ class ItemBuffsTab(QWidget):
             self._buff_rust_items = rust_items
             self._buff_rust_lookup = {it['key']: it for it in rust_items}
             self._buff_use_rust = True
-            import json
-            # deepcopy fails on crimson_rs Rust objects in Python 3.14+
-            # JSON round-trip is a safe alternative for plain dict/list data
-            try:
-                import copy
-                self._buff_rust_items_original = copy.deepcopy(rust_items)
-            except TypeError:
-                self._buff_rust_items_original = json.loads(json.dumps(rust_items))
+            import json, zlib
+            self._buff_rust_items_original_z = zlib.compress(
+                json.dumps(rust_items).encode(), 1)
+            log.info("Stored compressed backup: %d bytes (vs ~%d MB live)",
+                     len(self._buff_rust_items_original_z),
+                     len(rust_items) * 20 // 1024 // 1024)
             self._rebuild_index()
 
             self._build_effect_catalog(rust_items)
@@ -3129,7 +3143,9 @@ class ItemBuffsTab(QWidget):
         # Load vanilla as baseline, mod as current state — same shape as Extract.
         self._buff_data = bytearray(vanilla_raw)
         self._buff_rust_items = mod_items
-        self._buff_rust_items_original = copy.deepcopy(vanilla_items)
+        import zlib
+        self._buff_rust_items_original_z = zlib.compress(
+            json.dumps(vanilla_items).encode(), 1)
         self._buff_rust_lookup = {it['key']: it for it in mod_items}
         self._buff_use_rust = True
         self._buff_use_structural = True
@@ -3465,6 +3481,13 @@ class ItemBuffsTab(QWidget):
                             if px:
                                 icon_cell.setIcon(QIcon(px))
 
+
+    def _restore_original_items(self) -> list | None:
+        z = getattr(self, '_buff_rust_items_original_z', None)
+        if not z:
+            return getattr(self, '_buff_rust_items_original', None)
+        import json, zlib
+        return json.loads(zlib.decompress(z))
 
     def _buff_refresh_stats(self) -> None:
         item = self._buff_current_item
@@ -6253,6 +6276,8 @@ class ItemBuffsTab(QWidget):
                 added += 1
         rust_info['equip_passive_skill_list'] = existing
 
+        self._fix_elemental_equip_types(single_item=rust_info)
+
         for gf in ('gimmick_info', 'cooltime', 'item_charge_type',
                     'max_charged_useable_count', 'respawn_time_seconds',
                     'docking_child_data', 'max_stack_count'):
@@ -6301,6 +6326,146 @@ class ItemBuffsTab(QWidget):
             f"gimmick {preset.get('gimmick_info', 'unchanged')}. Export as Mod to write."
         )
 
+    # ------------------------------------------------------------------
+    # Weapon condition infinite-loading warning.
+    # See INFINITE_LOADING_RESEARCH.md for full analysis.
+    #
+    # RegisterConditionSkillBuffData (tag=63) carries a carray_u16 list
+    # of weapon equip-type hashes.  When an item's equip_type_info is
+    # NOT in that list the condition never resolves → O(N^2) re-eval
+    # → infinite loading + 50 GB RAM spiral.
+    #
+    # We warn the user at deploy time instead of auto-patching, because
+    # changing equip_type_info breaks characterinfo validation for
+    # non-weapon items (rings, abyss gems, horse armor, tools, etc.).
+    # ------------------------------------------------------------------
+    _cached_condition_skills: set | None = None
+    _cached_weapon_hashes: set | None = None
+
+    def _build_weapon_equip_cache(self):
+        if self._cached_weapon_hashes is not None:
+            return
+        cond_skills: set[int] = set()
+        weapon_hashes: set[int] = set()
+        try:
+            import crimson_rs
+            game_path = self._buff_patcher.game_path
+            skill_pabgb = bytes(crimson_rs.extract_file(
+                game_path, '0008',
+                'gamedata/binary__/client/bin', 'skill.pabgb'))
+            skill_pabgh = bytes(crimson_rs.extract_file(
+                game_path, '0008',
+                'gamedata/binary__/client/bin', 'skill.pabgh'))
+            skills = crimson_rs.parse_skillinfo_from_bytes(skill_pabgb, skill_pabgh)
+            for s in skills:
+                for level in (s.get('buff_level_list') or []):
+                    for buff in level:
+                        base = buff.get('base', {})
+                        if base.get('tag') == 63:
+                            cu16 = base.get('carray_u16', [])
+                            if cu16:
+                                cond_skills.add(s['key'])
+                                weapon_hashes.update(cu16)
+            log.info("Weapon equip cache: %d skills with tag=63, %d weapon hashes",
+                     len(cond_skills), len(weapon_hashes))
+        except Exception as e:
+            log.warning("Weapon equip cache build failed: %s — using hardcoded fallback", e)
+            cond_skills = {91101, 91102, 91104, 91105, 91107, 91109, 91151,
+                           65471, 65472, 65473, 70116, 70119, 70155}
+            weapon_hashes = {1086980073, 2914941932, 604374103, 3628286577,
+                             2327795645, 1584411264, 1921528741, 585399773,
+                             2594511993, 3150053877, 2269940786}
+        self.__class__._cached_condition_skills = cond_skills
+        self.__class__._cached_weapon_hashes = weapon_hashes
+
+    _DEFAULT_WEAPON_EQUIP_TYPE = 1086980073  # TwoHandSword
+
+    def _fix_elemental_equip_types(self, rust_items=None, single_item=None):
+        """Auto-patch equip_type_info for items with weapon-condition
+        passives in equip_passive_skill_list on non-weapon items.
+        This pathway is confirmed safe (lantern fix).
+        Does NOT touch equip_buffs — that pathway is warn-only."""
+        self._build_weapon_equip_cache()
+        cond_skills = self._cached_condition_skills or set()
+        weapon_hashes = self._cached_weapon_hashes or set()
+        if not weapon_hashes:
+            return 0
+        targets = [single_item] if single_item else (rust_items or [])
+        patched = 0
+        for it in targets:
+            cur = it.get('equip_type_info', 0)
+            if cur in weapon_hashes:
+                continue
+            has_cond_passive = any(
+                p.get('skill') in cond_skills
+                for p in (it.get('equip_passive_skill_list') or [])
+            )
+            if not has_cond_passive:
+                continue
+            it['equip_type_info'] = self._DEFAULT_WEAPON_EQUIP_TYPE
+            patched += 1
+            log.info("Weapon-condition fix: item %s equip_type_info %d -> %d",
+                     it.get('key'), cur, self._DEFAULT_WEAPON_EQUIP_TYPE)
+        if patched and not single_item:
+            log.info("Weapon-condition fix: patched equip_type_info on %d items", patched)
+        return patched
+
+    def _check_weapon_buff_warnings(self, rust_items=None):
+        """Warn about weapon-specific passive buffs applied via equip_buffs
+        on non-weapon items (C.json-style configs).  Returns warning strings."""
+        self._build_weapon_equip_cache()
+        weapon_hashes = self._cached_weapon_hashes or set()
+        if not weapon_hashes:
+            return []
+        _PASSIVE_BUFF_IDS = set(range(1000120, 1000280))
+        warnings = []
+        for it in (rust_items or []):
+            cur = it.get('equip_type_info', 0)
+            if cur in weapon_hashes:
+                continue
+            for ed in (it.get('enchant_data_list') or []):
+                bad = [eb['buff'] for eb in (ed.get('equip_buffs') or [])
+                       if eb.get('buff') in _PASSIVE_BUFF_IDS]
+                if bad:
+                    name = it.get('string_key', str(it.get('key', '?')))
+                    warnings.append(
+                        f"{name}: {len(bad)} weapon-passive buff(s) on "
+                        f"non-weapon item — may cause infinite loading"
+                    )
+                    break
+        return warnings
+
+    def _ensure_elemental_skill_patch(self):
+        """Deploy-time hook:
+        1. Auto-fix equip_passive_skill_list weapon passives (safe).
+        2. Warn about equip_buffs weapon passives (can't safely auto-fix)."""
+        rust_items = getattr(self, '_buff_rust_items', None)
+        if not rust_items:
+            return
+        self._fix_elemental_equip_types(rust_items=rust_items)
+        warnings = self._check_weapon_buff_warnings(rust_items=rust_items)
+        if warnings:
+            for w in warnings:
+                log.warning("Weapon-buff warning: %s", w)
+            msg = (
+                "WARNING: Some items have weapon-specific passive buffs "
+                "(via equip_buffs) on non-weapon equipment. This may cause "
+                "infinite loading.\n\n"
+            )
+            msg += "\n".join(warnings[:10])
+            if len(warnings) > 10:
+                msg += f"\n... +{len(warnings) - 10} more"
+            msg += (
+                "\n\nTo fix: remove those passive buffs from non-weapon "
+                "items, or apply them only to weapons.\n\n"
+                "Deploy anyway?"
+            )
+            reply = QMessageBox.warning(
+                self, "Infinite Loading Risk", msg,
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                raise RuntimeError("Cancelled — weapon-buff warning")
 
     def _load_vfx_catalog_into_combo(self) -> None:
         self._eb_vfx_combo.clear()
@@ -6671,7 +6836,13 @@ class ItemBuffsTab(QWidget):
             f"  not socket-capable:   {skipped_not_socketable:>5}  (weapons that game won't accept, etc.)\n"
             f"  no drop_default_data: {skipped_no_ddd:>5}  (materials, quest items, etc.)\n\n"
             f"Examples:\n  " + "\n  ".join(examples)
-            + "\n\nExport as Mod / Apply to Game to write changes.",
+            + "\n\nExport as Mod / Apply to Game to write changes."
+            + ("\n\n⚠️ BUFF LINE LIMIT: The game has a hard cap of ~23 active\n"
+               "buff/passive lines across ALL equipped gear. Each abyss gem,\n"
+               "built-in item passive, and quest reward passive counts.\n"
+               "Exceeding this causes infinite loading + RAM leak.\n"
+               "Don't fill all 5 sockets with abyss gems on every slot."
+               if (changed or force_enabled) else ""),
         )
 
         if changed or force_enabled:
@@ -7621,6 +7792,43 @@ class ItemBuffsTab(QWidget):
         log.info("equipslotinfo deployed to %s/ (pabgb=%d, pabgh=%d, checksum=0x%08X)",
                  GROUP, len(new_pabgb), len(new_pabgh), pamt_checksum)
 
+    def _buff_deploy_charinfo_0065(self, game_path: str,
+                                   new_pabgb: bytes,
+                                   new_pabgh: bytes) -> None:
+        """Write characterinfo.pabgb/.pabgh to 0065/ as a separate overlay.
+
+        Same principle as equipslotinfo → 0059/: bundling characterinfo
+        into 0058/ alongside iteminfo causes the Kliff gun fix to silently
+        fail.  Deploying to its own overlay group makes it work.
+        """
+        import crimson_rs, shutil, tempfile
+        INTERNAL_DIR = "gamedata/binary__/client/bin"
+        GROUP = "0065"
+        with tempfile.TemporaryDirectory() as tmp:
+            build_dir = os.path.join(tmp, GROUP)
+            b = crimson_rs.PackGroupBuilder(
+                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
+            b.add_file(INTERNAL_DIR, "characterinfo.pabgb", new_pabgb)
+            b.add_file(INTERNAL_DIR, "characterinfo.pabgh", new_pabgh)
+            pamt_bytes = bytes(b.finish())
+            pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+            dst = os.path.join(game_path, GROUP)
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            os.makedirs(dst, exist_ok=True)
+            for fname in os.listdir(build_dir):
+                shutil.copy2(os.path.join(build_dir, fname),
+                             os.path.join(dst, fname))
+        papgt_path = os.path.join(game_path, "meta", "0.papgt")
+        papgt = crimson_rs.parse_papgt_file(papgt_path)
+        papgt["entries"] = [e for e in papgt["entries"]
+                            if e.get("group_name") != GROUP]
+        papgt = crimson_rs.add_papgt_entry(
+            papgt, GROUP, pamt_checksum, 0, 16383)
+        crimson_rs.write_papgt_file(papgt, papgt_path)
+        log.info("characterinfo deployed to %s/ (pabgb=%d, pabgh=%d, checksum=0x%08X)",
+                 GROUP, len(new_pabgb), len(new_pabgh), pamt_checksum)
+
     def _eb_bulk_make_dyeable(self) -> None:
         """Flip is_dyeable + is_editable_grime on every equipment item.
 
@@ -8496,7 +8704,7 @@ class ItemBuffsTab(QWidget):
             QMessageBox.warning(self, "Export Field JSON v3",
                 "Extract iteminfo first (click 'Extract').")
             return
-        orig = getattr(self, '_buff_rust_items_original', None)
+        orig = self._restore_original_items()
         if not orig:
             QMessageBox.warning(self, "Export Field JSON v3",
                 "No vanilla baseline found. Re-extract iteminfo.")
@@ -8861,6 +9069,12 @@ class ItemBuffsTab(QWidget):
                     f.write(fdata)
                 log.info("Export mod: included staged %s (%d bytes)", fname, len(fdata))
 
+            staged_charinfo = getattr(self, "_staged_charinfo_files", None) or {}
+            for fname, fdata in staged_charinfo.items():
+                with open(os.path.join(files_dir, fname), "wb") as f:
+                    f.write(fdata)
+                log.info("Export mod: included staged %s (%d bytes)", fname, len(fdata))
+
             modinfo = {
                 "id": name.lower().replace(" ", "_"),
                 "name": name,
@@ -8970,6 +9184,8 @@ class ItemBuffsTab(QWidget):
             if not save_dir:
                 return
             out_path = os.path.join(save_dir, folder_name)
+
+        self._ensure_elemental_skill_patch()
 
         apply_stacks = hasattr(self, '_stack_check') and self._stack_check.isChecked()
         if apply_stacks:
@@ -9378,6 +9594,8 @@ class ItemBuffsTab(QWidget):
 
             applied += 1
 
+        self._fix_elemental_equip_types(rust_items=self._buff_rust_items)
+
         try:
             import crimson_rs
             new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
@@ -9536,7 +9754,7 @@ class ItemBuffsTab(QWidget):
         """
         if not hasattr(self, '_buff_rust_items') or not self._buff_rust_items:
             return
-        orig = getattr(self, '_buff_rust_items_original', None) or []
+        orig = self._restore_original_items() or []
         orig_by = {it['key']: it for it in orig}
 
         stack_candidates: list[int] = []
@@ -9592,11 +9810,11 @@ class ItemBuffsTab(QWidget):
                 f"Set equipable_hash = 0 on {len(abyss)} abyss gear items?\n\n"
                 f"This removes the socket-type restriction so every abyss gem\n"
                 f"can be socketed into ANY equipment slot.\n\n"
-                f"Original concept by OhmesmileTH (Nexus Mods) who discovered\n"
-                f"that zeroing _equipableHash unlocks abyss socket restrictions.\n"
-                f"Re-implemented here as a field-name based mod so it stacks\n"
-                f"with sockets, buffs, and all other ItemBuffs edits — and\n"
-                f"survives game updates without offset fixes.\n\n"
+                f"⚠️ BUFF LINE LIMIT: The game caps at ~23 total active buff/passive\n"
+                f"lines across all equipped gear. Each socketed abyss gem counts.\n"
+                f"Filling every socket on every slot WILL cause infinite loading\n"
+                f"+ RAM leak. Spread gems across a few key slots, not all of them.\n"
+                f"Quest reward passives (stamina/MP boost) also count toward the cap.\n\n"
                 f"Click 'Apply to Game' after to deploy.",
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply != QMessageBox.Yes:
@@ -9894,6 +10112,10 @@ class ItemBuffsTab(QWidget):
             "  \u2022 Per-item Add Passive / Add Buff / Add Stat\n\n"
             "Everything lands in a single overlay slot "
             f"({self._buff_overlay_spin.value():04d}/) on Apply to Game.\n\n"
+            "⚠️ BUFF LINE LIMIT: The game caps at ~23 active buff lines\n"
+            "across all equipped gear. 5 sockets + abyss gems on every\n"
+            "slot WILL exceed this and cause infinite loading + RAM leak.\n"
+            "Spread abyss gems across a few key pieces, not all slots.\n\n"
             "Continue?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
         if reply != QMessageBox.Yes:
@@ -10102,11 +10324,19 @@ class ItemBuffsTab(QWidget):
             f"  Tribe hashes added:      {tg_unioned:>5} items (+{tg_added_total} total)\n"
             f"  {equip_msg}"
             f"{charinfo_msg}\n\n"
-            f"Click 'Apply to Game' now \u2014 everything lands in a single\n"
-            f"{buff_slot}/ overlay (iteminfo + equipslotinfo) plus any\n"
-            f"previously-staged skill files for imbue.\n\n"
+            f"Click 'Apply to Game' now \u2014 Apply deploys:\n"
+            f"  {buff_slot}/ \u2014 iteminfo (+ skill if imbued)\n"
+            f"  0059/ \u2014 equipslotinfo (Universal Proficiency)\n"
+            f"  0065/ \u2014 characterinfo (Kliff Gun Fix, if accepted)\n\n"
             f"Want elemental imbue too? Use the Imbue sub-tab after this\n"
-            f"\u2014 it needs a passive selection + target item(s).")
+            f"\u2014 it needs a passive selection + target item(s).\n\n"
+            f"\u26a0\ufe0f BUFF LINE LIMIT (~23 lines)\n"
+            f"The game has a hard cap on active buff/passive lines across\n"
+            f"ALL equipped gear. Each socketed abyss gem, built-in item\n"
+            f"passive (Canta helmet etc.), and quest reward (stamina/MP\n"
+            f"boost) counts. Exceeding ~23 lines causes infinite loading\n"
+            f"+ RAM leak. Don't fill every socket with abyss gems on\n"
+            f"every equipment slot \ufffd\ufffd spread them across a few key pieces.")
 
 
     def _max_charges_all_items(self) -> None:
@@ -10438,12 +10668,9 @@ class ItemBuffsTab(QWidget):
             return
 
         try:
-            if hasattr(self, '_buff_rust_items_original') and self._buff_rust_items_original:
-                import copy, json
-                try:
-                    self._buff_rust_items = copy.deepcopy(self._buff_rust_items_original)
-                except TypeError:
-                    self._buff_rust_items = json.loads(json.dumps(self._buff_rust_items_original))
+            restored = self._restore_original_items()
+            if restored:
+                self._buff_rust_items = restored
                 self._buff_rust_lookup = {it['key']: it for it in self._buff_rust_items}
                 original = self._buff_patcher._original_data
                 if original:
@@ -12228,6 +12455,8 @@ class ItemBuffsTab(QWidget):
         self._buff_status_label.setText("Packing overlay (uncompressed)...")
         QApplication.processEvents()
 
+        self._ensure_elemental_skill_patch()
+
         try:
             import crimson_rs
             import shutil
@@ -12267,16 +12496,9 @@ class ItemBuffsTab(QWidget):
                         log.info("Bundling staged %s (%d bytes) into overlay",
                                  fname, len(staged_skill[fname]))
 
-                # equipslotinfo is NOT bundled into this overlay -- it is
-                # deployed separately to 0059/ by _buff_deploy_equipslotinfo_0059.
-                # Bundling both in 0058/ empirically breaks UP v2 for muskets/blasters.
-
-                staged_charinfo = getattr(self, "_staged_charinfo_files", None) or {}
-                for fname in ("characterinfo.pabgb", "characterinfo.pabgh"):
-                    if fname in staged_charinfo:
-                        builder.add_file(INTERNAL_DIR, fname, staged_charinfo[fname])
-                        log.info("Bundling staged %s (%d bytes) into overlay",
-                                 fname, len(staged_charinfo[fname]))
+                # equipslotinfo and characterinfo are NOT bundled into this
+                # overlay — each is deployed to its own separate group
+                # (0059 and 0065 respectively).
 
                 pamt_bytes = bytes(builder.finish())
 
@@ -12286,9 +12508,6 @@ class ItemBuffsTab(QWidget):
 
                 papgt_path = os.path.join(game_path, "meta", "0.papgt")
 
-                # Read CURRENT papgt to preserve other overlay entries
-                # (0059 equipslotinfo, 0039 field edits, etc.).
-                # Only remove+re-add OUR group entry.
                 papgt = crimson_rs.parse_papgt_file(papgt_path)
                 papgt['entries'] = [
                     e for e in papgt['entries'] if e.get('group_name') != buff_dir
@@ -12315,12 +12534,38 @@ class ItemBuffsTab(QWidget):
                 with open(os.path.join(game_mod, ".se_itembuffs"), "w") as mf:
                     mf.write("Created by CrimsonSaveEditor ItemBuffs tab\n")
 
+            # ── Deploy equipslotinfo to 0059/ (separate overlay) ──
+            staged_equip_deploy = getattr(self, "_staged_equip_files", None) or {}
+            if (staged_equip_deploy.get('equipslotinfo.pabgb')
+                    and staged_equip_deploy.get('equipslotinfo.pabgh')):
+                try:
+                    self._buff_deploy_equipslotinfo_0059(
+                        game_path,
+                        staged_equip_deploy['equipslotinfo.pabgb'],
+                        staged_equip_deploy['equipslotinfo.pabgh'])
+                except Exception as _eq_e:
+                    log.exception("Apply to Game: equipslotinfo 0059 deploy failed")
+
+            # ── Deploy characterinfo to 0065/ (separate overlay) ──
+            staged_charinfo = getattr(self, "_staged_charinfo_files", None) or {}
+            if (staged_charinfo.get('characterinfo.pabgb')
+                    and staged_charinfo.get('characterinfo.pabgh')):
+                try:
+                    self._buff_deploy_charinfo_0065(
+                        game_path,
+                        staged_charinfo['characterinfo.pabgb'],
+                        staged_charinfo['characterinfo.pabgh'])
+                except Exception as _ci_e:
+                    log.exception("Apply to Game: characterinfo 0065 deploy failed")
+
             paz_size = os.path.getsize(os.path.join(game_mod, "0.paz"))
             staged_extra = ""
             if getattr(self, "_staged_skill_files", None):
                 staged_extra += f"\nSkill filters: {', '.join(sorted(self._staged_skill_files.keys()))}"
-            if getattr(self, "_staged_charinfo_files", None):
-                staged_extra += f"\nKliff Gun Fix: characterinfo patched"
+            if staged_equip_deploy:
+                staged_extra += f"\nUniversal Proficiency: equipslotinfo → 0059/"
+            if staged_charinfo:
+                staged_extra += f"\nKliff Gun Fix: characterinfo → 0065/"
             msg = (
                 f"Packed to {buff_dir}/ (uncompressed overlay, {paz_size:,} bytes)\n"
                 f"PAPGT updated with pamt_checksum=0x{pamt_checksum:08X}\n"
@@ -12333,11 +12578,13 @@ class ItemBuffsTab(QWidget):
                 files = ["iteminfo.pabgb", "iteminfo.pabgh"]
                 if getattr(self, "_staged_skill_files", None):
                     files.extend(sorted(self._staged_skill_files.keys()))
-                if getattr(self, "_staged_charinfo_files", None):
-                    files.extend(sorted(self._staged_charinfo_files.keys()))
-                if getattr(self, "_staged_equip_files", None):
-                    files.extend(sorted(self._staged_equip_files.keys()))
                 record_overlay(game_path, buff_dir, "ItemBuffs", files)
+                if staged_equip_deploy:
+                    record_overlay(game_path, "0059", "ItemBuffs",
+                                   sorted(staged_equip_deploy.keys()))
+                if staged_charinfo:
+                    record_overlay(game_path, "0065", "ItemBuffs",
+                                   sorted(staged_charinfo.keys()))
             except Exception:
                 pass
 
@@ -12350,6 +12597,310 @@ class ItemBuffsTab(QWidget):
             self._buff_status_label.setText(f"Failed: {e}")
             QMessageBox.critical(self, "Apply Failed", str(e))
 
+
+    def _buff_apply_to_game_v2(self) -> None:
+        """Apply to Game V2 — LZ4 compressed .pabgb, NONE .pabgh in separate groups.
+
+        Identical to _buff_apply_to_game except the overlay uses LZ4 for
+        large data files (84% smaller) which may fix infinite loading on
+        configs that overload the game's PAZ reader with uncompressed data.
+        """
+        if not self._buff_ensure_patcher():
+            return
+
+        game_path = self._buff_patcher.game_path
+        if not _can_write_game_dir(game_path):
+            QMessageBox.warning(
+                self, "No Write Access",
+                f"Cannot write to:\n{game_path}\n\n"
+                "Try running the editor as Administrator:\n"
+                "Right-click → Run as administrator",
+            )
+            return
+
+        if self._buff_modified:
+            save_first = QMessageBox.question(
+                self, "Save Config?",
+                "Save your current edits as a config file before applying?\n\n"
+                "This lets you re-apply the same edits later without redoing them.",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                QMessageBox.No,
+            )
+            if save_first == QMessageBox.Cancel:
+                return
+            if save_first == QMessageBox.Yes:
+                self._buff_save_config()
+
+        apply_stacks = hasattr(self, '_stack_check') and self._stack_check.isChecked()
+        apply_inf_dura = hasattr(self, '_inf_dura_check') and self._inf_dura_check.isChecked()
+
+        if self._buff_data is None:
+            if not apply_stacks and not apply_inf_dura:
+                QMessageBox.warning(self, "No Data", "Extract iteminfo first.")
+                return
+            try:
+                raw = self._buff_patcher.extract_iteminfo()
+                self._buff_data = bytearray(raw)
+                self._buff_items = self._buff_patcher.find_items(bytes(self._buff_data))
+            except Exception as e:
+                QMessageBox.critical(self, "Extract Failed", str(e))
+                return
+
+        has_transmog = bool(getattr(self, '_transmog_swaps', None))
+        has_vfx = bool(getattr(self, '_vfx_size_changes', None)
+                       or getattr(self, '_vfx_swaps', None)
+                       or getattr(self, '_vfx_anim_swaps', None)
+                       or getattr(self, '_vfx_attach_changes', None))
+        has_cd = bool(getattr(self, '_cd_patches', None))
+        if (not self._buff_modified and not apply_stacks and not apply_inf_dura
+                and not has_transmog and not has_vfx and not has_cd):
+            QMessageBox.information(
+                self, "No Changes",
+                "No modifications have been made.\n\n"
+                "Apply buffs, set up transmog swaps, or check\n"
+                "'Also apply Max Stacks' first.",
+            )
+            return
+
+        stack_msg = ""
+        if apply_stacks:
+            target = self._stack_spin.value()
+            count, _ = self._buff_patcher.patch_stack_sizes(self._buff_data, target_stack=target)
+            stack_msg = f"\nMax Stacks: {count} items set to {target}"
+
+        # ── Serialize (same as v1) ──
+        if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
+            try:
+                import crimson_rs
+                if apply_stacks:
+                    target_val = self._stack_spin.value()
+                    for it in self._buff_rust_items:
+                        if it.get('max_stack_count', 1) > 1:
+                            it['max_stack_count'] = target_val
+                if apply_inf_dura:
+                    for it in self._buff_rust_items:
+                        endurance = it.get('max_endurance', 0)
+                        if endurance > 0 and endurance != 65535:
+                            it['max_endurance'] = 65535
+                            it['is_destroy_when_broken'] = 0
+                try:
+                    final_data = self._rebuild_full_iteminfo()
+                except Exception:
+                    try:
+                        final_data = bytearray(crimson_rs.serialize_iteminfo(
+                            self._buff_rust_items))
+                        unparsed = getattr(self, '_buff_unparsed_raw', []) or []
+                        for _raw in unparsed:
+                            final_data.extend(_raw)
+                        from item_creator import build_iteminfo_pabgh
+                        self._buff_rebuilt_pabgh = build_iteminfo_pabgh(
+                            bytes(final_data))
+                    except Exception as _ser2:
+                        QMessageBox.critical(self, "Serialize Failed",
+                            f"Cannot serialize iteminfo:\n{_ser2}")
+                        return
+                if self._apply_vfx_changes(final_data):
+                    pass
+                cd_patches = getattr(self, '_cd_patches', {})
+                if cd_patches:
+                    for item_key, (_, _, new_val) in cd_patches.items():
+                        cd_off, _ = self._cd_detect(item_key, bytes(final_data))
+                        if cd_off is not None:
+                            final_data[cd_off:cd_off + 4] = struct.pack('<I', new_val)
+                self._apply_transmog_swaps(final_data)
+                final_data = bytes(final_data)
+            except Exception as e:
+                log.warning("V2 rebuild failed, using byte buffer: %s", e)
+                final_data = bytes(self._buff_data)
+        else:
+            final_data = bytes(self._buff_data)
+
+        changes = []
+        if self._buff_modified:
+            changes.append("stat buffs")
+        if apply_stacks:
+            changes.append("max stacks")
+
+        buff_dir = f"{self._buff_overlay_spin.value():04d}"
+        IDX_GROUP = "0066"
+
+        reply = QMessageBox.question(
+            self, "Apply to Game V2 (LZ4)",
+            f"Pack modified iteminfo into split-compression overlays?\n\n"
+            f"Changes: {' + '.join(changes)}\n"
+            f"Raw data: {len(final_data):,} bytes\n\n"
+            f"V2 uses LZ4 for large .pabgb files (~84% smaller) and NONE\n"
+            f"for small .pabgh index files. This may fix infinite loading\n"
+            f"caused by large uncompressed overlays.\n\n"
+            f"  {buff_dir}/ — iteminfo.pabgb (LZ4 compressed)\n"
+            f"  {IDX_GROUP}/ — iteminfo.pabgh (uncompressed)\n\n"
+            f"Original 0008/0.paz is NOT modified.\n"
+            f"The game must be restarted for changes to take effect.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self._buff_status_label.setText("Packing overlay V2 (split LZ4/NONE)...")
+        QApplication.processEvents()
+
+        self._ensure_elemental_skill_patch()
+
+        try:
+            import crimson_rs
+            import shutil
+            import tempfile
+
+            INTERNAL_DIR = "gamedata/binary__/client/bin"
+
+            papgt_path = os.path.join(game_path, "meta", "0.papgt")
+            papgt_vanilla = papgt_path + ".vanilla"
+            if not os.path.isfile(papgt_vanilla) and os.path.isfile(papgt_path):
+                shutil.copy2(papgt_path, papgt_vanilla)
+
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                # ── LZ4 group (buff_dir): large .pabgb data ──
+                group_dir = os.path.join(tmp_dir, buff_dir)
+                builder = crimson_rs.PackGroupBuilder(
+                    group_dir,
+                    crimson_rs.Compression.LZ4,
+                    crimson_rs.Crypto.NONE,
+                )
+                builder.add_file(INTERNAL_DIR, "iteminfo.pabgb", final_data)
+
+                staged_skill = getattr(self, "_staged_skill_files", None) or {}
+                if "skill.pabgb" in staged_skill:
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb",
+                                     staged_skill["skill.pabgb"])
+
+                pamt_bytes = bytes(builder.finish())
+                pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+
+                # ── NONE group (0066): small .pabgh index files ──
+                idx_dir = os.path.join(tmp_dir, IDX_GROUP)
+                idx_builder = crimson_rs.PackGroupBuilder(
+                    idx_dir,
+                    crimson_rs.Compression.NONE,
+                    crimson_rs.Crypto.NONE,
+                )
+                try:
+                    _pabgh = getattr(self, '_buff_rebuilt_pabgh', None)
+                    if not _pabgh:
+                        _pabgh = bytes(crimson_rs.extract_file(
+                            game_path, '0008', INTERNAL_DIR, 'iteminfo.pabgh'))
+                    idx_builder.add_file(INTERNAL_DIR, "iteminfo.pabgh", _pabgh)
+                except Exception as _e:
+                    log.warning("V2: pabgh regen failed (%s)", _e)
+
+                if "skill.pabgh" in staged_skill:
+                    idx_builder.add_file(INTERNAL_DIR, "skill.pabgh",
+                                         staged_skill["skill.pabgh"])
+
+                idx_pamt_bytes = bytes(idx_builder.finish())
+                idx_checksum = crimson_rs.parse_pamt_bytes(idx_pamt_bytes)["checksum"]
+
+                papgt_path = os.path.join(game_path, "meta", "0.papgt")
+                papgt = crimson_rs.parse_papgt_file(papgt_path)
+                papgt['entries'] = [
+                    e for e in papgt['entries']
+                    if e.get('group_name') not in (buff_dir, IDX_GROUP)
+                ]
+                papgt = crimson_rs.add_papgt_entry(
+                    papgt, buff_dir, pamt_checksum, 0, 16383)
+                papgt = crimson_rs.add_papgt_entry(
+                    papgt, IDX_GROUP, idx_checksum, 0, 16383)
+
+                # Deploy LZ4 group
+                game_mod = os.path.join(game_path, buff_dir)
+                if os.path.isdir(game_mod):
+                    shutil.rmtree(game_mod)
+                os.makedirs(game_mod, exist_ok=True)
+                shutil.copy2(os.path.join(group_dir, "0.paz"),
+                             os.path.join(game_mod, "0.paz"))
+                shutil.copy2(os.path.join(group_dir, "0.pamt"),
+                             os.path.join(game_mod, "0.pamt"))
+
+                # Deploy NONE index group
+                game_idx = os.path.join(game_path, IDX_GROUP)
+                if os.path.isdir(game_idx):
+                    shutil.rmtree(game_idx)
+                os.makedirs(game_idx, exist_ok=True)
+                shutil.copy2(os.path.join(idx_dir, "0.paz"),
+                             os.path.join(game_idx, "0.paz"))
+                shutil.copy2(os.path.join(idx_dir, "0.pamt"),
+                             os.path.join(game_idx, "0.pamt"))
+
+                crimson_rs.write_papgt_file(papgt, papgt_path)
+
+                with open(os.path.join(game_mod, ".se_itembuffs"), "w") as mf:
+                    mf.write("Created by CrimsonSaveEditor ItemBuffs tab\n")
+
+            # ── Deploy equipslotinfo to 0059/ ──
+            staged_equip_deploy = getattr(self, "_staged_equip_files", None) or {}
+            if (staged_equip_deploy.get('equipslotinfo.pabgb')
+                    and staged_equip_deploy.get('equipslotinfo.pabgh')):
+                try:
+                    self._buff_deploy_equipslotinfo_0059(
+                        game_path,
+                        staged_equip_deploy['equipslotinfo.pabgb'],
+                        staged_equip_deploy['equipslotinfo.pabgh'])
+                except Exception as _eq_e:
+                    log.exception("V2: equipslotinfo 0059 deploy failed")
+
+            # ── Deploy characterinfo to 0065/ ──
+            staged_charinfo = getattr(self, "_staged_charinfo_files", None) or {}
+            if (staged_charinfo.get('characterinfo.pabgb')
+                    and staged_charinfo.get('characterinfo.pabgh')):
+                try:
+                    self._buff_deploy_charinfo_0065(
+                        game_path,
+                        staged_charinfo['characterinfo.pabgb'],
+                        staged_charinfo['characterinfo.pabgh'])
+                except Exception as _ci_e:
+                    log.exception("V2: characterinfo 0065 deploy failed")
+
+            lz4_size = os.path.getsize(os.path.join(game_mod, "0.paz"))
+            none_size = os.path.getsize(os.path.join(game_idx, "0.paz"))
+            raw_size = len(final_data)
+            ratio = (1.0 - lz4_size / raw_size) * 100 if raw_size else 0
+            staged_extra = ""
+            if staged_equip_deploy:
+                staged_extra += f"\nUniversal Proficiency: equipslotinfo → 0059/"
+            if staged_charinfo:
+                staged_extra += f"\nKliff Gun Fix: characterinfo → 0065/"
+            msg = (
+                f"V2 split-compression overlay deployed:\n"
+                f"  {buff_dir}/ (LZ4): {lz4_size:,} bytes "
+                f"({ratio:.0f}% smaller than {raw_size:,} raw)\n"
+                f"  {IDX_GROUP}/ (NONE): {none_size:,} bytes (index)\n"
+                f"PAPGT updated\n"
+                f"Original 0008/0.paz untouched{staged_extra}"
+            )
+            msg += stack_msg
+
+            try:
+                from shared_state import record_overlay
+                record_overlay(game_path, buff_dir, "ItemBuffs", ["iteminfo.pabgb"])
+                record_overlay(game_path, IDX_GROUP, "ItemBuffs (index)",
+                               ["iteminfo.pabgh"])
+                if staged_equip_deploy:
+                    record_overlay(game_path, "0059", "ItemBuffs",
+                                   sorted(staged_equip_deploy.keys()))
+                if staged_charinfo:
+                    record_overlay(game_path, "0065", "ItemBuffs",
+                                   sorted(staged_charinfo.keys()))
+            except Exception:
+                pass
+
+            self._buff_status_label.setText(f"V2: packed to {buff_dir}/ + {IDX_GROUP}/")
+            QMessageBox.information(self, "V2 Applied Successfully", msg)
+            self.paz_refresh_requested.emit()
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            self._buff_status_label.setText(f"V2 Failed: {e}")
+            QMessageBox.critical(self, "V2 Apply Failed", str(e))
 
     def _rebuild_papgt_without(self, game_path: str, group_to_remove: str) -> str:
         try:
@@ -12478,6 +13029,10 @@ class ItemBuffsTab(QWidget):
         buff_dir = f"{self._buff_overlay_spin.value():04d}"
         game_mod = os.path.join(game_path, buff_dir)
         legacy_mod = os.path.join(game_path, "0038")
+        equip_group_dir = os.path.join(game_path, "0059")
+        charinfo_group_dir = os.path.join(game_path, "0065")
+        idx_group_dir = os.path.join(game_path, "0066")
+        equip_legacy_dir = os.path.join(game_path, "0061")
         papgt_path = os.path.join(game_path, "meta", "0.papgt")
         vanilla = papgt_path + ".vanilla"
         sebak = papgt_path + ".sebak"
@@ -12485,7 +13040,8 @@ class ItemBuffsTab(QWidget):
         paz_backup = self._buff_patcher.paz_path + ".backup"
         has_inplace_backup = os.path.isfile(paz_backup)
         has_any = (os.path.isdir(game_mod) or os.path.isdir(legacy_mod)
-                   or os.path.isdir(equip_group_dir) or has_inplace_backup
+                   or os.path.isdir(equip_group_dir) or os.path.isdir(charinfo_group_dir)
+                   or os.path.isdir(idx_group_dir) or has_inplace_backup
                    or bool(getattr(self, '_staged_charinfo_files', None)))
         if not has_any:
             QMessageBox.information(
@@ -12498,8 +13054,11 @@ class ItemBuffsTab(QWidget):
 
         parts: list[str] = []
         if os.path.isdir(game_mod):
-            parts.append(f"Delete {buff_dir}/ (overlay directory — includes iteminfo, "
-                         "skill, and characterinfo if Kliff Gun Fix was applied)")
+            parts.append(f"Delete {buff_dir}/ (overlay directory — iteminfo + skill)")
+        if os.path.isdir(equip_group_dir):
+            parts.append("Delete 0059/ (equipslotinfo — Universal Proficiency)")
+        if os.path.isdir(charinfo_group_dir):
+            parts.append("Delete 0065/ (characterinfo — Kliff Gun Fix)")
         if os.path.isdir(legacy_mod):
             parts.append("Delete 0038/ (legacy overlay)")
         if has_charinfo:
@@ -12525,10 +13084,7 @@ class ItemBuffsTab(QWidget):
 
         messages: list[str] = []
 
-        # Also clean up UP v2's equipslotinfo group (0059) and legacy 0061
-        equip_group_dir = os.path.join(game_path, "0059")
-        equip_legacy_dir = os.path.join(game_path, "0061")
-        for d in (game_mod, legacy_mod, equip_group_dir, equip_legacy_dir):
+        for d in (game_mod, legacy_mod, equip_group_dir, charinfo_group_dir, idx_group_dir, equip_legacy_dir):
             if os.path.isdir(d):
                 try:
                     group_name = os.path.basename(d)
@@ -12547,7 +13103,7 @@ class ItemBuffsTab(QWidget):
         # tools. This preserves DMM, SkillTree, FieldEdit, and any other
         # mod overlays while cleaning up only what ItemBuffs deployed.
         removed_groups = set()
-        for d in (game_mod, legacy_mod, equip_group_dir, equip_legacy_dir):
+        for d in (game_mod, legacy_mod, equip_group_dir, charinfo_group_dir, idx_group_dir, equip_legacy_dir):
             removed_groups.add(os.path.basename(d))
 
         try:
@@ -12591,7 +13147,7 @@ class ItemBuffsTab(QWidget):
             self._buff_stats_table.setRowCount(0)
 
         removed_folders = []
-        for d in (game_mod, legacy_mod, equip_group_dir, equip_legacy_dir):
+        for d in (game_mod, legacy_mod, equip_group_dir, charinfo_group_dir, idx_group_dir, equip_legacy_dir):
             dn = os.path.basename(d)
             if not os.path.isdir(d) and f"Removed {dn}/" in "\n".join(messages):
                 removed_folders.append(dn)
@@ -12601,11 +13157,15 @@ class ItemBuffsTab(QWidget):
             removed_folders.append(buff_dir)
             affected.append(f"  {buff_dir}/  —  ItemBuffs (iteminfo, stat buffs, QoL, "
                             "dye, sockets, abyss unlock, transmog)")
-            if has_charinfo:
-                affected.append(f"  {buff_dir}/  —  Kliff Gun Fix (characterinfo)")
         if "Removed 0059/" in "\n".join(messages):
             removed_folders.append("0059")
             affected.append("  0059/  —  Universal Proficiency (equipslotinfo)")
+        if "Removed 0065/" in "\n".join(messages):
+            removed_folders.append("0065")
+            affected.append("  0065/  —  Kliff Gun Fix (characterinfo)")
+        if "Removed 0066/" in "\n".join(messages):
+            removed_folders.append("0066")
+            affected.append("  0066/  —  ItemBuffs index files (pabgh, NONE compression)")
         if "Removed 0038/" in "\n".join(messages):
             affected.append("  0038/  —  Legacy ItemBuffs overlay")
         if "Removed 0061/" in "\n".join(messages):

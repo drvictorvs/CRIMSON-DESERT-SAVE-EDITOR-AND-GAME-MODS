@@ -129,7 +129,7 @@ from gui.tabs.field_edit import FieldEditTab
 from gui.tabs.bagspace import BagSpaceTab
 from gui.tabs.skill_tree import SkillTreeTab
 from gui.tabs.reserveslot import ReserveSlotTab
-from gui.tabs.load_manager import LoadManagerTab
+from gui.tabs.pas_editor import PasEditorTab
 from gui.dialogs import (
     _FloatingTabWindow, DetachableTabWidget,
     GiveItemDialog, AddItemDialog, QuestEditorWindow,
@@ -694,17 +694,6 @@ class MainWindow(QMainWindow):
         self._items_tabs.setTabPosition(QTabWidget.South)
         self._tabs.addTab(self._items_tabs, tr("tab.items"))
 
-        self._load_manager_tab = LoadManagerTab(config=self._config)
-        self._load_manager_tab.status_message.connect(self._update_status)
-        self._load_manager_tab.config_save_requested.connect(self._save_config)
-        _saved_gp_lm = self._config.get("game_install_path", "")
-        if _saved_gp_lm:
-            try:
-                self._load_manager_tab.set_game_path(_saved_gp_lm)
-            except Exception:
-                pass
-        self._tabs.addTab(self._load_manager_tab, "Load Manager")
-
         self._save_tabs = QTabWidget()
         self._world_tabs = QTabWidget()
 
@@ -865,16 +854,35 @@ class MainWindow(QMainWindow):
         self._reserveslot_tab.config_save_requested.connect(self._save_config)
         self._mods_tabs.addTab(self._reserveslot_tab, "ReserveSlot")
 
+        self._pas_editor_tab = PasEditorTab(
+            config=self._config,
+            game_path_getter=lambda: self._config.get("game_install_path", ""),
+            rebuild_papgt_fn=self._rebuild_papgt_without,
+        )
+        self._pas_editor_tab.status_message.connect(self._update_status)
+        self._pas_editor_tab.config_save_requested.connect(self._save_config)
+        self._mods_tabs.addTab(self._pas_editor_tab, "PAS Editor")
+
         try:
-            from gui.tabs.mercpets import MercPetsTab
-            self._mercpets_tab = MercPetsTab(
-                self._config,
-                lambda: self._config.get("game_install_path", ""),
-            )
-            self._mercpets_tab.config_save_requested.connect(self._save_config)
-            self._mods_tabs.addTab(self._mercpets_tab, "MercPets")
+            from gui.tabs.load_manager import LoadManagerTab
+            self._load_manager_tab = LoadManagerTab(config=self._config)
+            self._load_manager_tab.status_message.connect(self._update_status)
+            self._load_manager_tab.config_save_requested.connect(self._save_config)
+            self._mods_tabs.addTab(self._load_manager_tab, "Load Manager")
         except Exception as e:
-            log.warning("MercPets tab load failed: %s", e)
+            log.warning("LoadManager tab load failed: %s", e)
+
+        if self._experimental_mode:
+            try:
+                from gui.tabs.mercpets import MercPetsTab
+                self._mercpets_tab = MercPetsTab(
+                    self._config,
+                    lambda: self._config.get("game_install_path", ""),
+                )
+                self._mercpets_tab.config_save_requested.connect(self._save_config)
+                self._mods_tabs.addTab(self._mercpets_tab, "MercPets (dev)")
+            except Exception as e:
+                log.warning("MercPets tab load failed: %s", e)
 
         self._tabs = _real_tabs
 
@@ -897,21 +905,6 @@ class MainWindow(QMainWindow):
 
         self._tabs = _real_tabs
         self._real_tabs = _real_tabs
-
-        if hasattr(self, '_stacker_tab'):
-            _mt = {}
-            if hasattr(self, '_mercpets_tab'):
-                _mt['mercpets'] = self._mercpets_tab
-            if hasattr(self, '_bagspace_tab'):
-                _mt['bagspace'] = self._bagspace_tab
-            if hasattr(self, '_skill_tree_tab'):
-                _mt['skilltree'] = self._skill_tree_tab
-            if hasattr(self, '_reserveslot_tab'):
-                _mt['reserveslot'] = self._reserveslot_tab
-            if hasattr(self, '_field_edit_tab_obj'):
-                _mt['fieldedit'] = self._field_edit_tab_obj
-            self._stacker_tab._mod_tabs = _mt
-
         self._update_experimental_tabs()
         self._pack_browser_refresh()
 
