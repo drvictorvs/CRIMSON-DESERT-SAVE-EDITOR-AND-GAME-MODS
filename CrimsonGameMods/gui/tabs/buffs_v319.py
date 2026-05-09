@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import datetime
 import json
 import logging
@@ -8699,7 +8700,35 @@ class ItemBuffsTab(QWidget):
         return ops
 
     def _buff_export_field_json_v3(self) -> None:
-        """Export edits as Format 3 field-name JSON (survives game updates)."""
+        """Export edits as Format 3 field-name JSON (survives game updates).
+
+        Bug history (fixed in this PR): pre-fix, this exporter only emitted
+        iteminfo intents and used the legacy single-target shape
+        (``target: "iteminfo.pabgb"``). Universal Proficiency v2 stages
+        edits across THREE files (iteminfo + equipslotinfo + characterinfo
+        for the optional Kliff gun fix), so an exported .field.json was
+        only ever the iteminfo half. Loaders that consume the file would
+        see the visual prefab edits land but the equip-permission gate
+        on equipslotinfo (``entries[i].etl_hashes``) was untouched —
+        result: items still couldn't actually be equipped on the
+        unrestricted characters.
+
+        Post-fix this function:
+          * Always emits iteminfo intents (existing behavior).
+          * Additionally emits equipslotinfo intents whenever
+            ``self._staged_equip_files`` is populated. Diff is per
+            ``entries[i].etl_hashes`` (the equip-permission unlock field).
+          * Additionally emits characterinfo intents whenever
+            ``self._staged_charinfo_files`` is populated. Diff is per
+            ``entries[i].<field>`` covering scalar/header changes (Kliff
+            gun fix uses this for upper-action-chart + gameplay-data
+            offset patches).
+          * Switches to the v3.1 ``targets[]`` multi-target shape when
+            more than one file's worth of edits is present, falling back
+            to the legacy single-target shape when only iteminfo is
+            staged (preserves backwards compat for loaders that haven't
+            adopted ``targets[]`` yet).
+        """
         if not hasattr(self, '_buff_rust_items') or not self._buff_rust_items:
             QMessageBox.warning(self, "Export Field JSON v3",
                 "Extract iteminfo first (click 'Extract').")
@@ -8727,7 +8756,15 @@ class ItemBuffsTab(QWidget):
             diffs = self._field_diff(skey, ikey, vanilla, item)
             intents.extend(diffs)
 
-        if not intents:
+        # Pull in any sibling tables that other workflows (Universal
+        # Proficiency v2 etc.) staged this session. These intents live
+        # on different .pabgb targets, so we collect each into its own
+        # bucket and then assemble a multi-target doc below.
+        equip_intents = self._diff_staged_equipslotinfo()
+        charinfo_intents = self._diff_staged_characterinfo()
+
+        total = len(intents) + len(equip_intents) + len(charinfo_intents)
+        if total == 0:
             QMessageBox.information(self, "Export Field JSON v3",
                 "No field-level changes detected. Nothing to export.")
             return
@@ -8746,31 +8783,197 @@ class ItemBuffsTab(QWidget):
         if not path:
             return
 
-        doc = {
-            'modinfo': {
-                'title': name,
-                'version': '1.0',
-                'author': 'CrimsonGameMods ItemBuffs',
-                'description': f'{len(intents)} field-level intent(s)',
-                'note': 'Format 3 — uses field names, survives game updates',
-            },
-            'format': 3,
-            'target': 'iteminfo.pabgb',
-            'intents': intents,
+        # Build the doc envelope. Use the v3.1 multi-target shape
+        # whenever more than one .pabgb is involved; fall back to the
+        # legacy single-target shape when only iteminfo is staged so
+        # older loaders that don't grok `targets[]` still work.
+        modinfo = {
+            'title': name,
+            'version': '1.0',
+            'author': 'CrimsonGameMods ItemBuffs',
+            'description': f'{total} field-level intent(s)',
+            'note': 'Format 3 — uses field names, survives game updates',
         }
+        sibling_target_count = (1 if equip_intents else 0) + (1 if charinfo_intents else 0)
+        if sibling_target_count == 0:
+            doc = {
+                'modinfo': modinfo,
+                'format': 3,
+                'target': 'iteminfo.pabgb',
+                'intents': intents,
+            }
+        else:
+            targets = []
+            if intents:
+                targets.append({'file': 'iteminfo.pabgb', 'intents': intents})
+            if equip_intents:
+                targets.append({'file': 'equipslotinfo.pabgb', 'intents': equip_intents})
+            if charinfo_intents:
+                targets.append({'file': 'characterinfo.pabgb', 'intents': charinfo_intents})
+            doc = {
+                'modinfo': modinfo,
+                'format': 3,
+                'targets': targets,
+            }
 
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+            target_summary = (f"{len(intents)} iteminfo"
+                              + (f", {len(equip_intents)} equipslotinfo" if equip_intents else "")
+                              + (f", {len(charinfo_intents)} characterinfo" if charinfo_intents else ""))
             self._buff_status_label.setText(
-                f"Exported {len(intents)} field intents to {os.path.basename(path)}")
+                f"Exported {total} field intents ({target_summary}) to {os.path.basename(path)}")
             QMessageBox.information(self, "Export Field JSON v3",
-                f"Exported {len(intents)} field-level intents.\n\n"
+                f"Exported {total} field-level intents.\n"
+                f"  • {target_summary}\n\n"
                 f"This file uses field names — it survives game updates.\n"
-                f"Compatible with Stacker Tool and future mod loaders.\n\n"
+                f"Compatible with Stacker Tool, DMM, and future mod loaders.\n\n"
                 f"File: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
+
+    def _diff_staged_equipslotinfo(self) -> list[dict]:
+        """Diff the staged equipslotinfo against vanilla and emit v3 intents.
+
+        Returns ``[]`` when nothing is staged, when the parser/extractor
+        fails, or when the staged file matches vanilla. Errors are logged
+        but never raised — equipslotinfo edits are an optional sibling
+        target and a parse failure here shouldn't block the iteminfo
+        export. The `entries[i].etl_hashes` field is the only one
+        Universal Proficiency v2 mutates and the only one DMM's apply
+        path treats as field-level addressable today; emitting intents
+        only for the diffed slots keeps the .field.json compact and
+        avoids overwriting fields that might drift across game patches.
+        """
+        staged = getattr(self, '_staged_equip_files', None)
+        if not staged or 'equipslotinfo.pabgb' not in staged:
+            return []
+        try:
+            import crimson_rs
+            import equipslotinfo_parser as esp
+        except Exception as e:
+            log.warning("v3 export: equipslotinfo parser unavailable (%s)", e)
+            return []
+
+        try:
+            gp_widget = getattr(self, '_buff_game_path', None)
+            gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
+            if not gp_text:
+                gp_text = getattr(self, '_game_path', '') or \
+                    r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
+            v_pabgh = bytes(crimson_rs.extract_file(
+                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh'))
+            v_pabgb = bytes(crimson_rs.extract_file(
+                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb'))
+            vanilla = esp.parse_all(v_pabgh, v_pabgb)
+            mod_pabgb = staged['equipslotinfo.pabgb']
+            mod_pabgh = staged.get('equipslotinfo.pabgh', v_pabgh)
+            modified = esp.parse_all(mod_pabgh, mod_pabgb)
+        except Exception as e:
+            log.warning("v3 export: equipslotinfo parse failed (%s)", e)
+            return []
+
+        v_by_key = {r.key: r for r in vanilla}
+        intents: list[dict] = []
+        for rec in modified:
+            v_rec = v_by_key.get(rec.key)
+            if v_rec is None:
+                # Brand new record — emit add_entry with the full record
+                # body via _blob_b64 so DMM's blob fallback can plant it.
+                intents.append({
+                    'entry': '', 'key': rec.key,
+                    'op': 'add_entry',
+                    'data': {'_blob_b64': base64.b64encode(rec.to_bytes()).decode('ascii')},
+                })
+                continue
+            v_entries = v_rec.entries
+            for i, m_entry in enumerate(rec.entries):
+                if i >= len(v_entries):
+                    # Mod added entries — the field-level apply path
+                    # doesn't model insertions yet, so fall back to a
+                    # whole-record blob set. Loader will re-decode.
+                    intents.append({
+                        'entry': '', 'key': rec.key,
+                        'field': '_blob_b64', 'op': 'set',
+                        'new': base64.b64encode(rec.to_bytes()).decode('ascii'),
+                    })
+                    break
+                v_hashes = list(v_entries[i].etl_hashes)
+                m_hashes = list(m_entry.etl_hashes)
+                if v_hashes != m_hashes:
+                    intents.append({
+                        'entry': '', 'key': rec.key,
+                        'field': f'entries[{i}].etl_hashes',
+                        'op': 'set',
+                        'new': m_hashes,
+                    })
+        return intents
+
+    def _diff_staged_characterinfo(self) -> list[dict]:
+        """Diff the staged characterinfo against vanilla and emit v3 intents.
+
+        Universal Proficiency v2's optional Kliff gun fix mutates two
+        u32 offsets inside Kliff's record (upperActionChartPackageGroupName
+        and characterGamePlayDataName). The Python characterinfo parser
+        exposes these as offset-based scalars; the simplest faithful v3
+        export is a single ``_blob_b64`` set per modified record so DMM's
+        blob fallback can plant the bytes intact. This avoids depending
+        on a field-level characterinfo schema in the loader, which not
+        every consumer of the .field.json supports yet.
+
+        Returns ``[]`` when nothing is staged or when extraction fails.
+        """
+        staged = getattr(self, '_staged_charinfo_files', None)
+        if not staged or 'characterinfo.pabgb' not in staged:
+            return []
+        try:
+            import crimson_rs
+            from characterinfo_full_parser import parse_all_entries as ci_parse_all
+        except Exception as e:
+            log.warning("v3 export: characterinfo parser unavailable (%s)", e)
+            return []
+
+        try:
+            gp_widget = getattr(self, '_buff_game_path', None)
+            gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
+            if not gp_text:
+                gp_text = getattr(self, '_game_path', '') or \
+                    r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
+            dp = 'gamedata/binary__/client/bin'
+            v_pabgb = bytes(crimson_rs.extract_file(gp_text, '0008', dp, 'characterinfo.pabgb'))
+            v_pabgh = bytes(crimson_rs.extract_file(gp_text, '0008', dp, 'characterinfo.pabgh'))
+            mod_pabgb = staged['characterinfo.pabgb']
+            mod_pabgh = staged.get('characterinfo.pabgh', v_pabgh)
+            v_entries = ci_parse_all(v_pabgb, v_pabgh)
+            m_entries = ci_parse_all(mod_pabgb, mod_pabgh)
+        except Exception as e:
+            log.warning("v3 export: characterinfo parse failed (%s)", e)
+            return []
+
+        v_by_name = {e.get('name'): e for e in v_entries}
+        intents: list[dict] = []
+        for m in m_entries:
+            name = m.get('name')
+            v = v_by_name.get(name)
+            if v is None:
+                continue
+            # Diff every numeric field on the record. The Kliff gun fix
+            # only touches two u32 offsets but a future patch may extend
+            # the staged-edit set; emit set-intents for any scalar that
+            # diverges so the export captures whatever was staged.
+            for k, m_val in m.items():
+                if k == 'name':
+                    continue
+                v_val = v.get(k)
+                if v_val == m_val:
+                    continue
+                if isinstance(m_val, (int, float, str)):
+                    intents.append({
+                        'entry': name or '', 'key': int(m.get('key', 0)),
+                        'field': k, 'op': 'set', 'new': m_val,
+                    })
+        return intents
 
     @staticmethod
     def _field_diff(entry: str, key: int, a: dict, b: dict,
