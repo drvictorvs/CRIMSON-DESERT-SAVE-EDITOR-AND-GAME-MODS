@@ -1,5 +1,5 @@
 {
-  "version": "1.0.5",
-  "url": "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases/download/standalone-v1.0.5/CrimsonSaveEditorStandalone.exe",
-  "notes": "v1.0.5 — Performance fix: eliminated startup freeze and reduced RAM usage. No more auto-load on startup, lazy tab loading for Faction/Bonds/SubLevels, cached PARC parsing."
+  "version": "1.0.6",
+  "url": "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases/download/standalone-v1.0.6/CrimsonSaveEditorStandalone.exe",
+  "notes": "v1.0.6 — Sync Items Local: extract item database directly from game client. Manual Swap (Single) button in Item Swap tab. Removed broken Add Item button. Fixed knowledge unlearn crash."
 }
