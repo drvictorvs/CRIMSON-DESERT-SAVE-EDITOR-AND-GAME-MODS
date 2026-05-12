@@ -274,16 +274,9 @@ class SkillTreeTab(QWidget):
         self._btn_skill_load.clicked.connect(self._on_skill_load)
         skill_btn_row.addWidget(self._btn_skill_load)
 
-        self._btn_skill_import = QPushButton("Import Legacy Mod")
-        self._btn_skill_import.setToolTip(
-            "Import a CrimsonWings-style Format 2 JSON targeting skill.pabgb.\n"
-            "Automatically finds the right baseline and translates byte patches\n"
-            "into field-level changes.")
-        self._btn_skill_import.clicked.connect(self._on_skill_import_legacy)
-        self._btn_skill_import.setEnabled(False)
-        skill_btn_row.addWidget(self._btn_skill_import)
 
-        self._btn_skill_export = QPushButton("Export Field JSON")
+        self._btn_skill_export = QPushButton("Export Field JSON v3")
+        self._btn_skill_export.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
         self._btn_skill_export.setToolTip(
             "Export current modifications as Format 3 field-name JSON.\n"
             "This format survives game updates.")
@@ -291,21 +284,7 @@ class SkillTreeTab(QWidget):
         self._btn_skill_export.setEnabled(False)
         skill_btn_row.addWidget(self._btn_skill_export)
 
-        self._btn_skill_export_legacy = QPushButton("Export Legacy JSON")
-        self._btn_skill_export_legacy.setToolTip(
-            "Export as Format 2 byte-diff JSON (CrimsonWings style).\n"
-            "Compatible with legacy mod loaders.")
-        self._btn_skill_export_legacy.clicked.connect(self._on_skill_export_legacy)
-        self._btn_skill_export_legacy.setEnabled(False)
-        skill_btn_row.addWidget(self._btn_skill_export_legacy)
 
-        self._btn_skill_export_mod = QPushButton("Export as Mod Folder")
-        self._btn_skill_export_mod.setToolTip(
-            "Export patched skill.pabgb + skill.pabgh as a mod folder\n"
-            "with modinfo.json — ready to distribute.")
-        self._btn_skill_export_mod.clicked.connect(self._on_skill_export_mod_folder)
-        self._btn_skill_export_mod.setEnabled(False)
-        skill_btn_row.addWidget(self._btn_skill_export_mod)
 
         skill_btn_row.addStretch()
         sg_layout.addLayout(skill_btn_row)
@@ -332,9 +311,7 @@ class SkillTreeTab(QWidget):
         self._stamina_preset_files = {}
         for label, filename, tip in stamina_presets:
             btn = QPushButton(label)
-            btn.setToolTip(f"Apply Stamina Preset: {tip}\n\n"
-                           f"Loads SkillInfo if not loaded, imports the preset,\n"
-                           f"then click Apply to Game to deploy.")
+            btn.setToolTip(f"Apply Stamina Preset: {tip}")
             btn.setStyleSheet(
                 "QPushButton { background-color: #00695C; color: white; "
                 "font-weight: bold; padding: 4px 10px; }")
@@ -360,7 +337,7 @@ class SkillTreeTab(QWidget):
              self._bulk_free_skills),
         ]:
             btn = QPushButton(label)
-            btn.setToolTip(tip + "\n\nLoads SkillInfo if not loaded.\nClick Apply to Game to deploy.")
+            btn.setToolTip(tip)
             btn.setStyleSheet(
                 "QPushButton { background-color: #B71C1C; color: white; "
                 "font-weight: bold; padding: 4px 10px; }")
@@ -564,6 +541,7 @@ class SkillTreeTab(QWidget):
     def get_staged_files(self) -> dict[str, bytes]:
         if not self._loaded or not self._original_pabgh:
             return {}
+        result = {}
         try:
             from skilltreeinfo_parser import (
                 CHAR_MELEE_ROOT, parse_all, serialize_all,
@@ -582,18 +560,25 @@ class SkillTreeTab(QWidget):
                 if native_root is not None and new_root != native_root:
                     rec.patch_root_package(native_root, new_root)
                     any_change = True
-            if not any_change:
-                return {}
-            result = {}
-            pabgh, pabgb = serialize_all(records)
-            grp_gh, grp_gb = serialize_groups(groups)
-            result["skilltreeinfo.pabgb"] = bytes(pabgb)
-            result["skilltreeinfo.pabgh"] = bytes(pabgh)
-            result["skilltreegroupinfo.pabgb"] = bytes(grp_gb)
-            result["skilltreegroupinfo.pabgh"] = bytes(grp_gh)
-            return result
+            if any_change:
+                pabgh, pabgb = serialize_all(records)
+                grp_gh, grp_gb = serialize_groups(groups)
+                result["skilltreeinfo.pabgb"] = bytes(pabgb)
+                result["skilltreeinfo.pabgh"] = bytes(pabgh)
+                result["skilltreegroupinfo.pabgb"] = bytes(grp_gb)
+                result["skilltreegroupinfo.pabgh"] = bytes(grp_gh)
         except Exception:
-            return {}
+            pass
+        # Also include skill.pabgb if stamina/cooldown edits are pending
+        try:
+            if self._has_skill_modifications():
+                import skillinfo_parser as sip
+                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                result["skill.pabgb"] = bytes(skill_pabgb)
+                result["skill.pabgh"] = bytes(skill_pabgh)
+        except Exception:
+            pass
+        return result
 
     def _apply_to_game(self, game_path: str) -> None:
         import crimson_rs
@@ -884,10 +869,7 @@ class SkillTreeTab(QWidget):
             return
 
         self._skill_loaded = True
-        self._btn_skill_import.setEnabled(True)
         self._btn_skill_export.setEnabled(True)
-        self._btn_skill_export_legacy.setEnabled(True)
-        self._btn_skill_export_mod.setEnabled(True)
         self._btn_apply.setEnabled(True)
         self._populate_skill_table()
         self._lbl_skill_status.setText(
@@ -920,8 +902,9 @@ class SkillTreeTab(QWidget):
             ki.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self._skill_table.setItem(row, 1, ki)
 
-            # Cooltime (editable) — field may be named _cooltime or missing in new parser
-            ct_val = e.get('_cooltime', e.get('_learnLevel', 0))
+            # Cooltime: dmm_parser='cooltime', IDA parser='field_12', legacy='_cooltime'
+            ct_val = e.get('cooltime', e.get('field_12', e.get('_cooltime', 0)))
+            if isinstance(ct_val, dict): ct_val = next(iter(ct_val.values()), 0)
             ct = QTableWidgetItem(str(ct_val))
             ct.setTextAlignment(Qt.AlignmentFlag.AlignRight |
                                 Qt.AlignmentFlag.AlignVCenter)
@@ -969,6 +952,8 @@ class SkillTreeTab(QWidget):
 
         if col == 2:  # Cooltime
             e['_cooltime'] = val
+            e['cooltime'] = val
+            e['field_12'] = val
             e.pop('_raw', None)
         elif col == 3:  # MaxLevel
             e['max_level'] = val
@@ -1153,7 +1138,7 @@ class SkillTreeTab(QWidget):
             f"Baseline: {best_ver}\n"
             f"Patches applied: {applied}/{len(changes)}\n"
             f"Skills modified: {transferred}\n\n"
-            f"Click 'Apply to Game' to deploy.")
+            "")
 
     def _discover_skill_baselines(self) -> list[tuple[str, str]]:
         """Find all available skill.pabgb baselines."""
@@ -1252,14 +1237,21 @@ class SkillTreeTab(QWidget):
             return
         count = 0
         for e in self._skill_entries:
-            if e.get('_cooltime', 0) != 0:
+            # Try all known field name variants for cooltime:
+            # dmm_parser: 'cooltime' | IDA parser: 'field_12' | legacy: '_cooltime'
+            _ct_val = e.get('cooltime', e.get('field_12', e.get('_cooltime', 0)))
+            if isinstance(_ct_val, dict):
+                _ct_val = next(iter(_ct_val.values()), 0)
+            if True:  # apply to all skills regardless of current value
+                e['cooltime'] = 0
+                e['field_12'] = 0
                 e['_cooltime'] = 0
                 e.pop('_raw', None)
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Zero Cooldown: {count} skills modified")
         QMessageBox.information(self, "Zero Cooldown",
-            f"Set cooldown to 0 on {count} skills.\n\nClick Apply to Game to deploy.")
+            f"Set cooldown to 0 on {count} skills.")
 
     def _bulk_free_skills(self) -> None:
         if not self._bulk_ensure_loaded():
@@ -1267,7 +1259,8 @@ class SkillTreeTab(QWidget):
         import skillinfo_parser as sip
         count = 0
         for e in self._skill_entries:
-            res_list = e.get('_useResourceStatList', [])
+            # dmm_parser: 'use_resource_stat_list'; old parser: '_useResourceStatList'
+            res_list = e.get('use_resource_stat_list', e.get('_useResourceStatList', []))
             if res_list:
                 for res in res_list:
                     if isinstance(res, dict) and res.get('value', 0) != 0:
@@ -1278,7 +1271,7 @@ class SkillTreeTab(QWidget):
         self._lbl_skill_status.setText(f"Free Skills: {count} resource costs zeroed")
         QMessageBox.information(self, "Free Skills",
             f"Zeroed {count} resource costs across all skills.\n\n"
-            f"Click Apply to Game to deploy.")
+            "")
 
     def _bulk_max_level(self) -> None:
         if not self._bulk_ensure_loaded():
@@ -1293,7 +1286,7 @@ class SkillTreeTab(QWidget):
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Max Level 30: {count} skills modified")
         QMessageBox.information(self, "Max Level 30",
-            f"Set max level to 30 on {count} skills.\n\nClick Apply to Game to deploy.")
+            f"Set max level to 30 on {count} skills.")
 
     def _bulk_permanent_buffs(self) -> None:
         if not self._bulk_ensure_loaded():
@@ -1312,7 +1305,7 @@ class SkillTreeTab(QWidget):
             f"Set _buffSustainFlag=1 on {count} skills.\n\n"
             f"Food buffs, combat buffs, and other timed effects\n"
             f"should now persist permanently.\n\n"
-            f"Click Apply to Game to deploy.")
+            "")
 
     def _bulk_crowwing_to_rocket(self) -> None:
         """Test: full body swap between same-size skills across characters."""
@@ -1367,7 +1360,7 @@ class SkillTreeTab(QWidget):
         QMessageBox.information(self, "Skill Body Swap",
             f"Swapped full skill data between {count} pairs:\n\n"
             f"{detail_str}\n\n"
-            f"Click Apply to Game to try it.")
+            "")
 
     def _bulk_unlock_all(self) -> None:
         if not self._bulk_ensure_loaded():
@@ -1384,7 +1377,7 @@ class SkillTreeTab(QWidget):
         QMessageBox.information(self, "Unlock All",
             f"Cleared character restrictions on {count} skills.\n\n"
             f"All skills are now usable by all characters.\n"
-            f"Click Apply to Game to deploy.")
+            "")
 
     def _on_stamina_preset(self, filename: str) -> None:
         """One-click stamina preset: load skillinfo if needed, find preset, import it."""
@@ -1508,16 +1501,7 @@ class SkillTreeTab(QWidget):
         self._lbl_skill_status.setText(
             f"{title}: {patched} values patched, {skipped} skipped.")
 
-        detail = f"Patched {patched}/{len(changes)} values in-place.\n"
-        if missing_entries:
-            detail += f"\n{len(missing_entries)} entries not found in current game:\n"
-            for n in sorted(missing_entries)[:5]:
-                detail += f"  {n}\n"
-        if missing_values:
-            detail += f"\n{len(missing_values)} values not found (game version changed):\n"
-            for n in missing_values[:5]:
-                detail += f"  {n}\n"
-        detail += "\nClick Apply to Game to deploy."
+        detail = f"Patched {patched}/{len(changes)} values in-place."
 
         QMessageBox.information(self, f"{title}", detail)
 
@@ -1560,8 +1544,13 @@ class SkillTreeTab(QWidget):
                 'note': 'Format 3 -- uses field names, survives game updates',
             },
             'format': 3,
-            'target': 'skill.pabgb',
-            'intents': intents,
+            'format_minor': 1,
+            'targets': [
+                {
+                    'file': 'skill_info.pabgb',
+                    'intents': intents,
+                }
+            ],
         }
 
         try:
@@ -1775,34 +1764,58 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
     name = modified['name']
     key = modified['key']
 
+    # Alias fields written by the UI for compat — only export canonical name
     SKIP = {'key', 'name_len', 'name_bytes', 'name', '_raw', '_pad_01',
             '_buffLevelCount', 'max_level', 'dev_skill_name', 'dev_skill_desc',
             'video_path_hash', 'buff_sustain_flag', 'skill_group_key_list',
-            '_buff_data_raw'}
+            '_buff_data_raw',
+            # cooltime aliases — only export 'cooltime'
+            '_cooltime', 'field_12',
+            # resource list aliases — only export snake_case
+            '_useDriverResourceStatList'}
+
+    # camelCase → snake_case remap for fields that may appear in old-parser entries
+    FIELD_REMAP = {
+        '_useResourceStatList': 'use_resource_stat_list',
+        '_buffLevelList':       'buff_level_list',
+        '_buff_raw_fallback':   'raw_bytes',
+    }
+
+    # Build canonical→value lookup for vanilla to handle alias field names
+    # e.g. vanilla stores cooltime as 'field_12', modified stores it as 'cooltime'
+    VAN_ALIASES = {
+        'cooltime':              vanilla.get('cooltime', vanilla.get('field_12', vanilla.get('_cooltime', 0))),
+        'use_resource_stat_list': vanilla.get('use_resource_stat_list', vanilla.get('_useResourceStatList', [])),
+        'use_driver_resource_stat_list': vanilla.get('use_driver_resource_stat_list', vanilla.get('_useDriverResourceStatList', [])),
+        'buff_level_list':       vanilla.get('buff_level_list', vanilla.get('_buffLevelList', [])),
+    }
 
     for field in modified:
         if field in SKIP:
             continue
-        old_val = vanilla.get(field)
+        # Remap field name to canonical
+        export_field = FIELD_REMAP.get(field, field)
+        # Get vanilla value — prefer alias-resolved value for known fields
+        old_val = VAN_ALIASES.get(export_field, vanilla.get(field))
         new_val = modified.get(field)
         if old_val == new_val:
             continue
         if isinstance(new_val, bytes):
             intents.append({
-                'entry': name, 'key': key, 'field': field, 'op': 'set',
+                'entry': name, 'key': key, 'field': export_field, 'op': 'set',
                 'new': new_val.hex(),
             })
         elif isinstance(new_val, (list, dict)):
-            if field == '_buffLevelList' and new_val is not None:
+            if export_field in ('buff_level_list', '_buffLevelList') and new_val is not None:
                 _diff_buff_levels(intents, name, key, old_val, new_val)
             else:
                 intents.append({
-                    'entry': name, 'key': key, 'field': field, 'op': 'set',
+                    'entry': name, 'key': key, 'field': export_field, 'op': 'set',
                     'new': new_val,
                 })
         else:
             intents.append({
-                'entry': name, 'key': key, 'field': field, 'op': 'set',
+                'entry': name, 'key': key, 'field': export_field, 'op': 'set',
                 'new': new_val,
             })
 
@@ -1816,7 +1829,7 @@ def _diff_buff_levels(intents: list, name: str, key: int,
         if old_levels != new_levels:
             intents.append({
                 'entry': name, 'key': key,
-                'field': '_buffLevelList', 'op': 'set',
+                'field': 'buff_level_list', 'op': 'set',
                 'new': new_levels,
             })
         return
@@ -1824,7 +1837,7 @@ def _diff_buff_levels(intents: list, name: str, key: int,
     if len(old_levels) != len(new_levels):
         intents.append({
             'entry': name, 'key': key,
-            'field': '_buffLevelList', 'op': 'set',
+            'field': 'buff_level_list', 'op': 'set',
             'new': new_levels,
         })
         return
@@ -1834,7 +1847,7 @@ def _diff_buff_levels(intents: list, name: str, key: int,
             if old_lv != new_lv:
                 intents.append({
                     'entry': name, 'key': key,
-                    'field': f'_buffLevelList[{li}]', 'op': 'set',
+                    'field': f'buff_level_list[{li}]', 'op': 'set',
                     'new': new_lv,
                 })
             continue
@@ -1844,7 +1857,7 @@ def _diff_buff_levels(intents: list, name: str, key: int,
         if len(old_bd) != len(new_bd):
             intents.append({
                 'entry': name, 'key': key,
-                'field': f'_buffLevelList[{li}].buff_data', 'op': 'set',
+                'field': f'buff_level_list[{li}].buff_data', 'op': 'set',
                 'new': new_bd,
             })
             continue
@@ -1854,7 +1867,7 @@ def _diff_buff_levels(intents: list, name: str, key: int,
                 if ob != nb:
                     intents.append({
                         'entry': name, 'key': key,
-                        'field': f'_buffLevelList[{li}].buff_data[{bi}]',
+                        'field': f'buff_level_list[{li}].buff_data[{bi}]',
                         'op': 'set', 'new': nb,
                     })
                 continue
@@ -1863,7 +1876,7 @@ def _diff_buff_levels(intents: list, name: str, key: int,
                 nv = nb.get(bf)
                 if ov == nv:
                     continue
-                field_path = f'_buffLevelList[{li}].buff_data[{bi}].{bf}'
+                field_path = f'buff_level_list[{li}].buff_data[{bi}].{bf}'
                 if isinstance(nv, bytes):
                     intents.append({
                         'entry': name, 'key': key,

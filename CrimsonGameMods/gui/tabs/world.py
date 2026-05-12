@@ -433,8 +433,7 @@ class GameDataTab(QWidget):
         reply = QMessageBox.question(
             self, tr("Batch Drop Rate Edit"),
             f"Set ALL drop rates to {label} across {len(pf.records)} drop sets?\n\n"
-            f"This modifies rate-like u32 values (100-100000 range, ×100 basis).\n"
-            f"Click 'Apply to Game' afterward to write changes.",
+            f"This modifies rate-like u32 values (100-100000 range, ×100 basis).\n",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
@@ -469,8 +468,7 @@ class GameDataTab(QWidget):
         reply = QMessageBox.question(
             self, tr("Zero Cooldowns"),
             f"Set all cooldown timers to 100ms across {len(pf.records)} skills?\n\n"
-            f"This modifies u32 values in the 500-120000 range (millisecond timers).\n"
-            f"Click 'Apply to Game' afterward to write changes.",
+            f"This modifies u32 values in the 500-120000 range (millisecond timers).\n",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
@@ -1468,6 +1466,22 @@ class SpawnTab(QWidget):
         if hasattr(self, '_dev_export_btn_spawn'):
             self._dev_export_btn_spawn.setVisible(bool(enabled))
 
+    def get_staged_files(self) -> dict:
+        """Return modified spawn pabgb buffers for Stacker Pull All Edits."""
+        result = {}
+        _PAIRS = [
+            ('terrainregionautospawninfo.pabgb', '_spawn_data',          '_spawn_original'),
+            ('spawningpoolautospawninfo.pabgb',  '_spawn_life_data',     '_spawn_life_original'),
+            ('factionnode.pabgb',                '_spawn_fnode_ops_data','_spawn_fnode_ops_original'),
+            ('factionnodespawninfo.pabgb',        '_spawn_node_data',    '_spawn_node_original'),
+        ]
+        for fname, data_attr, orig_attr in _PAIRS:
+            data = getattr(self, data_attr, None)
+            orig = getattr(self, orig_attr, None)
+            if data is not None and orig is not None and bytes(data) != bytes(orig):
+                result[fname] = bytes(data)
+        return result
+
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
@@ -1502,6 +1516,16 @@ class SpawnTab(QWidget):
         apply_btn.clicked.connect(self._spawn_apply)
         header.addWidget(apply_btn)
 
+        spawn_field_json_btn = QPushButton(tr("Export Field JSON v3"))
+        spawn_field_json_btn.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
+        spawn_field_json_btn.setStyleSheet(
+            "background-color: #0277BD; color: white; font-weight: bold;")
+        spawn_field_json_btn.setToolTip(
+            "Export all SpawnEdit changes as Format 3.1 field JSON.\n"
+            "Compatible with DMM 1.3.3+ multi-target format.")
+        spawn_field_json_btn.clicked.connect(self._spawn_export_field_json_v3)
+        header.addWidget(spawn_field_json_btn)
+
         spawn_export_btn = QPushButton(tr("Export Mod"))
         spawn_export_btn.setToolTip(tr("ADVANCED — UNSUPPORTED. Export as CDUMM-compatible mod."))
         spawn_export_btn.clicked.connect(self._spawn_export_cdumm)
@@ -1510,14 +1534,10 @@ class SpawnTab(QWidget):
         self._dev_export_btn_spawn = spawn_export_btn
 
         restore_btn = QPushButton(tr("Restore Vanilla"))
-        restore_btn.setToolTip(tr("Remove spawn mod and restore original game data"))
+        restore_btn.setToolTip(tr(""))
         restore_btn.clicked.connect(self._spawn_restore)
         header.addWidget(restore_btn)
 
-        reset_btn = QPushButton(tr("Reset Edits"))
-        reset_btn.setToolTip(tr("Undo all changes (reset to last loaded data)"))
-        reset_btn.clicked.connect(self._spawn_reset)
-        header.addWidget(reset_btn)
 
         help_btn = QPushButton("?")
         help_btn.setFixedSize(24, 24)
@@ -1674,7 +1694,8 @@ class SpawnTab(QWidget):
             "Controls enemy, animal, fish, bird, and NPC spawn density.\n\n"
             "STEP 1: Click 'Load Spawn Data'\n"
             "STEP 2: Use Quick Actions to modify spawns\n"
-            "STEP 3: Click 'Apply to Game' (restart game to see changes)\n\n"
+            "STEP 3: Click 'Export Field JSON v3' and load into DMM,\n"
+            "         or use 'Apply to Game' then restart to see changes.\n\n"
             "QUICK ACTIONS:\n"
             "  x Camp MaxOp — Max enemies per camp (cap: 255)\n"
             "  x Camp MinOp — Min enemies always present\n"
@@ -2690,7 +2711,7 @@ class SpawnTab(QWidget):
                 f"Modified {parsed} spawning pools (fireflies, birds, bats, insects, etc.):\n\n"
                 f"  {chr(10).join(results)}\n\n"
                 f"Verification: {parsed2}/{len(entries2)} still parse OK.\n"
-                f"Click 'Apply to Game' to deploy.")
+                "")
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -2871,7 +2892,128 @@ class SpawnTab(QWidget):
             self._spawn_status.setText(f"Export failed: {e}")
             QMessageBox.critical(self, tr("Export Failed"), str(e))
 
+    def _spawn_export_field_json_v3(self) -> None:
+        """Export SpawnEdit modifications as Format 3.1 multi-target field JSON."""
+        try:
+            import struct as _st
+
+            if not self._spawn_data or not self._spawn_original:
+                QMessageBox.information(self, tr("Export Field JSON v3"),
+                    tr("No spawn data loaded. Extract spawn data first."))
+                return
+
+            def _diff_table(cur_buf, van_buf, file_label):
+                """Byte-diff two buffers, return list of 4-byte intents."""
+                intents = []
+                j = 0
+                cur_bytes = bytes(cur_buf)
+                van_bytes = bytes(van_buf)
+                while j < min(len(cur_bytes), len(van_bytes)) - 3:
+                    if cur_bytes[j:j+4] != van_bytes[j:j+4]:
+                        intents.append({
+                            'entry': f'offset_{j}',
+                            'key': j,
+                            'field': 'raw_bytes',
+                            'op': 'set',
+                            'new': cur_bytes[j:j+4].hex().upper(),
+                            '_offset': j,
+                            '_original': van_bytes[j:j+4].hex().upper(),
+                        })
+                        j += 4
+                    else:
+                        j += 1
+                return intents
+
+            targets = []
+
+            # terrainregionautospawninfo — annotate with region/char names where known
+            ter_intents = _diff_table(self._spawn_data, self._spawn_original, 'terrain')
+            # Enrich with names from element map
+            off_map = {}
+            for elem in getattr(self, '_spawn_elements', []):
+                region = elem.get('region_name', f"Region_{elem.get('region_key','?')}")
+                char_key = elem.get('char_key', 0)
+                rkey = elem.get('region_key', 0)
+                label = f"{region}_char{char_key}"
+                for fname, okey in [('spawn_count','count_offset'),
+                                     ('timer_ms','timer_offset'),
+                                     ('max_operator_count','max_operator_offset')]:
+                    off = elem.get(okey, -1)
+                    if off >= 0:
+                        off_map[off] = (label, fname, rkey)
+            for intent in ter_intents:
+                off = intent['_offset']
+                if off in off_map:
+                    label, fname, rkey = off_map[off]
+                    intent['entry'] = label
+                    intent['field'] = fname
+                    intent['key'] = rkey
+            if ter_intents:
+                targets.append({'file': 'terrainregionautospawninfo.pabgb',
+                                'intents': ter_intents})
+
+            # other tables
+            for cur_attr, van_attr, fname in [
+                ('_spawn_life_data',      '_spawn_life_original',      'spawningpoolautospawninfo.pabgb'),
+                ('_spawn_node_data',      '_spawn_node_original',      'factionnodespawninfo.pabgb'),
+                ('_spawn_fnode_ops_data', '_spawn_fnode_ops_original', 'faction_node_info.pabgb'),
+            ]:
+                cur = getattr(self, cur_attr, None)
+                van = getattr(self, van_attr, None)
+                if cur and van:
+                    its = _diff_table(cur, van, fname)
+                    if its:
+                        targets.append({'file': fname, 'intents': its})
+
+            if not targets:
+                QMessageBox.information(self, tr("Export Field JSON v3"),
+                    tr("No differences found. Make changes using the spawn editor first."))
+                return
+
+            total = sum(len(t['intents']) for t in targets)
+            summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}"
+                                for t in targets)
+
+            path, _ = QFileDialog.getSaveFileName(
+                self, tr("Export Field JSON v3"), "SpawnEdit.field.json",
+                "Field JSON (*.field.json *.json);;All Files (*)")
+            if not path:
+                return
+
+            doc = {
+                'modinfo': {
+                    'title': 'SpawnEdit Mod',
+                    'version': '1.0',
+                    'author': 'CrimsonGameMods SpawnEdit',
+                    'description': (f'{total} spawn intent(s) across '
+                                    f'{len(targets)} target(s) — {summary}'),
+                    'note': ('Field JSON v3.1 (multi-target) — byte-level spawn patches. '
+                             'Each intent includes _offset and _original for verification. '
+                             'Named entries where region/character mapping is known.'),
+                },
+                'format': 3,
+                'format_minor': 1,
+                'targets': targets,
+            }
+
+            with open(path, 'w', encoding='utf-8') as _f:
+                json.dump(doc, _f, indent=2, ensure_ascii=False)
+
+            self._spawn_status.setText(
+                f"Exported {total} spawn intents to {os.path.basename(path)}")
+            QMessageBox.information(self, tr("Export Field JSON v3"),
+                f"Exported {total} spawn intents across {len(targets)} targets:\n"
+                + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents"
+                             for t in targets)
+                + f"\n\nFile: {path}")
+
+        except Exception as _err:
+            import traceback as _tb
+            QMessageBox.critical(self, tr("Export Field JSON v3 — Error"),
+                f"An error occurred:\n{_err}\n\n{_tb.format_exc()}")
+
     def _spawn_apply(self):
+
         if not self._spawn_data or not self._spawn_modified:
             QMessageBox.information(self, tr("SpawnEdit"), tr("No modifications to apply."))
             return
@@ -2952,34 +3094,36 @@ class SpawnTab(QWidget):
             QMessageBox.critical(self, tr("Apply Failed"), str(e))
 
     def _spawn_restore(self):
+        """Restore Vanilla — reset in-memory edits first, then also remove any
+        deployed disk overlay if one exists (requires game path)."""
+        if not self._spawn_original:
+            QMessageBox.warning(self, tr("Restore Vanilla"),
+                "Load Spawn Data first before restoring.")
+            return
+
+        # Always reset in-memory edits (same as old Reset Edits button)
+        self._spawn_reset()
+
+        # Also attempt to remove disk overlay if game path is set
         game_path = self._config.get("game_install_path", "")
-        if not game_path or not os.path.isdir(game_path):
-            QMessageBox.warning(self, tr("Game Path"), tr("Game path not set."))
-            return
+        if game_path and os.path.isdir(game_path):
+            mod_group = f"{self._spawn_overlay_spin.value():04d}"
+            game_mod = os.path.join(game_path, mod_group)
+            if os.path.isdir(game_mod):
+                try:
+                    import shutil
+                    msg = self._rebuild_papgt_fn(game_path, mod_group)
+                    shutil.rmtree(game_mod)
+                    self._spawn_status.setText(tr("Restored vanilla spawns"))
+                    QMessageBox.information(self, tr("Restore Vanilla"),
+                        f"Spawn data reset to vanilla and {mod_group}/ overlay removed.\n"
+                        f"{msg}\nRestart the game for changes to take effect.")
+                    return
+                except Exception as e:
+                    QMessageBox.critical(self, tr("Restore Failed"), str(e))
+                    return
 
-        mod_group = f"{self._spawn_overlay_spin.value():04d}"
-        game_mod = os.path.join(game_path, mod_group)
-        if not os.path.isdir(game_mod):
-            QMessageBox.information(self, tr("Restore"), f"No {mod_group}/ overlay found.")
-            return
-
-        reply = QMessageBox.question(
-            self, tr("Restore Vanilla Spawns"),
-            f"Remove {mod_group}/ overlay and restore vanilla spawn data?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply != QMessageBox.Yes:
-            return
-
-        try:
-            import shutil
-            msg = self._rebuild_papgt_fn(game_path, mod_group)
-            shutil.rmtree(game_mod)
-            self._spawn_status.setText(tr("Restored vanilla spawns"))
-            QMessageBox.information(self, tr("Restored"),
-                f"Removed {mod_group}/ overlay.\n{msg}\n"
-                f"Restart the game for changes to take effect.")
-        except Exception as e:
-            QMessageBox.critical(self, tr("Restore Failed"), str(e))
+        self._spawn_status.setText(tr("Reset to vanilla"))
 
 
 class PrecisionItemDelegate(QStyledItemDelegate):
@@ -3018,6 +3162,33 @@ class DropsetTab(QWidget):
     def set_experimental_mode(self, enabled: bool) -> None:
         if hasattr(self, '_dev_export_btn_drop'):
             self._dev_export_btn_drop.setVisible(bool(enabled))
+
+    def get_staged_files(self) -> dict:
+        """Return modified dropsetinfo pabgb/pabgh for Stacker Pull All Edits."""
+        if not getattr(self, '_dropset_modified', False):
+            return {}
+        editor = getattr(self, '_dropset_editor', None)
+        if editor is None:
+            return {}
+        try:
+            self._dropset_flush_dirty()
+        except Exception:
+            pass
+        result = {}
+        body = getattr(editor, 'body_bytes', None)
+        header = getattr(editor, 'header_bytes', None)
+        orig_body = getattr(self, '_dropset_original_body', None)
+        orig_header = getattr(self, '_dropset_original_header', None)
+        if body is not None and orig_body is not None and bytes(body) != bytes(orig_body):
+            result['dropsetinfo.pabgb'] = bytes(body)
+        if header is not None and orig_header is not None and bytes(header) != bytes(orig_header):
+            result['dropsetinfo.pabgh'] = bytes(header)
+        if not result and body is not None and getattr(self, '_dropset_modified', False):
+            if body is not None:
+                result['dropsetinfo.pabgb'] = bytes(body)
+            if header is not None:
+                result['dropsetinfo.pabgh'] = bytes(header)
+        return result
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -3082,7 +3253,8 @@ class DropsetTab(QWidget):
         restore_btn.clicked.connect(self._dropset_restore)
         top_row.addWidget(restore_btn)
 
-        export_field_btn = QPushButton("Export Field JSON")
+        export_field_btn = QPushButton("Export Field JSON v3")
+        export_field_btn.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
         export_field_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
         export_field_btn.setToolTip(
             "Export edits as Format 3 field-name JSON.\n"
@@ -3096,6 +3268,15 @@ class DropsetTab(QWidget):
             "to the currently loaded vanilla data.")
         import_field_btn.clicked.connect(self._dropset_import_field_json)
         top_row.addWidget(import_field_btn)
+
+        reset_vanilla_btn = QPushButton("Reset to Vanilla")
+        reset_vanilla_btn.setStyleSheet(
+            "QPushButton { background-color: #B71C1C; color: white; font-weight: bold; }")
+        reset_vanilla_btn.setToolTip(
+            "Discard all in-memory drop table edits and revert to vanilla state.\n"
+            "Does not affect any deployed game files — use Restore for that.")
+        reset_vanilla_btn.clicked.connect(self._dropset_reset_to_vanilla)
+        top_row.addWidget(reset_vanilla_btn)
 
         self._dropset_status = QLabel("")
         self._dropset_status.setStyleSheet(f"color: {COLORS['accent']}; padding: 4px;")
@@ -3737,7 +3918,7 @@ class DropsetTab(QWidget):
             self._dropset_status.setText(f"Applied '{preset}' to {len(modified)} sets")
             QMessageBox.information(self, tr("Preset Applied"),
                 f"'{preset}' applied to:\n{names}\n\n"
-                f"Use 'Export as Mod' to save, or 'Apply to Game' to deploy.")
+                "")
         except Exception as e:
             log.exception("Unhandled exception")
             QMessageBox.critical(self, tr("Preset Failed"), str(e))
@@ -3791,7 +3972,7 @@ class DropsetTab(QWidget):
             f"Modified {len(modified)} drop sets:\n"
             f"  - All rates set to 100%\n"
             f"  - All quantities x{multiplier}\n\n"
-            f"Use 'Export as Mod' to save.")
+            "")
 
     def _dropset_global_boost_formula(self):
         import math
@@ -3880,7 +4061,7 @@ class DropsetTab(QWidget):
         self._dropset_status.setText(f"Boosted {name}: {pct}% rate, x{qty} qty")
         QMessageBox.information(self, tr("Applied"),
             f"Set all drops in '{name}' to {pct}% rate, x{qty} quantity.\n\n"
-            f"Use 'Export as Mod' to save.")
+            "")
 
     def _dropset_export_json(self):
         if not self._dropset_editor or not self._dropset_modified:
@@ -4111,6 +4292,38 @@ class DropsetTab(QWidget):
             self._dropset_status.setText(f"Error: {e}")
             QMessageBox.critical(self, tr("Apply Failed"), str(e))
 
+    def _dropset_reset_to_vanilla(self) -> None:
+        """Discard all in-memory drop table edits and revert to vanilla state.
+        Does NOT remove any deployed game overlay — use Restore for that.
+        """
+        if not getattr(self, '_dropset_editor', None):
+            QMessageBox.warning(self, tr("Reset to Vanilla"),
+                "Load drop set data first (click 'Load DropSets').")
+            return
+        if not getattr(self, '_dropset_modified', False):
+            QMessageBox.information(self, tr("Reset to Vanilla"),
+                "No in-memory changes to reset.")
+            return
+        reply = QMessageBox.question(
+            self, tr("Reset to Vanilla"),
+            "Discard all in-memory drop table edits and revert to vanilla?\n\n"
+            "This does NOT remove any deployed game overlay.\n"
+            "Use the Restore button to remove a deployed overlay.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        self._dropset_editor.body_bytes = bytearray(self._dropset_original_body)
+        self._dropset_editor.header_bytes = self._dropset_original_header
+        self._dropset_editor._parsed_sets.clear()
+        self._dropset_dirty_keys.clear()
+        self._dropset_modified = False
+        self._dropset_change_count = 0
+        self._dropset_changes_label.setText("0 change(s)")
+        self._dropset_filter()
+        if self._dropset_current_key:
+            self._dropset_refresh_items()
+        self._dropset_status.setText(tr("Reset to vanilla"))
+
     def _dropset_restore(self):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
@@ -4124,8 +4337,37 @@ class DropsetTab(QWidget):
         backup = gp / "meta" / "0.papgt.dropset_bak"
 
         if not overlay.is_dir():
-            QMessageBox.information(self, tr("Nothing to Restore"),
-                tr(f"No dropset mod found in {group_name}/"))
+            # No disk overlay — offer to reset in-memory edits to vanilla
+            has_memory = (
+                getattr(self, '_dropset_original_body', None) is not None
+                and getattr(self, '_dropset_editor', None) is not None
+                and getattr(self, '_dropset_modified', False)
+            )
+            if has_memory:
+                reply2 = QMessageBox.question(
+                    self, tr("Restore Vanilla"),
+                    f"No {group_name}/ overlay found on disk.\n\n"
+                    "You have unsaved in-memory drop table edits.\n"
+                    "Reset all drop tables back to vanilla?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply2 == QMessageBox.Yes:
+                    self._dropset_editor.body_bytes = bytearray(self._dropset_original_body)
+                    self._dropset_editor.header_bytes = self._dropset_original_header
+                    self._dropset_editor._parsed_sets.clear()
+                    self._dropset_dirty_keys.clear()
+                    self._dropset_modified = False
+                    self._dropset_change_count = 0
+                    self._dropset_changes_label.setText("0 change(s)")
+                    self._dropset_filter()
+                    if self._dropset_current_key:
+                        self._dropset_refresh_items()
+                    self._dropset_status.setText(tr("Reset to vanilla (in-memory only)"))
+                    QMessageBox.information(self, tr("Restore Vanilla"),
+                        "Drop tables reset to vanilla.\n\n"
+                        "No game files were modified.")
+            else:
+                QMessageBox.information(self, tr("Nothing to Restore"),
+                    f"No {group_name}/ overlay found and no in-memory changes detected.")
             return
 
         reply = QMessageBox.question(
@@ -4276,25 +4518,86 @@ class DropsetTab(QWidget):
             self._dropset_editor.header_bytes = self._dropset_original_header
             self._dropset_editor._parsed_sets.clear()
 
-            applied = 0
+            applied = skipped = 0
             for key_str, entry in dropsets.items():
-                key = int(key_str)
+                try:
+                    key = int(key_str)
+                except (ValueError, TypeError):
+                    skipped += 1
+                    continue
                 ds = self._dropset_editor.parse_dropset(key)
                 if not ds:
+                    skipped += 1
                     continue
                 drops_cfg = entry.get("drops", [])
-                for i, dcfg in enumerate(drops_cfg):
-                    if i < len(ds.drops):
-                        ds.drops[i].item_key = dcfg["item_key"]
-                        ds.drops[i].item_key_dup = dcfg["item_key"]
-                        ds.drops[i].rates = int(dcfg["rate_pct"] * 10000)
-                        ds.drops[i].rates_100 = int(dcfg["rate_pct"])
-                        ds.drops[i].max_amt = dcfg["qty_min"]
-                        ds.drops[i].min_amt = dcfg["qty_max"]
+
+                try:
+                    # Update existing drop slots
+                    for i, dcfg in enumerate(drops_cfg):
+                        ik  = dcfg.get("item_key", 0)
+                        rp  = float(dcfg.get("rate_pct", 0))
+                        qmi = dcfg.get("qty_min", 1)
+                        qma = dcfg.get("qty_max", 1)
+                        # Internal field names are swapped: max_amt=qty_min, min_amt=qty_max
+                        if i < len(ds.drops):
+                            ds.drops[i].item_key     = ik
+                            ds.drops[i].item_key_dup = ik
+                            ds.drops[i].rates        = int(rp * 10000)
+                            ds.drops[i].rates_100    = int(rp)
+                            ds.drops[i].max_amt      = qmi
+                            ds.drops[i].min_amt      = qma
+                        else:
+                            # Config has more drops than vanilla — add new slot
+                            try:
+                                self._dropset_editor.add_item(
+                                    ds, ik,
+                                    rate=int(rp * 10000),
+                                    min_qty=qmi,
+                                    max_qty=qma,
+                                )
+                                if ds.drops:
+                                    d = ds.drops[-1]
+                                    d.rates      = int(rp * 10000)
+                                    d.rates_100  = int(rp)
+                                    d.max_amt    = qmi
+                                    d.min_amt    = qma
+                            except Exception:
+                                pass
+
+                    # Remove extra vanilla slots that the config doesn't mention
+                    _safety = 0
+                    while len(ds.drops) > len(drops_cfg) and _safety < 200:
+                        _safety += 1
+                        prev_len = len(ds.drops)
+                        try:
+                            self._dropset_editor.remove_item(ds, len(ds.drops) - 1)
+                        except Exception:
+                            break
+                        if len(ds.drops) >= prev_len:
+                            break  # remove_item didn't shrink the list — stop
+                except Exception as _de:
+                    skipped += 1
+                    continue
+
                 self._dropset_dirty_keys.add(key)
                 applied += 1
 
+            # Snapshot dirty keys BEFORE flush — flush clears _dropset_dirty_keys
+            _keys_to_reparse = set(self._dropset_dirty_keys)
             self._dropset_flush_dirty()
+
+            # Re-populate _parsed_sets after flush so Export Field JSON finds
+            # the modified objects. flush_dirty clears both dirty_keys and
+            # may evict _parsed_sets entries during apply_modifications.
+            for key in _keys_to_reparse:
+                try:
+                    ds_reparsed = self._dropset_editor.parse_dropset(key)
+                    if ds_reparsed is not None:
+                        self._dropset_editor._parsed_sets[key] = ds_reparsed
+                        self._dropset_dirty_keys.add(key)  # restore for Export
+                except Exception:
+                    pass
+
             self._dropset_modified = True
             self._dropset_change_count = applied
             self._dropset_changes_label.setText(f"{applied} change(s)")
@@ -4302,8 +4605,13 @@ class DropsetTab(QWidget):
             if self._dropset_current_key:
                 self._dropset_refresh_items()
 
+            msg = f"Loaded config '{config.get('name', os.path.basename(path))}':\n\n"
+            msg += f"  {applied} drop set(s) applied"
+            if skipped:
+                msg += f"\n  {skipped} skipped (not found in current game data)"
             self._dropset_status.setText(
                 f"Loaded config: {applied} drop set(s) from {os.path.basename(path)}")
+            QMessageBox.information(self, tr("Load Config"), msg)
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -4406,51 +4714,64 @@ class DropsetTab(QWidget):
             f"Added {added} items from '{pack_name}' to {ds.name or ds.key}")
 
     def _dropset_export_field_json(self) -> None:
-        if not hasattr(self, '_dropset_editor') or not self._dropset_editor:
+        try:
+            self._dropset_export_field_json_impl()
+        except Exception as _ex:
+            import traceback as _tb
+            QMessageBox.critical(
+                self, "Export Field JSON — Error",
+                f"Error:\n{_ex}\n\n{_tb.format_exc()}")
+
+    def _dropset_export_field_json_impl(self) -> None:
+        if not self._dropset_editor:
             QMessageBox.warning(self, "Export", "Load DropSets first.")
             return
-        if not self._dropset_original_body:
-            QMessageBox.warning(self, "Export", "No vanilla baseline — reload.")
+        if not self._dropset_modified:
+            QMessageBox.information(self, "Export", "No modifications to export.")
             return
 
-        from dropset_editor import DropsetEditor
-        vanilla_ed = DropsetEditor()
-        vanilla_ed.header_bytes = self._dropset_original_header
-        vanilla_ed.body_bytes = bytearray(self._dropset_original_body)
-        vanilla_ed.records = list(self._dropset_editor.records)
-        vanilla_ed.record_count = self._dropset_editor.record_count
-        vanilla_ed.item_names = self._dropset_editor.item_names
+        # Snapshot _parsed_sets and dirty_keys BEFORE flush.
+        # _dropset_flush_dirty -> apply_modifications may clear the cache.
+        dirty_keys = set(self._dropset_dirty_keys)
+        parsed     = getattr(self._dropset_editor, '_parsed_sets', {})
+        modified_entries = {k: parsed[k] for k in dirty_keys
+                            if k in parsed and parsed[k]}
+
+        if not modified_entries:
+            QMessageBox.warning(self, "Export Field JSON",
+                f"No cached DropSet objects found.\n\n"
+                f"Try: Load DropSets → apply preset → Export Field JSON "
+                f"without clicking anything else in between.")
+            return
+
+        # Flush AFTER snapshot so body_bytes is ready for Apply to Game.
+        self._dropset_flush_dirty()
+
+        def _sd(drops):
+            return [{'item_key':  getattr(d, 'item_key',  0),
+                     'rates':     getattr(d, 'rates',     0),
+                     'rates_100': getattr(d, 'rates_100', 0),
+                     'min_amt':   getattr(d, 'min_amt',   0),
+                     'max_amt':   getattr(d, 'max_amt',   0)}
+                    for d in drops]
 
         intents = []
-        for key, _ in self._dropset_editor.records:
-            cur = self._dropset_editor.parse_dropset(key)
-            van = vanilla_ed.parse_dropset(key)
-            if not cur or not van:
-                continue
-            name = cur.name or str(key)
-            for f in ('is_blocked', 'drop_roll_type', 'drop_roll_count'):
-                cv, vv = getattr(cur, f), getattr(van, f)
-                if cv != vv:
-                    intents.append({
-                        'entry': name, 'key': key,
-                        'field': f, 'op': 'set', 'new': cv,
-                    })
-            if len(cur.drops) != len(van.drops) or \
-               any(self._drop_differs(c, v) for c, v in zip(cur.drops, van.drops)):
-                drops_data = []
-                for d in cur.drops:
-                    drops_data.append({
-                        'item_key': d.item_key, 'rates': d.rates,
-                        'rates_100': d.rates_100,
-                        'min_amt': d.min_amt, 'max_amt': d.max_amt,
-                    })
-                intents.append({
-                    'entry': name, 'key': key,
-                    'field': 'drops', 'op': 'set', 'new': drops_data,
-                })
+        for key, cur in modified_entries.items():
+            name = getattr(cur, 'name', None) or str(key)
+            drops = getattr(cur, 'drops', [])
+            if drops:
+                intents.append({'entry': name, 'key': key,
+                                'field': 'drops', 'op': 'set', 'new': _sd(drops)})
+            for f in ('drop_roll_count', 'drop_roll_type',
+                      'drop_condition_string', 'is_blocked'):
+                cv = getattr(cur, f, None)
+                if cv is not None:
+                    intents.append({'entry': name, 'key': key,
+                                    'field': f, 'op': 'set', 'new': cv})
 
         if not intents:
-            QMessageBox.information(self, "Export", "No changes to export.")
+            QMessageBox.information(self, "Export",
+                "No drop data found in modified entries.")
             return
 
         path, _ = QFileDialog.getSaveFileName(
@@ -4461,22 +4782,28 @@ class DropsetTab(QWidget):
 
         doc = {
             'modinfo': {
-                'title': 'DropSets Mod',
-                'version': '1.0',
-                'author': 'CrimsonGameMods DropSets',
-                'description': f'{len(intents)} field-level intent(s)',
-                'note': 'Format 3 — uses field names, survives game updates',
+                'title':       'DropSets Mod',
+                'version':     '1.0',
+                'author':      'CrimsonGameMods DropSets',
+                'description': (f'{len(intents)} field-level intent(s) '
+                                f'from {len(modified_entries)} modified entries'),
+                'note':        'Format 3 — field names, survives game updates',
             },
-            'format': 3,
-            'target': 'dropsetinfo.pabgb',
+            'format':  3,
+            'target':  'dropsetinfo.pabgb',
             'intents': intents,
         }
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+
         self._dropset_status.setText(
-            f"Exported {len(intents)} intents to {os.path.basename(path)}")
+            f"Exported {len(intents)} intents "
+            f"({len(modified_entries)} entries) "
+            f"to {os.path.basename(path)}")
         QMessageBox.information(self, "Export Field JSON",
-            f"Exported {len(intents)} field-level intents.\n\nFile: {path}")
+            f"Exported {len(intents)} field-level intents\n"
+            f"from {len(modified_entries)} modified entries.\n\n"
+            f"File: {path}")
 
     @staticmethod
     def _drop_differs(a, b) -> bool:
@@ -4550,7 +4877,7 @@ class DropsetTab(QWidget):
             f"Imported {applied} intents, {skipped} skipped.")
         QMessageBox.information(self, "Import Field JSON",
             f"Applied {applied} intent(s), skipped {skipped}.\n\n"
-            f"Click Apply to Game to deploy.")
+            f"Click")
 
 
 class PabgbBrowserTab(QWidget):

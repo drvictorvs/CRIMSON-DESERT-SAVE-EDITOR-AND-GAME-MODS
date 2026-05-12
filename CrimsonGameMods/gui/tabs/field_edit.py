@@ -97,12 +97,14 @@ class FieldEditTab(QWidget):
     def get_staged_files(self) -> dict[str, bytes]:
         result = {}
         _PAIRS = [
-            ("characterinfo", "_charinfo_data", "_charinfo_original"),
-            ("gameplaytrigger", "_gptrigger_data", "_gptrigger_original"),
-            ("regioninfo", "_regioninfo_data", "_regioninfo_original"),
-            ("wantedinfo", "_wantedinfo_data", "_wantedinfo_original"),
-            ("allygroupinfo", "_allygroup_data", "_allygroup_original"),
-            ("relationinfo", "_relationinfo_data", "_relationinfo_original"),
+            ("fieldinfo",               "_field_edit_data",    "_field_edit_original"),
+            ("vehicleinfo",             "_vehicle_data",       "_vehicle_original"),
+            ("characterinfo",           "_charinfo_data",      "_charinfo_original"),
+            ("gameplaytrigger",         "_gptrigger_data",     "_gptrigger_original"),
+            ("regioninfo",              "_regioninfo_data",    "_regioninfo_original"),
+            ("wantedinfo",              "_wantedinfo_data",    "_wantedinfo_original"),
+            ("allygroupinfo",           "_allygroup_data",     "_allygroup_original"),
+            ("relationinfo",            "_relationinfo_data",  "_relationinfo_original"),
             ("factionrelationgroupinfo", "_factionrelgrp_data", "_factionrelgrp_original"),
         ]
         for name, data_attr, orig_attr in _PAIRS:
@@ -222,6 +224,22 @@ class FieldEditTab(QWidget):
         self._fieldedit_overlay_spin.valueChanged.connect(
             lambda v: self._config.update({"fieldedit_overlay_dir": int(v)}))
         top_row.addWidget(self._fieldedit_overlay_spin)
+
+        export_field_json_v3_btn = QPushButton(tr("Export Field JSON v3"))
+        export_field_json_v3_btn.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
+        export_field_json_v3_btn.setToolTip("Export all FieldEdit changes as Format 3.1 field JSON.")
+        export_field_json_v3_btn.clicked.connect(self._field_edit_export_field_json_v3)
+        top_row.addWidget(export_field_json_v3_btn)
+
+        import_field_json_v3_btn = QPushButton(tr("Import Field JSON v3"))
+        import_field_json_v3_btn.setStyleSheet("background-color: #4527A0; color: white; font-weight: bold;")
+        import_field_json_v3_btn.setToolTip(
+            "Import a Format 3 field JSON mod and apply its intents\n"
+            "to the current FieldEdit data for further editing.\n"
+            "Supports: fieldinfo, vehicleinfo, gameplaytrigger,\n"
+            "regioninfo, characterinfo, wantedinfo")
+        import_field_json_v3_btn.clicked.connect(self._field_edit_import_field_json_v3)
+        top_row.addWidget(import_field_json_v3_btn)
 
         # Export buttons — only visible in Advanced/Dev mode (unsupported)
         export_mod_btn = QPushButton(tr("Export as Mod"))
@@ -2696,6 +2714,11 @@ class FieldEditTab(QWidget):
                             self._regioninfo_data[p + 1] = 0
                             e['_isTown'] = 0
                             ri_count += 1
+            # Switch to 'All regions' so table stays populated after clearing flags
+            if self._ri_filter_combo.currentData() != 'all':
+                self._ri_filter_combo.blockSignals(True)
+                self._ri_filter_combo.setCurrentIndex(1)  # 'All regions'
+                self._ri_filter_combo.blockSignals(False)
             self._regioninfo_populate()
         mount_count = 0
         patched_names: list[str] = []
@@ -2870,10 +2893,19 @@ class FieldEditTab(QWidget):
             ]
 
         dlg = QDialog(self)
+        from PySide6.QtWidgets import QScrollArea
         dlg.setWindowTitle(tr("Mesh Swap — Character Visual Transmog"))
-        dlg.resize(1000, 800)
+        dlg.resize(1100, 860)
         dlg.setSizeGripEnabled(True)
-        dlg_layout = QVBoxLayout(dlg)
+        _dl_outer = QVBoxLayout(dlg)
+        _dl_outer.setContentsMargins(0, 0, 0, 0)
+        _scroll = QScrollArea(dlg)
+        _scroll.setWidgetResizable(True)
+        _scroll.setFrameShape(QScrollArea.NoFrame)
+        _scroll_widget = QWidget()
+        _dl_outer.addWidget(_scroll)
+        _scroll.setWidget(_scroll_widget)
+        dlg_layout = QVBoxLayout(_scroll_widget)
 
         tutorial = QLabel(
             "<b>How to use Mesh Swap (Visual Transmog)</b><br>"
@@ -2883,7 +2915,7 @@ class FieldEditTab(QWidget):
             "(Source) — e.g. a wolf, a dragon, another NPC.<br>"
             "<b>3.</b> Click <b>Add Swap</b>. Repeat for as many swaps as you want.<br>"
             "<b>4.</b> Close this dialog and click <b>Apply to Game</b> in the Field Edit tab "
-            "(or <b>Export as Mod</b>).<br>"
+            "(or <b>Export Field JSON v3</b>).<br>"
             "<b>Tip:</b> Use the <b>Category</b> dropdown to narrow down to Pets, Mounts, "
             "Animals, Heroes, or Bosses. Use the search boxes to find a specific character by name.")
         tutorial.setWordWrap(True)
@@ -3155,10 +3187,19 @@ class FieldEditTab(QWidget):
         scale_spin.setValue(1.0)
         scale_spin.setToolTip("Character scale (1.0 = default size, <1.0 = shrink, >1.0 = enlarge)")
         scale_only_btn = QPushButton(tr("Scale Only"))
+        export_field_btn = QPushButton(tr("Export Field JSON v3"))
+        export_field_btn.setToolTip(
+            "Export queued mesh swaps as a Format 3 field JSON mod.\n"
+            "Sets the appearance_name field on each target character\n"
+            "to match the source character. Targets characterinfo.pabgb.\n"
+            "Compatible with Stacker Tool and DMM mod loader.")
+        export_field_btn.setStyleSheet(
+            "QPushButton { background-color: #1565C0; color: white; font-weight: bold; }")
         btn_row.addWidget(add_btn)
         btn_row.addWidget(change_all_btn)
         btn_row.addWidget(remove_btn)
         btn_row.addWidget(clear_btn)
+        btn_row.addWidget(export_field_btn)
         btn_row.addStretch()
         dlg_layout.addLayout(btn_row)
 
@@ -3447,11 +3488,176 @@ class FieldEditTab(QWidget):
             QMessageBox.information(dlg, tr("Import"),
                 f"Imported {added} swap(s). {missed} skipped (character not in catalog).")
 
+        def on_export_field_json():
+            queue = self._mesh_swap_queue or []
+            if not queue:
+                QMessageBox.information(dlg, tr("Export Field JSON v3"),
+                    "No swaps queued.")
+                return
+            game_path = self._config.get("game_install_path", "") or ""
+            if not game_path:
+                QMessageBox.warning(dlg, tr("Export Field JSON v3"),
+                    "Set the game install path first.")
+                return
+
+            # Build character_key -> internal_name from the same catalog
+            # that populated the dialog.
+            _ck_to_name: dict[int, str] = {
+                int(c.get("character_key", 0)): c.get("internal_name", "")
+                for c in catalog if c.get("internal_name")
+            }
+
+            # Extract and parse characterinfo
+            try:
+                import crimson_rs as _cr_efj
+                _dp_efj = "gamedata/binary__/client/bin"
+                _pabgb_efj = bytes(_cr_efj.extract_file(
+                    game_path, "0008", _dp_efj, "characterinfo.pabgb"))
+                _pabgh_efj = bytes(_cr_efj.extract_file(
+                    game_path, "0008", _dp_efj, "characterinfo.pabgh"))
+            except Exception as _e_efj:
+                QMessageBox.critical(dlg, tr("Export Field JSON v3"),
+                    f"Could not extract characterinfo from game:\n{_e_efj}")
+                return
+            try:
+                import dmm_parser as _dmp_efj
+                _entries_efj = _dmp_efj.parse_table(
+                    "character_info", _pabgb_efj, _pabgh_efj)
+            except Exception as _e2_efj:
+                QMessageBox.critical(dlg, tr("Export Field JSON v3"),
+                    f"Could not parse characterinfo with dmm_parser:\n{_e2_efj}")
+                return
+
+            # Build lookup by string_key (internal_name) — this matches the
+            # catalog internal_name which the swap queue character_keys map to.
+            # The numeric key in dmm_parser output differs from characterinfo_full_parser
+            # entry_key, so we must match via name.
+            _by_skey_efj: dict[str, dict] = {
+                e.get("string_key", ""): e
+                for e in _entries_efj if e.get("string_key")
+            }
+            # Also keep numeric key lookup as secondary fallback
+            _by_nkey_efj: dict[int, dict] = {
+                int(e.get("key", 0)): e for e in _entries_efj
+            }
+
+            intents = []
+            skipped = []
+            for sw in queue:
+                try:
+                    tgt_ck = int(sw["tgt"])
+                    src_ck = int(sw["src"])
+                except (KeyError, TypeError, ValueError):
+                    skipped.append(str(sw))
+                    continue
+                if tgt_ck == src_ck:
+                    continue
+
+                tgt_name = _ck_to_name.get(tgt_ck, "")
+                src_name = _ck_to_name.get(src_ck, "")
+
+                tgt_e = (_by_skey_efj.get(tgt_name)
+                         or _by_nkey_efj.get(tgt_ck))
+                src_e = (_by_skey_efj.get(src_name)
+                         or _by_nkey_efj.get(src_ck))
+
+                if not tgt_e or not src_e:
+                    skipped.append(tgt_name or f"key {tgt_ck}")
+                    continue
+
+                src_app = src_e.get("appearance_name")
+                tgt_app = tgt_e.get("appearance_name")
+                if src_app is None:
+                    skipped.append(tgt_e.get("string_key", str(tgt_ck)))
+                    continue
+                if tgt_app == src_app:
+                    # Same appearance_name — try characterinfo_full_parser
+                    # which uses a different (byte-level) key mapping
+                    try:
+                        from characterinfo_full_parser import parse_all_entries as _pae
+                        _full = _pae(_pabgb_efj, _pabgh_efj)
+                        _full_by_name = {
+                            e.get("name", ""): e for e in _full if e.get("name")
+                        }
+                        _full_tgt = _full_by_name.get(tgt_name)
+                        _full_src = _full_by_name.get(src_name)
+                        if _full_tgt and _full_src:
+                            _fv_tgt = _full_tgt.get("_appearanceName_key")
+                            _fv_src = _full_src.get("_appearanceName_key")
+                            if _fv_src is not None and _fv_tgt != _fv_src:
+                                src_app = _fv_src
+                                tgt_app = _fv_tgt
+                            else:
+                                continue  # genuinely same appearance
+                        else:
+                            continue
+                    except Exception:
+                        continue
+
+                intents.append({
+                    "entry": tgt_e.get("string_key", tgt_name),
+                    "key": int(tgt_e.get("key", tgt_ck)),
+                    "field": "appearance_name",
+                    "op": "set",
+                    "new": src_app,
+                    "_comment": f"mesh swap: appearance from {src_name or src_ck}",
+                })
+
+            if not intents:
+                msg = "No field-level differences found."
+                if skipped:
+                    msg += f"\n\nSkipped: {', '.join(skipped)}"
+                QMessageBox.warning(dlg, tr("Export Field JSON v3"), msg)
+                return
+            path, _ = QFileDialog.getSaveFileName(
+                dlg, tr("Export Field JSON v3"),
+                "mesh_swap.field.json",
+                "Field JSON (*.field.json *.json);;All Files (*)")
+            if not path:
+                return
+            import os as _os_efj, json as _json_efj
+            doc = {
+                "modinfo": {
+                    "title": "Mesh Swap Mod",
+                    "version": "1.0",
+                    "author": "CrimsonGameMods MeshSwap",
+                    "description": (
+                        f"{len(queue)} swap(s), {len(intents)} intent(s)"
+                    ),
+                    "note": (
+                        "Format 3 — sets appearance_name field. "
+                        "Targets characterinfo.pabgb."
+                    ),
+                },
+                "format": 3,
+                "format_minor": 1,
+                "targets": [
+                    {
+                        "file": "characterinfo.pabgb",
+                        "intents": intents,
+                    }
+                ],
+            }
+            try:
+                with open(path, "w", encoding="utf-8") as _fh_efj:
+                    _json_efj.dump(doc, _fh_efj, indent=2,
+                                  ensure_ascii=False, default=str)
+                msg2 = (
+                    f"Exported {len(intents)} intent(s) for {len(queue)} swap(s)."
+                )
+                if skipped:
+                    msg2 += f"\n\nSkipped: {', '.join(skipped)}"
+                QMessageBox.information(dlg, tr("Export Field JSON v3"),
+                    f"{msg2}\n\nFile: {_os_efj.path.basename(path)}")
+            except Exception as _e3_efj:
+                QMessageBox.critical(dlg, tr("Export Failed"), str(_e3_efj))
+
         add_btn.clicked.connect(on_add)
         scale_only_btn.clicked.connect(on_scale_only)
         change_all_btn.clicked.connect(on_change_all)
         remove_btn.clicked.connect(on_remove)
         clear_btn.clicked.connect(on_clear)
+        export_field_btn.clicked.connect(on_export_field_json)
         export_btn.clicked.connect(on_export)
         import_btn.clicked.connect(on_import)
         close_btn.clicked.connect(dlg.accept)
@@ -3876,11 +4082,11 @@ class FieldEditTab(QWidget):
         ally_dirty = self._ally_relation_dirty()
         if (not self._field_edit_data and not ally_dirty
                 and not self._field_edit_modified and not mesh_queue):
-            QMessageBox.information(self, tr("Export as Mod"), tr("No modifications to export."))
+            QMessageBox.information(self, tr("Export Field JSON v3"), tr("No modifications to export."))
             return
         self._field_edit_apply_mesh_swaps()
 
-        name, ok = QInputDialog.getText(self, tr("Export as Mod"),
+        name, ok = QInputDialog.getText(self, tr("Export Field JSON v3"),
                                         tr("Mod name:"), text="FieldEdit Mod")
         if not ok or not name.strip():
             return
@@ -4184,6 +4390,438 @@ class FieldEditTab(QWidget):
         QMessageBox.information(self, tr("Exported"),
             f"Saved {total_changes} changes across {len(patches)} files to:\n{path}")
 
+    def _field_edit_import_field_json_v3(self) -> None:
+        """Import a Format 3 field JSON mod and apply intents to in-memory buffers."""
+        if not self._field_edit_data and not self._vehicle_data:
+            QMessageBox.warning(self, tr("Import Field JSON v3"),
+                "Load FieldInfo first (click 'Load FieldInfo').")
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("Import Field JSON v3"), "",
+            "Field JSON (*.field.json *.json);;All Files (*)")
+        if not path:
+            return
+        try:
+            import json as _jifj
+            with open(path, encoding='utf-8') as _fh:
+                doc = _jifj.load(_fh)
+        except Exception as _e:
+            QMessageBox.critical(self, tr("Import Field JSON v3"),
+                f"Could not read file:\n{_e}")
+            return
+        if doc.get('format') != 3:
+            QMessageBox.warning(self, tr("Import Field JSON v3"),
+                "Not a Format 3 field JSON file.")
+            return
+
+        _TABLE_MAP = {
+            'fieldinfo':              ('_field_edit_data', '_field_edit_original'),
+            'vehicleinfo':            ('_vehicle_data',    '_vehicle_original'),
+            'gameplaytrigger':        ('_gptrigger_data',  '_gptrigger_original'),
+            'gameplaytriggerinfo':    ('_gptrigger_data',  '_gptrigger_original'),
+            'regioninfo':             ('_regioninfo_data', '_regioninfo_original'),
+            'characterinfo':          ('_charinfo_data',   '_charinfo_original'),
+            'wantedinfo':             ('_wantedinfo_data', '_wantedinfo_original'),
+        }
+        _DMM_TABLE = {
+            'fieldinfo':           'field_info',
+            'vehicleinfo':         'vehicle_info',
+            'gameplaytrigger':     'game_play_trigger_info',
+            'gameplaytriggerinfo': 'game_play_trigger_info',
+            'regioninfo':          'region_info',
+            'characterinfo':       'character_info',
+            'wantedinfo':          'wanted_info',
+        }
+        _PHYS_NAME = {
+            'fieldinfo':           'fieldinfo',
+            'vehicleinfo':         'vehicleinfo',
+            'gameplaytrigger':     'gameplaytrigger',
+            'gameplaytriggerinfo': 'gameplaytrigger',
+            'regioninfo':          'regioninfo',
+            'characterinfo':       'characterinfo',
+            'wantedinfo':          'wantedinfo',
+        }
+
+        targets = doc.get('targets', [])
+        if not targets:
+            tgt_file = doc.get('target', doc.get('file', ''))
+            if tgt_file:
+                targets = [{'file': tgt_file, 'intents': doc.get('intents', [])}]
+
+        game_path = self._config.get('game_install_path', '') or ''
+        total_applied = total_skipped = 0
+        modified_tables = []
+
+        for tgt in targets:
+            fname_compact = tgt.get('file', '').replace('.pabgb','').replace('_','').lower()
+            table_key = next((k for k in _TABLE_MAP
+                              if k.replace('_','').lower() == fname_compact), None)
+            if table_key is None:
+                total_skipped += len(tgt.get('intents', [])); continue
+
+            data_attr, orig_attr = _TABLE_MAP[table_key]
+            cur_buf = getattr(self, data_attr, None)
+            orig_buf = getattr(self, orig_attr, None)
+            if cur_buf is None:
+                total_skipped += len(tgt.get('intents', [])); continue
+
+            intents = tgt.get('intents', [])
+            applied = skipped = 0
+            dmm_ok = False
+
+            # ── Classify intents ──
+            # Hex-string new values (e.g. '00000001') are raw byte patches
+            # regardless of field name. Apply them via _offset.
+            # _camelCase fields are PA canonical names from v3.1 exports —
+            # also raw byte patches with _offset.
+            raw_byte_intents = []
+            named_field_intents = []
+            for _intent in intents:
+                _field = _intent.get('field', '')
+                _new = _intent.get('new')
+                _is_hex = (isinstance(_new, str) and
+                           all(c in '0123456789abcdefABCDEF' for c in _new) and
+                           len(_new) % 2 == 0 and len(_new) > 0)
+                if (_field == 'raw_bytes' or _is_hex or
+                        (_field.startswith('_') and '_offset' in _intent)):
+                    raw_byte_intents.append(_intent)
+                else:
+                    named_field_intents.append(_intent)
+
+            # ── dmm_parser field-level apply (snake_case named fields) ──
+            if named_field_intents and game_path and _DMM_TABLE.get(table_key):
+                try:
+                    import dmm_parser as _dmp_ifj
+                    import crimson_rs as _cr_ifj
+                    _dp = 'gamedata/binary__/client/bin'
+                    _phys = _PHYS_NAME[table_key]
+                    _pabgh = bytes(_cr_ifj.extract_file(game_path, '0008', _dp, f'{_phys}.pabgh'))
+                    _dname = _DMM_TABLE[table_key]
+                    _recs = list(_dmp_ifj.parse_table(_dname, bytes(cur_buf), _pabgh))
+                    _by_key  = {int(r.get('key', 0)): r for r in _recs}
+                    _by_skey = {r.get('string_key', ''): r for r in _recs}
+                    _dmp_applied = 0
+                    for intent in named_field_intents:
+                        if intent.get('op') != 'set': skipped += 1; continue
+                        field = intent.get('field', '')
+                        new_val = intent.get('new')
+                        if new_val is None: skipped += 1; continue
+                        rec = _by_skey.get(intent.get('entry', ''))
+                        if rec is None:
+                            rk = intent.get('key')
+                            if rk is not None: rec = _by_key.get(int(rk))
+                        if rec is None: skipped += 1; continue
+                        parts = field.split('.')
+                        td = rec
+                        for part in parts[:-1]:
+                            td = td.get(part) if isinstance(td, dict) else None
+                            if td is None: break
+                        if td is None: skipped += 1; continue
+                        leaf = parts[-1]
+                        ex = td.get(leaf)
+                        if isinstance(ex, dict) and isinstance(new_val, (int, float)):
+                            td[leaf] = {k: type(v)(new_val) for k, v in ex.items()}
+                        else:
+                            td[leaf] = new_val
+                        _dmp_applied += 1
+                    if _dmp_applied:
+                        new_bytes = _dmp_ifj.serialize_table(_dname, _recs, _pabgh)
+                        setattr(self, data_attr, bytearray(new_bytes))
+                        applied += _dmp_applied
+                        dmm_ok = True
+                except Exception:
+                    # Fall through — treat named intents as raw byte too
+                    raw_byte_intents = intents
+
+            # ── Raw byte apply (raw_bytes field, hex new values, _camelCase fields) ──
+            if raw_byte_intents:
+                buf = bytearray(getattr(self, data_attr))
+                for intent in raw_byte_intents:
+                    if intent.get('op') != 'set': skipped += 1; continue
+                    off = intent.get('_offset')
+                    if off is None:
+                        off = intent.get('key', 0)
+                    try:
+                        off = int(off)
+                        raw = bytes.fromhex(str(intent['new']))
+                        if 0 <= off <= len(buf) - len(raw):
+                            buf[off:off + len(raw)] = raw
+                            applied += 1
+                        else:
+                            skipped += 1
+                    except Exception:
+                        skipped += 1
+                setattr(self, data_attr, buf)
+
+            if applied:
+                modified_tables.append(table_key)
+            total_applied += applied
+            total_skipped += skipped
+
+        if not total_applied:
+            QMessageBox.warning(self, tr("Import Field JSON v3"),
+                f"No intents applied ({total_skipped} skipped).\n\n"
+                "Make sure FieldInfo is loaded and the mod targets a supported table.")
+            return
+
+        self._field_edit_modified = True
+        # Re-parse entries from modified buffers, then refresh UI tables.
+        # _vehicle_populate() reads self._vehicle_entries (structs), not bytes —
+        # so we must re-parse the modified byte buffer first.
+        if 'vehicleinfo' in modified_tables and self._vehicle_data and self._vehicle_schema:
+            try:
+                from vehicleinfo_parser import parse_pabgh_index_u16, parse_entry as _vparse
+                _vidx = parse_pabgh_index_u16(self._vehicle_schema)
+                _vsorted = sorted(set(_vidx.values()))
+                _ventries = []
+                for _vk, _vo in sorted(_vidx.items()):
+                    _vbi = _vsorted.index(_vo)
+                    _vend = _vsorted[_vbi + 1] if _vbi + 1 < len(_vsorted) else len(self._vehicle_data)
+                    _ve = _vparse(bytes(self._vehicle_data), _vo, _vend)
+                    if _ve:
+                        _ventries.append(_ve)
+                self._vehicle_entries = _ventries
+                self._vehicle_populate()
+            except Exception:
+                pass
+
+        if 'regioninfo' in modified_tables and self._regioninfo_data:
+            try:
+                self._regioninfo_populate()
+            except Exception:
+                pass
+
+        if 'fieldinfo' in modified_tables and self._field_edit_data:
+            try:
+                # Re-parse field entries from modified bytes
+                from fieldinfo_parser import parse_pabgh_index, parse_entry as _fparse
+                _fidx = parse_pabgh_index(getattr(self, '_field_edit_schema', None) or b'')
+                _fentries = []
+                for _fk, _fo in sorted(_fidx.items()):
+                    _fe = _fparse(bytes(self._field_edit_data), _fo)
+                    if _fe:
+                        _fentries.append(_fe)
+                if _fentries:
+                    self._field_edit_entries = _fentries
+            except Exception:
+                pass
+
+        import os as _os_ifj
+        QMessageBox.information(self, tr("Import Field JSON v3"),
+            f"Imported '{_os_ifj.path.basename(path)}':\n\n"
+            f"  {total_applied} intent(s) applied\n"
+            f"  {total_skipped} skipped\n\n"
+            f"Modified: {', '.join(set(modified_tables))}\n\n"
+            f"Use Export Field JSON v3 or")
+
+    def _field_edit_export_field_json_v3(self) -> None:
+        """Export all FieldEdit modifications as Format 3.1 multi-target field JSON."""
+        import struct as _st
+
+        def _has_diff(cur, orig):
+            return cur is not None and orig is not None and bytes(cur) != bytes(orig)
+
+        _any_change = (
+            self._field_edit_modified
+            or _has_diff(self._charinfo_data, self._charinfo_original)
+            or _has_diff(self._field_edit_data, self._field_edit_original)
+            or _has_diff(self._vehicle_data, self._vehicle_original)
+            or _has_diff(self._gptrigger_data, self._gptrigger_original)
+            or _has_diff(self._regioninfo_data, self._regioninfo_original)
+            or _has_diff(self._wantedinfo_data, self._wantedinfo_original)
+        )
+        if not _any_change:
+            QMessageBox.information(self, tr("Export Field JSON v3"),
+                tr("No modifications to export. Make some changes first."))
+            return
+
+        def _diff_buf(cur_buf, van_buf):
+            """Fast stride-4 diff."""
+            intents = []
+            cur = bytes(cur_buf)
+            van = bytes(van_buf)
+            for j in range(0, min(len(cur), len(van)) - 3, 4):
+                if cur[j:j+4] != van[j:j+4]:
+                    intents.append({
+                        'entry': f'offset_{j}', 'key': j,
+                        'field': 'raw_bytes', 'op': 'set',
+                        'new': cur[j:j+4].hex().upper(),
+                        '_offset': j,
+                        '_original': van[j:j+4].hex().upper(),
+                    })
+            return intents
+
+        def _annotate(intents, off_map):
+            for intent in intents:
+                info = off_map.get(intent['_offset'])
+                if info:
+                    intent['entry'], intent['field'], intent['key'] = info
+            return intents
+
+        def _build_map(entries, field_pairs, field_sizes=None):
+            """Build offset map aligning field byte offsets to stride-4 blocks.
+            field_sizes: dict of field_name -> byte size (default 4).
+            All stride-4 blocks overlapping the field are mapped.
+            """
+            if field_sizes is None:
+                field_sizes = {}
+            m = {}
+            for e in (entries or []):
+                ename = e.get('name', f"Entry_{e.get('entry_key','?')}")
+                ekey = int(e.get('entry_key', e.get('key', 0)))
+                for fname, okey in field_pairs:
+                    off = e.get(okey, -1)
+                    if off < 0:
+                        continue
+                    size = field_sizes.get(fname, 4)
+                    # Map all 4-byte-aligned blocks that overlap this field
+                    block_start = (off // 4) * 4
+                    block_end = ((off + size - 1) // 4) * 4
+                    for b in range(block_start, block_end + 4, 4):
+                        if b not in m:  # first match wins
+                            m[b] = (ename, fname, ekey)
+            return m
+
+        targets = []
+
+        # ── fieldinfo ──────────────────────────────────────────────────────
+        if _has_diff(self._field_edit_data, self._field_edit_original):
+            om = _build_map(self._field_edit_entries, [
+                ('_canCallVehicle',        'can_call_vehicle_offset'),
+                ('_alwaysCallVehicle_dev', 'always_call_vehicle_dev_offset'),
+            ], {'_canCallVehicle': 1, '_alwaysCallVehicle_dev': 1})
+            its = _annotate(_diff_buf(self._field_edit_data, self._field_edit_original), om)
+            if its:
+                targets.append({'file': 'fieldinfo.pabgb', 'intents': its})
+
+        # ── vehicleinfo ────────────────────────────────────────────────────
+        if _has_diff(self._vehicle_data, self._vehicle_original):
+            om = _build_map(self._vehicle_entries, [
+                ('_mountCallType',   'mount_call_type_offset'),
+                ('_canCallSafeZone', 'can_call_safe_zone_offset'),
+                ('_altitudeCap',     'altitude_cap_offset'),
+            ], {'_mountCallType': 1, '_canCallSafeZone': 1, '_altitudeCap': 4})
+            its = _annotate(_diff_buf(self._vehicle_data, self._vehicle_original), om)
+            if its:
+                targets.append({'file': 'vehicleinfo.pabgb', 'intents': its})
+
+        # ── gameplaytrigger ────────────────────────────────────────────────
+        if _has_diff(self._gptrigger_data, self._gptrigger_original):
+            om = _build_map(self._gptrigger_entries, [
+                ('_safeZoneType', 'safe_zone_type_offset'),
+            ], {'_safeZoneType': 1})
+            its = _annotate(_diff_buf(self._gptrigger_data, self._gptrigger_original), om)
+            if its:
+                targets.append({'file': 'gameplaytrigger.pabgb', 'intents': its})
+
+        # ── regioninfo ─────────────────────────────────────────────────────
+        if _has_diff(self._regioninfo_data, self._regioninfo_original):
+            om = {}
+            for e in (self._regioninfo_entries or []):
+                ename = e.get('_stringKey', f"Region_{e.get('_key','?')}")
+                ekey = e.get('_key', 0)
+                for fname, okey, size in [('_limitVehicleRun','_limitVehicleRun_offset',1),
+                                           ('_isTown','_isTown_offset',1),
+                                           ('_isWild','_isWild_offset',1)]:
+                    off = e.get(okey, -1)
+                    if off >= 0:
+                        block = (off // 4) * 4
+                        if block not in om:
+                            om[block] = (ename, fname, ekey)
+            its = _annotate(_diff_buf(self._regioninfo_data, self._regioninfo_original), om)
+            if its:
+                targets.append({'file': 'regioninfo.pabgb', 'intents': its})
+
+        # ── characterinfo ─────────────────────────────────────────────────
+        if _has_diff(self._charinfo_data, self._charinfo_original):
+            _MOUNT_FIELDS = [
+                ('_isAttackable',               '_isAttackable_offset'),
+                ('_invincibility',              '_invincibility_offset'),
+                ('_callMercenarySpawnDuration', '_callMercenarySpawnDuration_offset'),
+                ('_callMercenaryCoolTime',      '_callMercenaryCoolTime_offset'),
+            ]
+            _PLAYER_FIELDS = _MOUNT_FIELDS + [
+                ('_upperActionChartPackageGroupName', '_upperActionChartPackageGroupName_offset'),
+                ('_lowerActionChartPackageGroupName', '_lowerActionChartPackageGroupName_offset'),
+                ('_characterGamePlayDataName',        '_characterGamePlayDataName_offset'),
+                ('_characterAppearanceName',          '_characterAppearanceName_offset'),
+                ('_skeletonVariationName',            '_skeletonVariationName_offset'),
+            ]
+            # Hash fields are 8 bytes; 1-byte flags are 1 byte
+            _CI_SIZES = {
+                '_isAttackable': 1, '_invincibility': 1,
+                '_callMercenarySpawnDuration': 8, '_callMercenaryCoolTime': 8,
+                '_upperActionChartPackageGroupName': 8,
+                '_lowerActionChartPackageGroupName': 8,
+                '_characterGamePlayDataName': 8,
+                '_characterAppearanceName': 8,
+                '_skeletonVariationName': 8,
+            }
+            om = _build_map(getattr(self, '_charinfo_mount_entries', []), _MOUNT_FIELDS, _CI_SIZES)
+            om.update(_build_map(getattr(self, '_charinfo_player_entries', []), _PLAYER_FIELDS, _CI_SIZES))
+            its = _annotate(_diff_buf(self._charinfo_data, self._charinfo_original), om)
+            if its:
+                targets.append({'file': 'characterinfo.pabgb', 'intents': its})
+
+        # ── wantedinfo ────────────────────────────────────────────────────
+        if _has_diff(self._wantedinfo_data, self._wantedinfo_original):
+            om = {}
+            try:
+                from wantedinfo_parser import parse_all_entries as wi_parse, FACTION_NAMES, CRIME_TIERS
+                for e in wi_parse(bytes(self._wantedinfo_data), self._wantedinfo_schema):
+                    faction = FACTION_NAMES.get(e['_faction'], f"Faction_{e['_faction']}")
+                    tier = CRIME_TIERS.get(e['_crimeTier'], f"Tier_{e['_crimeTier']}")
+                    ename = f"{faction}_{tier}"
+                    ekey = e.get('_key', e.get('_faction', 0))
+                    for fname, okey, size in [('_isBlocked','_isBlocked_offset',1),
+                                               ('_increasePrice','_increasePrice_offset',8)]:
+                        off = e.get(okey, -1)
+                        if off >= 0:
+                            block = (off // 4) * 4
+                            for b in range(block, block + size + 4, 4):
+                                if b not in om:
+                                    om[b] = (ename, fname, ekey)
+            except Exception as _wie:
+                log.warning("FieldEdit v3: wantedinfo annotation: %s", _wie)
+            its = _annotate(_diff_buf(self._wantedinfo_data, self._wantedinfo_original), om)
+            if its:
+                targets.append({'file': 'wantedinfo.pabgb', 'intents': its})
+
+        if not targets:
+            QMessageBox.information(self, tr("Export Field JSON v3"),
+                tr("No field-level changes detected.\n\nMake changes then try again."))
+            return
+
+        total = sum(len(t['intents']) for t in targets)
+        summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in targets)
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, tr("Export Field JSON v3"), "FieldEdit.field.json",
+            "Field JSON (*.field.json *.json);;All Files (*)")
+        if not path:
+            return
+
+        doc = {
+            'modinfo': {
+                'title': 'FieldEdit Mod', 'version': '1.0',
+                'author': 'CrimsonGameMods FieldEdit',
+                'description': f'{total} intent(s) across {len(targets)} target(s) — {summary}',
+                'note': 'Field JSON v3.1 (multi-target) — Requires DMM 1.3.3+.',
+            },
+            'format': 3, 'format_minor': 1,
+            'targets': targets,
+        }
+
+        import json as _json
+        with open(path, 'w', encoding='utf-8') as f:
+            _json.dump(doc, f, indent=2, ensure_ascii=False)
+
+        self._field_edit_status.setText(f"Exported {total} intents to {os.path.basename(path)}")
+        QMessageBox.information(self, tr("Export Field JSON v3"),
+            f"Exported {total} intents across {len(targets)} targets:\n"
+            + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents" for t in targets)
+            + f"\n\nFile: {path}")
+
     def _field_edit_export_mesh_json(self):
         queue = self._mesh_swap_queue or []
         if not queue:
@@ -4358,8 +4996,70 @@ class FieldEditTab(QWidget):
         has_field = os.path.isdir(game_mod)
         has_mount = os.path.isdir(mount_mod)
         if not has_field and not has_mount:
-            QMessageBox.information(self, tr("Restore"),
-                f"No {mod_group}/ or {mount_group}/ overlay found.")
+            # No disk overlay — offer to reset in-memory buffers to vanilla
+            has_memory = any([
+                self._field_edit_data and self._field_edit_original and
+                    bytes(self._field_edit_data) != self._field_edit_original,
+                self._vehicle_data and self._vehicle_original and
+                    bytes(self._vehicle_data) != self._vehicle_original,
+                self._gptrigger_data and self._gptrigger_original and
+                    bytes(self._gptrigger_data) != self._gptrigger_original,
+                self._regioninfo_data and self._regioninfo_original and
+                    bytes(self._regioninfo_data) != self._regioninfo_original,
+                self._charinfo_data and self._charinfo_original and
+                    bytes(self._charinfo_data) != self._charinfo_original,
+                self._wantedinfo_data and self._wantedinfo_original and
+                    bytes(self._wantedinfo_data) != self._wantedinfo_original,
+            ])
+            if has_memory:
+                reply = QMessageBox.question(
+                    self, tr("Restore"),
+                    "No deployed overlay found on disk.\n\n"
+                    "You have unsaved in-memory changes (e.g. from Import Field JSON).\n"
+                    "Reset all in-memory edits back to vanilla?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    # Reset all buffers to their original snapshots
+                    if self._field_edit_original:
+                        self._field_edit_data = bytearray(self._field_edit_original)
+                    if self._vehicle_original:
+                        self._vehicle_data = bytearray(self._vehicle_original)
+                    if self._gptrigger_original:
+                        self._gptrigger_data = bytearray(self._gptrigger_original)
+                    if self._regioninfo_original:
+                        self._regioninfo_data = bytearray(self._regioninfo_original)
+                    if self._charinfo_original:
+                        self._charinfo_data = bytearray(self._charinfo_original)
+                    if self._wantedinfo_original:
+                        self._wantedinfo_data = bytearray(self._wantedinfo_original)
+                    self._field_edit_modified = False
+                    # Reload UI tables
+                    # Re-parse entries from restored buffers before refreshing UI
+                    if self._vehicle_data and self._vehicle_schema:
+                        try:
+                            from vehicleinfo_parser import parse_pabgh_index_u16, parse_entry as _vpr
+                            _vi = parse_pabgh_index_u16(self._vehicle_schema)
+                            _vs = sorted(set(_vi.values()))
+                            _ves = []
+                            for _vk, _vo in sorted(_vi.items()):
+                                _vbi = _vs.index(_vo)
+                                _vend = _vs[_vbi+1] if _vbi+1 < len(_vs) else len(self._vehicle_data)
+                                _ve = _vpr(bytes(self._vehicle_data), _vo, _vend)
+                                if _ve: _ves.append(_ve)
+                            self._vehicle_entries = _ves
+                        except Exception: pass
+                    for fn in ('_vehicle_populate', '_regioninfo_populate'):
+                        if hasattr(self, fn):
+                            try: getattr(self, fn)()
+                            except Exception: pass
+                    self._field_edit_status.setText(tr("Reset to vanilla (in-memory only)"))
+                    QMessageBox.information(self, tr("Restore"),
+                        "In-memory edits reset to vanilla.\n\n"
+                        "No game files were modified — nothing to deploy.")
+            else:
+                QMessageBox.information(self, tr("Restore"),
+                    f"No {mod_group}/ or {mount_group}/ overlay found on disk "
+                    "and no in-memory changes detected.")
             return
         parts = []
         if has_field:

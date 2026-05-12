@@ -356,30 +356,6 @@ class ReserveSlotTab(QWidget):
             QMessageBox.critical(self, "Apply", f"Failed:\n{e}")
 
     def _export_field_json(self) -> None:
-        """Export reserveslot edits as Format 3 field-level JSON.
-
-        Pre-fix the intent shape was bespoke and v3-loader-incompatible:
-        ``{key, name, field: "_enableVehicleList", value, vanilla}`` with
-        the doc envelope using ``table: "reserveslot"`` and no
-        ``modinfo`` block. DMM (and any spec-compliant v3 loader) rejects
-        every intent because:
-          * ``value`` is not the ``op:set`` payload field — that's ``new``
-          * ``name`` is not a recognized lookup key — that's ``entry``
-          * ``op`` defaulted to "set" via missing-field default but the
-            intent had no usable ``new`` so apply still skipped with
-            "missing new value"
-          * the doc had no ``target`` / ``targets[]`` so the loader
-            defaulted to iteminfo and tried to apply reserveslot intents
-            against the wrong table
-          * the field name used the Korean-prefixed C++ name
-            (``_enableVehicleList``) instead of the snake_case dispatch
-            name (``enable_vehicle_list``) — mismatch even after the
-            other shape issues are fixed
-
-        Post-fix uses the canonical v3 shape, snake_case field names,
-        and the standard ``target: "reserveslotinfo.pabgb"`` envelope so
-        DMM's typed apply path resolves it cleanly.
-        """
         if not self._entries or not self._vanilla_pabgh:
             QMessageBox.warning(self, "Export", "Load reserveslot first.")
             return
@@ -397,11 +373,11 @@ class ReserveSlotTab(QWidget):
                 continue
             if entry.enable_vehicle_list != van.enable_vehicle_list:
                 intents.append({
-                    "entry": entry.name or "",
                     "key": entry.key,
-                    "field": "enable_vehicle_list",
-                    "op": "set",
-                    "new": list(entry.enable_vehicle_list),
+                    "name": entry.name,
+                    "field": "_enableVehicleList",
+                    "value": entry.enable_vehicle_list,
+                    "vanilla": van.enable_vehicle_list,
                 })
 
         if not intents:
@@ -410,21 +386,15 @@ class ReserveSlotTab(QWidget):
 
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON", "reserveslot_mod.field.json",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self, "Export Field JSON", "reserveslot_mod.json",
+            "JSON Files (*.json)")
         if not path:
             return
 
         doc = {
-            "modinfo": {
-                "title": "ReserveSlot Mod",
-                "version": "1.0",
-                "author": "CrimsonGameMods ReserveSlot Editor",
-                "description": f"{len(intents)} field-level intent(s)",
-                "note": "Format 3 — uses field names, survives game updates",
-            },
             "format": 3,
-            "target": "reserveslotinfo.pabgb",
+            "table": "reserveslot",
+            "tool": "CrimsonGameMods ReserveSlot Editor",
             "intents": intents,
         }
         with open(path, "w", encoding="utf-8") as f:

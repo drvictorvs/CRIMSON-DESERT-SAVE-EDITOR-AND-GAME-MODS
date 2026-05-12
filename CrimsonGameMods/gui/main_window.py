@@ -481,7 +481,8 @@ class MainWindow(QMainWindow):
             f"padding: 8px; "
             f"border-bottom: 1px solid {COLORS['border']};"
         )
-        self._center_status.setFixedHeight(36)
+        self._center_status.setMaximumHeight(36)
+        self._center_status.setVisible(False)  # hidden in gamemods variant
         right_layout.addWidget(self._center_status)
 
         self._global_info_widget = QWidget()
@@ -784,25 +785,25 @@ class MainWindow(QMainWindow):
                 pass
         self._mods_tabs.addTab(self._stacker_tab, "Stacker Tool")
 
-        # self._store_tab = StoreEditorTab(
-        #     name_db=self._name_db,
-        #     icon_cache=self._icon_cache,
-        #     config=self._config,
-        #     rebuild_papgt_fn=self._rebuild_papgt_without,
-        #     show_guide_fn=self._show_guide,
-        # )
-        # self._store_tab.status_message.connect(self._update_status)
-        # self._store_tab.config_save_requested.connect(self._save_config)
-        # self._store_tab.paz_refresh_requested.connect(
-        #     lambda: self._patches_tab._paz_refresh_status() if hasattr(self, "_patches_tab") else None
-        # )
-        # _saved_gp = self._config.get("game_install_path", "")
-        # if _saved_gp:
-        #     try:
-        #         self._store_tab.set_game_path(_saved_gp)
-        #     except Exception:
-        #         pass
-        # self._mods_tabs.addTab(self._store_tab, tr("tab.stores"))
+        self._store_tab = StoreEditorTab(
+            name_db=self._name_db,
+            icon_cache=self._icon_cache,
+            config=self._config,
+            rebuild_papgt_fn=self._rebuild_papgt_without,
+            show_guide_fn=self._show_guide,
+        )
+        self._store_tab.status_message.connect(self._update_status)
+        self._store_tab.config_save_requested.connect(self._save_config)
+        self._store_tab.paz_refresh_requested.connect(
+            lambda: self._patches_tab._paz_refresh_status() if hasattr(self, "_patches_tab") else None
+        )
+        _saved_gp = self._config.get("game_install_path", "")
+        if _saved_gp:
+            try:
+                self._store_tab.set_game_path(_saved_gp)
+            except Exception:
+                pass
+        self._mods_tabs.addTab(self._store_tab, tr("tab.stores"))
 
         self._bagspace_tab = BagSpaceTab(
             config=self._config,
@@ -896,6 +897,7 @@ class MainWindow(QMainWindow):
             goto_quest_fn=None,
             app_dir_fn=self._app_dir,
             show_guide_fn=self._show_guide,
+            config=self._config,
         )
         self._database_tab.toggle_icons_requested.connect(self._toggle_icons)
         self._database_tab.status_message.connect(self._update_status)
@@ -906,6 +908,23 @@ class MainWindow(QMainWindow):
         self._tabs = _real_tabs
         self._real_tabs = _real_tabs
         self._update_experimental_tabs()
+
+        # Register all tabs with the stacker for Pull All Edits
+        if hasattr(self, '_stacker_tab'):
+            _st = self._stacker_tab
+            for _key, _attr in [
+                ('mercpets',    '_mercpets_tab'),
+                ('bagspace',    '_bagspace_tab'),
+                ('skilltree',   '_skill_tree_tab'),
+                ('reserveslot', '_reserveslot_tab'),
+                ('fieldedit',   '_field_edit_tab_obj'),
+                ('spawnedit',   '_spawn_tab'),
+                ('dropsets',    '_dropset_tab'),
+            ]:
+                _tab = getattr(self, _attr, None)
+                if _tab is not None:
+                    _st.register_tab(_key, _tab)
+
         self._pack_browser_refresh()
 
         if hasattr(self, '_view_menu'):
@@ -1796,12 +1815,11 @@ class MainWindow(QMainWindow):
             act.triggered.connect(lambda checked, u=url: __import__('webbrowser').open(u))
             guides_menu.addAction(act)
 
-        dev_menu = menu_bar.addMenu("Dev")
+        # Dev menu removed — experimental mode managed internally
         self._experimental_action = QAction("Enable Experimental Mode", self)
         self._experimental_action.setCheckable(True)
         self._experimental_action.setChecked(self._experimental_mode)
         self._experimental_action.triggered.connect(self._toggle_experimental_mode)
-        dev_menu.addAction(self._experimental_action)
 
 
     def _rebuild_view_tab_list(self) -> None:
