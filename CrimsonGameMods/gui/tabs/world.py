@@ -4001,6 +4001,11 @@ class DropsetTab(QWidget):
                 item_key = dlg.selected_key
         else:
             key_text = self._dropset_add_key.text().strip()
+            if not key_text:
+                QMessageBox.warning(self, tr("Add Item"),
+                    "Enter a numeric item key in the text field below the drop table,\n"
+                    "or load the Items database (ItemBuffs tab) to use the item search dialog.")
+                return
             try:
                 item_key = int(key_text)
             except ValueError:
@@ -4014,6 +4019,10 @@ class DropsetTab(QWidget):
         self._dropset_mark_modified()
         self._dropset_refresh_items(ds)
         self._dropset_add_key.clear()
+        item_name = self._dropset_editor.get_item_name(item_key) if self._dropset_editor else str(item_key)
+        self._dropset_status.setText(
+            f"Added {item_name} ({item_key}) to {ds.name or ds.key}. "
+            f"Click 'Export Field JSON v3' to save.")
 
     def _dropset_remove_item(self):
         if not self._dropset_editor or self._dropset_current_key is None:
