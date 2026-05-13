@@ -479,6 +479,24 @@ def _classify(path: str) -> ModEntry:
     if grp:
         return ModEntry(name=display, path=path, kind="folder_paz",
                         group=grp, note=f"compiled PAZ mod (group {grp})")
+    # Bare 0.paz dropped directly: look for 0.pamt sibling and walk up to mod root
+    if os.path.isfile(path) and path.lower().endswith(".paz"):
+        paz_dir = os.path.dirname(path)
+        pamt = os.path.join(paz_dir, "0.pamt")
+        if os.path.isfile(pamt):
+            parent = os.path.dirname(paz_dir)
+            grp = _find_folder_paz_group(parent)
+            if grp:
+                disp = Path(parent).name or parent
+                return ModEntry(name=disp, path=parent, kind="folder_paz",
+                                group=grp, note=f"compiled PAZ mod (group {grp})")
+            grp = _find_folder_paz_group(paz_dir)
+            if grp:
+                disp = Path(paz_dir).name or paz_dir
+                return ModEntry(name=disp, path=paz_dir, kind="folder_paz",
+                                group=grp, note=f"compiled PAZ mod (group {grp})")
+        return ModEntry(name=Path(path).name, path=path, kind="", ok=False,
+                        note="Drop the mod ROOT FOLDER not the .paz file directly")
     if os.path.isfile(path) and path.lower().endswith(".json"):
         try:
             with open(path, encoding="utf-8") as f:
@@ -1394,6 +1412,15 @@ class StackerTab(QWidget):
         self._merged_other_files: dict = {}
         self._conflicts: list[FieldConflict] = []
         self._build_ui()
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, e) -> None:
+        if e.mimeData().hasUrls():
+            e.acceptProposedAction()
+
+    def dropEvent(self, e) -> None:
+        paths = [u.toLocalFile() for u in e.mimeData().urls()]
+        self._add_files(paths)
 
     def set_game_path(self, path: str) -> None:
         self._game_path = path or ""
@@ -1477,9 +1504,18 @@ class StackerTab(QWidget):
         gbl.addWidget(browse)
         v.addWidget(game_bar)
 
-        # --- Drop zone --------------------------------------------------
+        # --- Drop zone + Browse button ------------------------------------
+        drop_row = QHBoxLayout()
+        drop_row.setSpacing(6)
         self._drop = DropZone(self._add_files)
-        v.addWidget(self._drop)
+        drop_row.addWidget(self._drop, stretch=1)
+        browse_mod_btn = _size_button(QPushButton("+ Browse Mod..."))
+        browse_mod_btn.setObjectName("flatBtn")
+        browse_mod_btn.setToolTip(
+            "Browse for a mod folder or .json file to add as a stacker source.")
+        browse_mod_btn.clicked.connect(self._browse_add_mod)
+        drop_row.addWidget(browse_mod_btn)
+        v.addLayout(drop_row)
 
         # --- Main 3-column splitter ------------------------------------
         main = QSplitter(Qt.Horizontal)
@@ -1889,6 +1925,20 @@ class StackerTab(QWidget):
             "", "Mod files (*.json *.pabgb);;All files (*.*)")
         if paths:
             self._add_files(paths)
+
+    def _browse_add_mod(self) -> None:
+        """Open a file/folder dialog to add a mod source manually."""
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Add Mod",
+            self._game_path or "",
+            "Mod files (*.json *.paz *.pabgb);;All files (*)")
+        if not path:
+            # Also try folder selection
+            path = QFileDialog.getExistingDirectory(
+                self, "Add Mod Folder", self._game_path or "")
+        if path:
+            self._add_files([path])
 
     def _add_files(self, paths: list[str]):
         for p in paths:
