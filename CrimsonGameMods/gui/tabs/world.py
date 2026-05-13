@@ -3140,11 +3140,10 @@ class SpawnTab(QWidget):
                 targets.append({'file': 'terrainregionautospawninfo.pabgb',
                                 'intents': ter_intents})
 
-            # other tables
+            # spawningpoolautospawninfo + factionnodespawninfo: raw byte diff
             for cur_attr, van_attr, fname in [
-                ('_spawn_life_data',      '_spawn_life_original',      'spawningpoolautospawninfo.pabgb'),
-                ('_spawn_node_data',      '_spawn_node_original',      'factionnodespawninfo.pabgb'),
-                ('_spawn_fnode_ops_data', '_spawn_fnode_ops_original', 'faction_node_info.pabgb'),
+                ('_spawn_life_data',  '_spawn_life_original',  'spawningpoolautospawninfo.pabgb'),
+                ('_spawn_node_data',  '_spawn_node_original',  'factionnodespawninfo.pabgb'),
             ]:
                 cur = getattr(self, cur_attr, None)
                 van = getattr(self, van_attr, None)
@@ -3152,6 +3151,44 @@ class SpawnTab(QWidget):
                     its = _diff_table(cur, van, fname)
                     if its:
                         targets.append({'file': fname, 'intents': its})
+
+            # faction_node_info: typed field-level diff via dmm_parser
+            fnode_cur = getattr(self, '_spawn_fnode_ops_data', None)
+            fnode_van = getattr(self, '_spawn_fnode_ops_original', None)
+            fnode_gh  = getattr(self, '_spawn_fnode_ops_schema', None)
+            if fnode_cur and fnode_van:
+                fnode_intents = []
+                _fnode_err = None
+                try:
+                    import dmm_parser as _dp
+                    van_recs = _dp.parse_table(
+                        'faction_node_info', bytes(fnode_van),
+                        bytes(fnode_gh) if fnode_gh else None)
+                    mod_recs = _dp.parse_table(
+                        'faction_node_info', bytes(fnode_cur),
+                        bytes(fnode_gh) if fnode_gh else None)
+                    van_by_key = {r['key']: r for r in van_recs if 'key' in r}
+                    for rec in mod_recs:
+                        v = van_by_key.get(rec.get('key'))
+                        if v is None:
+                            continue
+                        if rec.get('faction_schedule_list') != v.get('faction_schedule_list'):
+                            fnode_intents.append({
+                                'entry': rec.get('string_key', ''),
+                                'key': rec['key'],
+                                'field': 'faction_schedule_list',
+                                'op': 'set',
+                                'new': rec['faction_schedule_list'],
+                            })
+                except Exception as _fe:
+                    import traceback as _ftb
+                    _fnode_err = f'{_fe}\n\n{_ftb.format_exc()}'
+                    log.warning('faction_node typed diff failed: %s', _fnode_err)
+                    QMessageBox.warning(self, 'Spawn Export Diagnostic',
+                        f'faction_node_info typed diff failed, using raw_bytes:\n\n{str(_fe)[:600]}')
+                    fnode_intents = _diff_table(fnode_cur, fnode_van, 'faction_node_info.pabgb')
+                if fnode_intents:
+                    targets.append({'file': 'faction_node_info.pabgb', 'intents': fnode_intents})
 
             if not targets:
                 QMessageBox.information(self, tr("Export Field JSON v3"),
@@ -4977,9 +5014,9 @@ class DropsetTab(QWidget):
                                 f'from {len(modified_entries)} modified entries'),
                 'note':        'Format 3 — field names, survives game updates',
             },
-            'format':  3,
-            'target':  'dropsetinfo.pabgb',
-            'intents': intents,
+            'format': 3,
+            'format_minor': 1,
+            'targets': [{'file': 'dropsetinfo.pabgb', 'intents': intents}],
         }
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
@@ -5011,7 +5048,10 @@ class DropsetTab(QWidget):
             return
         with open(path, 'r', encoding='utf-8') as f:
             doc = json.load(f)
-        if doc.get('format') != 3 or not doc.get('intents'):
+        _di_targets = doc.get('targets') or []
+        _di_intents = doc.get('intents') or [
+            i for t in _di_targets for i in (t.get('intents') or [])]
+        if doc.get('format') != 3 or not _di_intents:
             QMessageBox.warning(self, "Import", "Not a valid Format 3 Field JSON file.")
             return
 

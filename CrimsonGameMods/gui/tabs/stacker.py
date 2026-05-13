@@ -483,8 +483,12 @@ def _classify(path: str) -> ModEntry:
         try:
             with open(path, encoding="utf-8") as f:
                 doc = json.load(f)
-            if doc.get("format") == 3 and doc.get("intents"):
-                n = len(doc["intents"])
+            # v3.1 uses "targets" array; old flat format used top-level "intents"
+            _targets = doc.get("targets") or []
+            _flat = doc.get("intents") or []
+            _all = _flat + [i for t in _targets for i in (t.get("intents") or [])]
+            if doc.get("format") == 3 and _all:
+                n = len(_all)
                 title = (doc.get("modinfo") or {}).get("title", display)
                 return ModEntry(name=title, path=path, kind="field_json",
                                 note=f"Format 3 field JSON ({n} intents)")
@@ -2264,7 +2268,10 @@ class StackerTab(QWidget):
 
             # Classify: if it has format:3 intents, load as field_json;
             # otherwise as legacy_json
-            if doc.get("format") == 3 and doc.get("intents"):
+            _dtargets = doc.get("targets") or []
+            _dall = (doc.get("intents") or []) + [
+                i for t in _dtargets for i in (t.get("intents") or [])]
+            if doc.get("format") == 3 and _dall:
                 entry = ModEntry(
                     name=f"[DMM] {title}",
                     path=json_path,
@@ -2833,7 +2840,13 @@ class StackerTab(QWidget):
                 elif m.kind == "field_json":
                     with open(m.path, encoding="utf-8") as f:
                         doc = json.load(f)
-                    intents = doc.get("intents", [])
+                    # Support both flat intents and v3.1 targets array
+                    _doc_targets = doc.get("targets") or []
+                    _flat_i = doc.get("intents") or []
+                    intents = _flat_i + [
+                        i for t in _doc_targets
+                        if t.get("file", "").lower() in ("iteminfo.pabgb", "")
+                        for i in (t.get("intents") or [])]
                     items = copy.deepcopy(vanilla_items)
                     items_by_key = {it['string_key']: it for it in items}
                     applied_count = 0
@@ -4455,8 +4468,8 @@ class StackerTab(QWidget):
                     'note': 'Format 3 — uses field names, survives game updates',
                 },
                 'format': 3,
-                'target': 'iteminfo.pabgb',
-                'intents': intents,
+                'format_minor': 1,
+                'targets': [{'file': 'iteminfo.pabgb', 'intents': intents}],
             }
             log_msg = f"✔ Exported {len(intents)} intents to {path}"
             ui_msg = (f"Exported {len(intents)} field-level intents.\n\n"

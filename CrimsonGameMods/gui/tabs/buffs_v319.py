@@ -783,16 +783,6 @@ class ItemBuffsTab(QWidget):
             export_field_btn.clicked.connect(self._buff_export_field_json_v3)
             bottom_bar.addWidget(export_field_btn)
 
-            export_mod_btn = QPushButton("Export as Mod Folder")
-            export_mod_btn.setStyleSheet(
-                "background-color: #7B1FA2; color: white; font-weight: bold;")
-            export_mod_btn.setToolTip(
-                "Export as a ready-to-use mod folder (NNNN/0.paz + 0.pamt + meta/0.papgt).\n"
-                "Drop the folder into your game directory or import into a mod manager.\n"
-                "Same as Apply to Game, but saves to a folder you choose instead.")
-            export_mod_btn.clicked.connect(self._buff_export_mod_folder)
-            bottom_bar.addWidget(export_mod_btn)
-
             self._dev_export_btns_buffs = []
 
             # Primary action 1: Create Item (green)
@@ -5409,19 +5399,32 @@ class ItemBuffsTab(QWidget):
                     skipped.append(tgt.internal_name)
                     continue
                 for field in PREFAB_FIELDS:
-                    src_val = src_item.get(field)
-                    if src_val is None:
+                    src_list = src_item.get(field)
+                    tgt_list = tgt_item.get(field)
+                    if src_list is None or tgt_list is None:
                         continue
-                    if src_val == tgt_item.get(field):
+                    if src_list == tgt_list:
                         continue
-                    intents.append({
-                        'entry': tgt.internal_name,
-                        'key': tgt.item_id,
-                        'field': field,
-                        'op': 'set',
-                        'new': src_val,
-                        '_comment': f'transmog: visual from {src.internal_name}',
-                    })
+                    # Emit sub-field paths so DMM doesn't need to
+                    # deserialize the full PrefabData struct (avoids
+                    # "missing field drops" crash).
+                    n_entries = max(len(src_list), len(tgt_list))
+                    for i in range(min(len(src_list), len(tgt_list))):
+                        se, te = src_list[i], tgt_list[i]
+                        if not isinstance(se, dict) or not isinstance(te, dict):
+                            continue
+                        for sub in ('prefab_names', 'equip_slot_list'):
+                            sv, tv = se.get(sub), te.get(sub)
+                            if sv is None or sv == tv:
+                                continue
+                            intents.append({
+                                'entry': tgt.internal_name,
+                                'key': tgt.item_id,
+                                'field': f'{field}[{i}].{sub}',
+                                'op': 'set',
+                                'new': sv,
+                                '_comment': f'transmog: visual from {src.internal_name}',
+                            })
             if not intents:
                 msg = "No field-level differences found."
                 if skipped:
@@ -9240,7 +9243,19 @@ class ItemBuffsTab(QWidget):
                 intents.extend(
                     ItemBuffsTab._field_diff(entry, key, va, vb, path))
             elif isinstance(va, list) and isinstance(vb, list):
-                if va != vb:
+                if va == vb:
+                    pass
+                elif (not prefix and len(va) == len(vb) and va
+                        and isinstance(va[0], dict) and isinstance(vb[0], dict)):
+                    # Recurse ONE level into top-level lists of dicts
+                    # so prefab_data_list[N].tribe_gender_list is
+                    # the path instead of the whole prefab_data_list blob.
+                    # Sub-lists within those dicts are full replacement.
+                    for _li, (_ea, _eb) in enumerate(zip(va, vb)):
+                        intents.extend(
+                            ItemBuffsTab._field_diff(
+                                entry, key, _ea, _eb, f'{path}[{_li}]'))
+                else:
                     intents.append({
                         'entry': entry, 'key': key,
                         'field': path, 'op': 'set', 'new': vb,
