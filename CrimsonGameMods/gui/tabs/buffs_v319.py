@@ -2374,6 +2374,15 @@ class ItemBuffsTab(QWidget):
         bulk_equip_v3_btn.clicked.connect(self._eb_universal_proficiency_v3)
         egl.addWidget(bulk_equip_v3_btn)
 
+        gun_fix_diag_btn = QPushButton("Gun Fix Diagnostic")
+        gun_fix_diag_btn.setStyleSheet(
+            "background-color: #1565C0; color: white; font-weight: bold; padding: 6px;")
+        gun_fix_diag_btn.setToolTip(
+            "Run Kliff gun fix and show full diagnostic.\n"
+            "Verifies parser offsets and shows exact values.")
+        gun_fix_diag_btn.clicked.connect(self._eb_gun_fix_diagnostic)
+        egl.addWidget(gun_fix_diag_btn)
+
 
         # Dev-only v1 Universal Proficiency.
         bulk_equip_btn = QPushButton("Universal Proficiency v1 [DEV]")
@@ -4167,10 +4176,6 @@ class ItemBuffsTab(QWidget):
             if 'cooltime' in new_data:
                 rust_info['unk_post_cooltime_a'] = new_data['cooltime']
                 rust_info['unk_post_cooltime_b'] = new_data['cooltime']
-            if 'max_charged_useable_count' in new_data:
-                rust_info['unk_post_max_charged_a'] = new_data['max_charged_useable_count']
-                rust_info['unk_post_max_charged_b'] = new_data['max_charged_useable_count']
-
             if 'drop_default_data' in new_data:
                 new_ddd = new_data['drop_default_data']
                 cur_ddd = rust_info.get('drop_default_data')
@@ -6237,10 +6242,6 @@ class ItemBuffsTab(QWidget):
         if 'cooltime' in effect:
             rust_info['unk_post_cooltime_a'] = effect['cooltime']
             rust_info['unk_post_cooltime_b'] = effect['cooltime']
-        if 'max_charged_useable_count' in effect:
-            rust_info['unk_post_max_charged_a'] = effect['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = effect['max_charged_useable_count']
-
         self._buff_modified = True
         self._buff_refresh_stats()
         self._buff_status_label.setText(
@@ -6536,6 +6537,21 @@ class ItemBuffsTab(QWidget):
                 )
 
         if not skip:
+            # Warn if preset gimmick is incompatible with this item's weapon type
+            _preset_gk = preset.get('gimmick_info')
+            if _preset_gk:
+                _item_skey = rust_info.get('string_key', '')
+                _compat_ok, _compat_warn = self._gimmick_compatible_with_item(
+                    _preset_gk, _item_skey)
+                if not _compat_ok:
+                    _reply = QMessageBox.warning(
+                        self, "Gimmick Incompatible - Crash Risk",
+                        _compat_warn + "\n\nApply anyway (WILL CRASH)?",
+                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+                    )
+                    if _reply != QMessageBox.Yes:
+                        return
+
             warning = preset.get('warning', '')
             if warning:
                 warning = f"WARNING: {warning}\n\n"
@@ -6586,13 +6602,6 @@ class ItemBuffsTab(QWidget):
                     existing[dd] = ddd[dd]
             # rust_info['drop_default_data'] = existing
 
-        # Sync mirrored fields — game expects these to match their parent values
-        if 'cooltime' in preset:
-            rust_info['unk_post_cooltime_a'] = preset['cooltime']
-            rust_info['unk_post_cooltime_b'] = preset['cooltime']
-        if 'max_charged_useable_count' in preset:
-            rust_info['unk_post_max_charged_a'] = preset['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
 
         if preset.get('drop_default_data') is not None:
             ddd = preset['drop_default_data']
@@ -6603,13 +6612,6 @@ class ItemBuffsTab(QWidget):
                     if ddd.get(dd) is not None:
                         existing_ddd[dd] = ddd[dd]
 
-        # Sync mirrored fields — game expects these to match their parent values
-        if 'cooltime' in preset:
-            rust_info['unk_post_cooltime_a'] = preset['cooltime']
-            rust_info['unk_post_cooltime_b'] = preset['cooltime']
-        if 'max_charged_useable_count' in preset:
-            rust_info['unk_post_max_charged_a'] = preset['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
 
         self._buff_modified = True
         self._buff_refresh_stats()
@@ -6785,6 +6787,64 @@ class ItemBuffsTab(QWidget):
             self._eb_vfx_combo.addItem(label, gk)
 
 
+
+    # Weapon-type hints extracted from gimmick names.
+    # Maps fragment found in gimmick_name -> item string_key suffixes it can attach to.
+    # Gimmicks NOT in this map are assumed compatible with anything.
+    _GIMMICK_WEAPON_TYPE_RULES = {
+        # 'onehandsword' gimmicks (e.g. 1001961 gimmick_equip_lightning_OneHandSword)
+        # also work on TwoHandSword and TwoHandSpear in vanilla
+        # (UP mod applies 1001961 to ALL TwoHandSwords). Only the
+        # 'docking_common_onehandsword' is strictly OneHandSword-only.
+        'docking_common_onehandsword': ('OneHandSword',),
+        'twohandsword':        ('TwoHandSword',),
+        'twohandspear':        ('TwoHandSpear', 'TwoHandGiantSpear'),
+        'twohandhammer':       ('TwoHandHammer',),
+        'giantsword':          ('TwoHandGiantBastard',),
+        'onehandbow':          ('OneHandBow',),
+        'twohandbow':          ('TwoHandBow',),
+        'rangeweapon_quiver':  ('OneHandBow', 'TwoHandBow'),
+    }
+
+    def _gimmick_compatible_with_item(self, gimmick_key: int,
+                                       item_string_key: str) -> tuple:
+        """Check whether a gimmick is mesh-compatible with the target item.
+
+        Returns (is_compatible, warning_message).
+        Incompatible gimmicks on wrong weapon types crash the game on character load.
+        """
+        if not item_string_key:
+            return True, ""
+
+        entry = next(
+            (e for e in getattr(self, '_vfx_catalog_entries', [])
+             if e.get('gimmick_key') == gimmick_key),
+            None,
+        )
+        if not entry:
+            return True, ""
+
+        gname = (entry.get('gimmick_name') or '').lower()
+
+        for name_fragment, allowed_suffixes in self._GIMMICK_WEAPON_TYPE_RULES.items():
+            if name_fragment in gname:
+                if any(item_string_key.endswith(s) for s in allowed_suffixes):
+                    return True, ""
+                sample_names = [s['internal_name']
+                                for s in entry.get('sample_items', [])[:3]]
+                warn = (
+                    f"Gimmick '{entry.get('gimmick_name')}' ({gimmick_key}) is built "
+                    f"for {' / '.join(allowed_suffixes)} meshes, but "
+                    f"'{item_string_key}' is a different weapon type.\n\n"
+                    f"Attaching an incompatible gimmick WILL CRASH the game "
+                    f"when this item is loaded.\n\n"
+                    f"This gimmick is designed for items like:\n"
+                    + "\n".join(f"  - {n}" for n in sample_names)
+                )
+                return False, warn
+
+        return True, ""
+
     def _eb_apply_vfx_gimmick(self) -> None:
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
             QMessageBox.warning(self, "Apply Gimmick", "Extract with Rust parser first.")
@@ -6815,6 +6875,19 @@ class ItemBuffsTab(QWidget):
         entry = next((e for e in getattr(self, '_vfx_catalog_entries', [])
                       if e.get('gimmick_key') == gk), None)
         nm = (entry or {}).get('gimmick_name') or f"gimmick {gk}"
+
+        # Warn if gimmick mesh type mismatches the item's weapon type
+        item_skey = rust_info.get('string_key', '')
+        _compat_ok, _compat_warn = self._gimmick_compatible_with_item(gk, item_skey)
+        if not _compat_ok:
+            _reply = QMessageBox.warning(
+                self, "Gimmick Incompatible - Crash Risk",
+                _compat_warn + "\n\nApply anyway (WILL CRASH)?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            )
+            if _reply != QMessageBox.Yes:
+                return
+
         cur_charge = rust_info.get('item_charge_type', 0)
         new_charge = sample.get('item_charge_type', cur_charge)
         warn = ""
@@ -8136,6 +8209,103 @@ class ItemBuffsTab(QWidget):
             f"Note: weapons may lack animations on non-native characters.")
 
 
+    def _eb_gun_fix_diagnostic(self) -> None:
+        """Run gun fix then show a raw-byte diff between Kliff and Damian records.
+
+        The 3-field action chart fix is confirmed applied by DMM (dmmcha overlay)
+        but Kliff shows no gun stance.  This diagnostic compares 128 bytes from
+        the action chart block onward for Kliff vs Damian to find any additional
+        fields that differ and that we haven't patched yet.
+        """
+        gp_widget = getattr(self, '_buff_game_path', None)
+        gp = (gp_widget.text() or '').strip() if gp_widget else ''
+        if not gp:
+            gp = getattr(self, '_game_path', '') or ''
+        if not gp:
+            QMessageBox.warning(self, "Gun Fix Diagnostic", "Set game path first.")
+            return
+
+        result = self._stage_kliff_gun_fix(gp)
+        staged = getattr(self, '_staged_gunfix_byte_pair', None)
+
+        try:
+            import dmm_parser, struct
+            from characterinfo_full_parser import parse_all_entries
+
+            dp = 'gamedata/binary__/client/bin'
+            ci_body = bytes(dmm_parser.extract_file(gp, '0008', dp, 'characterinfo.pabgb'))
+            ci_gh   = bytes(dmm_parser.extract_file(gp, '0008', dp, 'characterinfo.pabgh'))
+
+            entries  = parse_all_entries(ci_body, ci_gh)
+            by_name  = {e.get('name'): e for e in entries if e and e.get('name')}
+
+            kliff  = by_name.get('Kliff')
+            damian = by_name.get('Damian')
+
+            lines = [
+                f"Staged: {bool(staged)}   Total entries parsed: {len(by_name)}",
+                "",
+            ]
+
+            if kliff and damian:
+                k_off = kliff.get('_upperActionChartPackageGroupName_offset')
+                d_off = damian.get('_upperActionChartPackageGroupName_offset')
+
+                if k_off and d_off:
+                    WINDOW = 128  # bytes from the action chart block onward
+                    k_win = ci_body[k_off: k_off + WINDOW]
+                    d_win = ci_body[d_off: d_off + WINDOW]
+
+                    lines.append("Byte diff from action chart block (Kliff vs Damian):")
+                    lines.append(f"  Col: offset  Kliff-hex  Damian-hex  [field hint]")
+
+                    # Known field offsets within the 28-byte action chart block
+                    KNOWN = {
+                        0:  '_upper',
+                        4:  '_lower',
+                        8:  '_gpd',
+                        12: '_app',
+                        16: '_prefab',
+                        20: '_unk1',
+                        24: '_skeletonVariation',
+                    }
+                    ALREADY_FIXED = {0, 4, 8}  # upper, lower, gpd
+
+                    diff_count = 0
+                    for i in range(0, min(len(k_win), len(d_win)), 4):
+                        k4 = k_win[i:i+4]
+                        d4 = d_win[i:i+4]
+                        if k4 == d4:
+                            continue
+                        diff_count += 1
+                        k_val = struct.unpack_from('<I', k4)[0]
+                        d_val = struct.unpack_from('<I', d4)[0]
+                        fname = KNOWN.get(i, f'?+{i}')
+                        tag = ' <- ALREADY FIXED' if i in ALREADY_FIXED else ' <- NEEDS FIX?'
+                        lines.append(
+                            f"  +{i:3d}: 0x{k_val:08X} -> 0x{d_val:08X}  {fname}{tag}")
+
+                    if diff_count == 0:
+                        lines.append("  No differences found (fix already applied or records identical)")
+                    else:
+                        lines.append(f"  {diff_count} u32 word(s) differ")
+                    lines.append("")
+                    lines.append("Fields beyond +28 that differ may be the weapon/combat type.")
+                else:
+                    lines.append("Could not get action chart offsets from parser.")
+            else:
+                lines.append(f"Kliff found: {kliff is not None}  Damian found: {damian is not None}")
+
+            msg = result + "\n\n" + "\n".join(lines)
+            QMessageBox.information(self, "Gun Fix Diagnostic", msg)
+
+        except Exception as ex:
+            import traceback
+            QMessageBox.critical(self, "Gun Fix Diagnostic",
+                f"{result}\n\nDiagnostic failed:\n{ex}\n{traceback.format_exc()[-400:]}")
+
+
+
     def _stage_kliff_gun_fix(self, game_path: str) -> str:
         """Binary-patch Kliff's action chart + gameplay data so he can fire guns.
 
@@ -8202,6 +8372,29 @@ class ItemBuffsTab(QWidget):
             # 20-byte old signature (Kliff's original values)
             old_20 = struct.pack('<IIIII', k_upper, k_lower, k_gpd, k_app, k_prefab)
             new_20 = struct.pack('<IIIII', d_upper, d_lower, o_gpd, k_app, k_prefab)
+
+            # VERIFICATION: old_20 must exist verbatim in ci_body for DMM byte-replace.
+            # If not found, the parser computed wrong offsets for player character records.
+            sig_pos = bytes(ci_body).find(bytes(old_20))
+            if sig_pos == -1:
+                actual_20 = bytes(ci_body[k_upper_off:k_upper_off + 20])
+                d_upper_off = damian.get('_upperActionChartPackageGroupName_offset')
+                d_actual   = bytes(ci_body[d_upper_off:d_upper_off + 8]) if d_upper_off else b''
+                d_expected = struct.pack('<II', d_upper, d_lower)
+                damian_ok  = (d_actual == d_expected)
+                msg = (
+                    f"\nKliff Gun Fix: PARSER OFFSET ERROR"
+                    f"\n  20-byte signature not found in characterinfo.pabgb"
+                    f"\n  k_upper_off={k_upper_off}"
+                    f"\n  Expected: {old_20.hex().upper()}"
+                    f"\n  Actual bytes at that offset: {actual_20.hex().upper()}"
+                    f"\n  Damian offsets also valid: {damian_ok}"
+                    f"\n  characterinfo_full_parser walks player records incorrectly."
+                )
+                self._last_gunfix_msg = msg
+                log.error("Kliff gun fix verification failed: %s", msg)
+                return msg
+            log.info("Kliff gun fix: signature verified at offset %d", sig_pos)
 
             # Patch the binary
             struct.pack_into('<I', ci_body, k_upper_off,      d_upper)
@@ -9223,7 +9416,8 @@ class ItemBuffsTab(QWidget):
                     'entry': skey, 'key': ikey,
                     'op': 'add_entry',
                     'data': {k: v for k, v in item.items()
-                             if k not in ('key', 'string_key')},
+                             if k not in ('key', 'string_key')
+                             and k not in ItemBuffsTab._EXPORT_FIELD_BLACKLIST},
                 })
                 continue
             diffs = self._field_diff(skey, ikey, vanilla, item)
@@ -9344,10 +9538,11 @@ class ItemBuffsTab(QWidget):
 
     # Fields never exported as field JSON intents.
     # These are unidentified struct fields - exporting crashes the game.
-    _EXPORT_FIELD_BLACKLIST = frozenset({
-        'unk_post_cooltime_a',
-        'unk_post_cooltime_b',
-    })
+    # NOTE: unk_post_cooltime_a/b and unk_post_max_charged_a/b are NOT blacklisted.
+    # DMM 1.05.01+ maps them to cooltime.b/c and max_charged_useable_count.b/c.
+    # They must be exported so all three struct sub-fields are written correctly.
+    # Pre-1.05.01 DMM would crash on them but that version is no longer supported.
+    _EXPORT_FIELD_BLACKLIST: frozenset = frozenset()  # no fields blacklisted
 
     @staticmethod
     def _field_diff(entry: str, key: int, a: dict, b: dict,
@@ -9369,12 +9564,12 @@ class ItemBuffsTab(QWidget):
             elif isinstance(va, list) and isinstance(vb, list):
                 if va == vb:
                     pass
-                elif (not prefix and len(va) == len(vb) and va
+                elif (not prefix and va and vb
                         and isinstance(va[0], dict) and isinstance(vb[0], dict)):
-                    # Recurse ONE level into top-level lists of dicts
-                    # so prefab_data_list[N].tribe_gender_list is
-                    # the path instead of the whole prefab_data_list blob.
-                    # Sub-lists within those dicts are full replacement.
+                    # Recurse into top-level list-of-dicts one level deep.
+                    # For enchant_data_list: if lengths differ, only diff
+                    # levels that exist in BOTH vanilla and modified to avoid
+                    # trying to set enchant levels the item cannot have.
                     for _li, (_ea, _eb) in enumerate(zip(va, vb)):
                         intents.extend(
                             ItemBuffsTab._field_diff(
@@ -9384,6 +9579,16 @@ class ItemBuffsTab(QWidget):
                         'entry': entry, 'key': key,
                         'field': path, 'op': 'set', 'new': vb,
                     })
+            elif isinstance(va, dict) and isinstance(vb, (int, float)) and set(va.keys()) <= {'a','b','c'}:
+                # dmm_parser stores cooltime / max_charged_useable_count as
+                # {a, b, c} struct dicts. If a preset wrote a plain scalar,
+                # treat it as setting all sub-fields to that value.
+                for sub in sorted(va.keys()):
+                    if va.get(sub) != vb:
+                        intents.append({
+                            'entry': entry, 'key': key,
+                            'field': f'{path}.{sub}', 'op': 'set', 'new': vb,
+                        })
             else:
                 intents.append({
                     'entry': entry, 'key': key,

@@ -4973,11 +4973,13 @@ class DropsetTab(QWidget):
         self._dropset_flush_dirty()
 
         def _sd(drops):
+            # Internal struct has min_amt/max_amt swapped vs the JSON schema.
+            # max_amt stores qty_min; min_amt stores qty_max. Un-swap on export.
             return [{'item_key':  getattr(d, 'item_key',  0),
                      'rates':     getattr(d, 'rates',     0),
                      'rates_100': getattr(d, 'rates_100', 0),
-                     'min_amt':   getattr(d, 'min_amt',   0),
-                     'max_amt':   getattr(d, 'max_amt',   0)}
+                     'min_amt':   getattr(d, 'max_amt',   0),
+                     'max_amt':   getattr(d, 'min_amt',   0)}
                     for d in drops]
 
         intents = []
@@ -5081,12 +5083,14 @@ class DropsetTab(QWidget):
                 from dropset_editor import ItemDrop
                 new_drops = []
                 for d in intent['new']:
+                    # JSON uses qty_min=min_amt / qty_max=max_amt.
+                    # Internal struct is swapped: max_amt=qty_min, min_amt=qty_max.
                     drop = ItemDrop(
                         flag=1, item_key=d['item_key'],
                         rates=d.get('rates', 0),
                         rates_100=d.get('rates_100', 0),
-                        min_amt=d.get('min_amt', 0),
-                        max_amt=d.get('max_amt', 0),
+                        min_amt=d.get('max_amt', 0),
+                        max_amt=d.get('min_amt', 0),
                         item_key_dup=d['item_key'],
                     )
                     new_drops.append(drop)

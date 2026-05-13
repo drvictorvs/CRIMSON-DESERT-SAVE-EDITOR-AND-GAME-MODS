@@ -292,7 +292,7 @@ class SkillTreeTab(QWidget):
         # --- stamina preset row ---
         preset_row = QHBoxLayout()
         preset_row.setSpacing(4)
-        preset_lbl = QLabel("Stamina Presets:")
+        preset_lbl = QLabel("Stamina/Spirit:")
         preset_lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
         preset_row.addWidget(preset_lbl)
 
@@ -1379,134 +1379,83 @@ class SkillTreeTab(QWidget):
             f"All skills are now usable by all characters.\n"
             "")
 
+    # Multipliers for each stamina/spirit preset.
+    # cost_ratio   applies to negative resource values (drain)
+    # recov_ratio  applies to positive resource values (regen/recovery)
+    _STAMINA_PRESETS = {
+        'CrimsonWings_Stamina_10pct.json':      {'label': '10%',      'cost': 0.10,   'recov': 10.0},
+        'CrimsonWings_Stamina_25pct.json':      {'label': '25%',      'cost': 0.25,   'recov': 4.0},
+        'CrimsonWings_Stamina_50pct.json':      {'label': '50%',      'cost': 0.50,   'recov': 2.0},
+        'CrimsonWings_Stamina_75pct.json':      {'label': '75%',      'cost': 0.75,   'recov': 4/3},
+        'CrimsonWings_Stamina_infinite.json':   {'label': 'Infinite', 'cost': 0.0001, 'recov': 100.0},
+    }
+
     def _on_stamina_preset(self, filename: str) -> None:
-        """One-click stamina preset: load skillinfo if needed, find preset, import it."""
+        """Apply a stamina/spirit preset by multiplying resource stat values directly.
+
+        Walks each skill entry's _useResourceStatList and _useDriverResourceStatList,
+        scales negative values (costs) by cost_ratio and positive values (recovery)
+        by recov_ratio.  No byte searching — works regardless of game version.
+        """
         if not self._skill_loaded:
             self._on_skill_load()
         if not self._skill_loaded:
             return
 
-        preset_path = None
-        for base_dir in [
-            os.path.dirname(os.path.abspath(__file__)),
-            getattr(sys, '_MEIPASS', ''),
-            os.getcwd(),
-        ]:
-            for rel in [
-                os.path.join(base_dir, '..', '..', 'stamina_presets', filename),
-                os.path.join(base_dir, 'stamina_presets', filename),
-                os.path.join(base_dir, '..', '..', filename),
-                os.path.join(base_dir, filename),
-            ]:
-                p = os.path.normpath(rel)
-                if os.path.isfile(p):
-                    preset_path = p
-                    break
-            if preset_path:
-                break
-
-        if not preset_path:
-            from PySide6.QtWidgets import QFileDialog
-            preset_path, _ = QFileDialog.getOpenFileName(
-                self, f"Locate {filename}", "",
-                "JSON Files (*.json);;All Files (*)")
-        if not preset_path:
+        cfg = self._STAMINA_PRESETS.get(filename)
+        if not cfg:
+            QMessageBox.warning(self, "Stamina Preset",
+                f"Unknown preset file: {filename}")
             return
 
-        self._apply_skill_value_patches(preset_path)
+        cost_ratio  = cfg['cost']
+        recov_ratio = cfg['recov']
+        label       = cfg['label']
 
-    def _apply_skill_value_patches(self, path: str) -> None:
-        """Apply a legacy skill JSON mod by patching values in-place.
+        import skillinfo_parser as sip
 
-        Instead of cross-version blob transfer, finds the original byte
-        pattern in each entry's current _buff_data_raw and replaces it.
-        No structural changes — same file size, safe roundtrip.
-        """
-        if not self._skill_loaded:
-            QMessageBox.warning(self, "Not loaded", "Load SkillInfo first.")
-            return
-
-        try:
-            with open(path, encoding='utf-8') as f:
-                doc = json.load(f)
-        except Exception as e:
-            QMessageBox.critical(self, "Import Failed", f"Could not read JSON:\n{e}")
-            return
-
-        changes = []
-        for p in doc.get('patches', []):
-            changes.extend(p.get('changes', []))
-        if not changes:
-            QMessageBox.warning(self, "Import Failed", "No changes found.")
-            return
-
-        by_name = {e['name']: e for e in self._skill_entries}
         patched = 0
-        skipped = 0
-        missing_entries = set()
-        missing_values = []
-
-        for c in changes:
-            name = c.get('entry', '')
-            orig_hex = c.get('original', '')
-            patch_hex = c.get('patched', '')
-            if not name or not orig_hex or not patch_hex:
-                skipped += 1
-                continue
-            e = by_name.get(name)
-            if not e:
-                missing_entries.add(name)
-                skipped += 1
-                continue
-
-            orig_bytes = bytes.fromhex(orig_hex)
-            patch_bytes = bytes.fromhex(patch_hex)
-
-            # Search the full serialized entry, not just _buff_data_raw
-            # (the new parser splits body into named fields, so the values
-            # may be in _useResourceStatList, _buffLevelList, etc.)
-            import skillinfo_parser as sip
-            full = sip.serialize_entry(e)
-            pos = full.find(orig_bytes)
-            if pos >= 0:
-                patched_full = bytearray(full)
-                patched_full[pos:pos + len(orig_bytes)] = patch_bytes
-                # Re-parse the patched entry to update all named fields
-                idx = [(ek['key'], 0) for ek in [e]]
-                try:
-                    new_e = sip.parse_skill_entry(bytes(patched_full), 0, len(patched_full))
-                    # Preserve key/name from original
-                    new_e['key'] = e['key']
-                    new_e['name'] = e['name']
-                    new_e['name_len'] = e['name_len']
-                    new_e['name_bytes'] = e.get('name_bytes', e['name'].encode('ascii'))
-                    by_name[name] = new_e
-                    # Update in the list
-                    for i, se in enumerate(self._skill_entries):
-                        if se['name'] == name:
-                            self._skill_entries[i] = new_e
-                            break
-                    patched += 1
-                except Exception:
-                    # Fallback: patch _raw directly
-                    e['_raw'] = bytes(patched_full)
-                    e.pop('_buff_data_raw', None)
-                    patched += 1
-            else:
-                missing_values.append(name)
-                skipped += 1
+        for e in self._skill_entries:
+            changed = False
+            for list_key in ('_useResourceStatList', '_useDriverResourceStatList'):
+                rsl = e.get(list_key)
+                if not rsl:
+                    continue
+                for rs in rsl:
+                    v = rs.get('value', 0)
+                    if v == 0:
+                        continue
+                    if v < 0:
+                        new_v = int(round(v * cost_ratio))
+                        # Never round to 0 for infinite preset — use -1 minimum
+                        if new_v == 0:
+                            new_v = -1
+                    else:
+                        new_v = int(round(v * recov_ratio))
+                    if new_v != v:
+                        rs['value'] = new_v
+                        changed = True
+            if changed:
+                # Clear any cached raw bytes so serialize_entry re-derives from fields
+                e.pop('_raw', None)
+                e.pop('_buff_data_raw', None)
+                patched += 1
 
         self._populate_skill_table()
-        title = (doc.get('modinfo') or {}).get('title', os.path.basename(path))
         self._lbl_skill_status.setText(
-            f"{title}: {patched} values patched, {skipped} skipped.")
+            f"Stamina/Spirit {label}: {patched} skills modified.")
+        QMessageBox.information(self, f"Stamina/Spirit {label}",
+            f"Applied {label} stamina/spirit preset to {patched} skill entries.\n\n"
+            f"Cost multiplier: ×{cost_ratio}  |  Recovery multiplier: ×{recov_ratio:.4f}\n\n"
+            "Click 'Export Field JSON' to save as a DMM mod.")
 
-        detail = f"Patched {patched}/{len(changes)} values in-place."
-
-        QMessageBox.information(self, f"{title}", detail)
 
     def _on_skill_export_json(self) -> None:
-        """Export current skill modifications as Format 3 field-name JSON."""
+        """Export skill modifications as DMM v3 byte-replace JSON.
+
+        Uses whole-entry old/new byte pairs (singular 'target' shape) so DMM
+        routes through the byte-replace engine. 164-byte signatures are unique.
+        """
         if not self._skill_loaded:
             QMessageBox.warning(self, "Not loaded", "Load SkillInfo first.")
             return
@@ -1517,11 +1466,17 @@ class SkillTreeTab(QWidget):
             if i >= len(self._skill_vanilla_entries):
                 continue
             van = self._skill_vanilla_entries[i]
-            if sip.serialize_entry(e) == sip.serialize_entry(van):
+            van_bytes = sip.serialize_entry(van)
+            mod_bytes = sip.serialize_entry(e)
+            if van_bytes == mod_bytes:
                 continue
-            # Build a field-level diff
-            entry_intents = _diff_skill_entry(van, e)
-            intents.extend(entry_intents)
+            intents.append({
+                'entry': e.get('name', f'entry_{i}'),
+                'key': e.get('key', i),
+                'field': 'entry_bytes',
+                'old': van_bytes.hex().upper(),
+                'new': mod_bytes.hex().upper(),
+            })
 
         if not intents:
             QMessageBox.information(self, "Export Field JSON",
@@ -1540,17 +1495,12 @@ class SkillTreeTab(QWidget):
                 'title': 'Skill Mod',
                 'version': '1.0',
                 'author': 'CrimsonGameMods SkillTree',
-                'description': f'{len(intents)} field-level intent(s)',
-                'note': 'Format 3 -- uses field names, survives game updates',
+                'description': f'{len(intents)} entry replacement(s) for skill.pabgb',
+                'note': 'DMM v3 byte-replace format.',
             },
             'format': 3,
-            'format_minor': 1,
-            'targets': [
-                {
-                    'file': 'skill_info.pabgb',
-                    'intents': intents,
-                }
-            ],
+            'target': 'skill.pabgb',
+            'intents': intents,
         }
 
         try:
@@ -1560,8 +1510,7 @@ class SkillTreeTab(QWidget):
                 f"Exported {len(intents)} intents to {os.path.basename(path)}")
             QMessageBox.information(
                 self, "Export Field JSON",
-                f"Exported {len(intents)} field-level intents.\n\n"
-                f"File: {path}")
+                f"Exported {len(intents)} entry replacements.\n\nFile: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
 
