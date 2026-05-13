@@ -416,7 +416,11 @@ class DropsetEditor:
             if name_len > 0:
                 name = self.body_bytes[pos:pos+name_len].decode("ascii", errors="replace")
             pos += name_len
-            pos += 1 + 1 + 4 + 4 + 4
+            pos += 1 + 1  # is_blocked + drop_roll_type
+            pos += 4      # drop_roll_count
+            dcs_len = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
+            pos += dcs_len  # drop_condition_string (variable length)
+            pos += 4      # drop_tag_name_hash
             drop_count = struct.unpack_from("<I", self.body_bytes, pos)[0]
 
             if named_only and not name:

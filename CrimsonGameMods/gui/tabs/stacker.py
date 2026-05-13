@@ -1801,16 +1801,6 @@ class StackerTab(QWidget):
         pull_btn.clicked.connect(self._pull_from_itembuffs)
         blay.addWidget(pull_btn)
 
-        pull_all_btn = _size_button(QPushButton("⇅ Pull All Edits"), extra_px=52)
-        pull_all_btn.setObjectName("flatBtn")
-        pull_all_btn.setStyleSheet(
-            "QPushButton { background-color: #00695C; color: white; font-weight: bold; }")
-        pull_all_btn.setToolTip(
-            "Pull edits from ALL tabs: ItemBuffs + FieldEdit + SpawnEdit + "
-            "BagSpace + ReserveSlot + DropSets. Creates one mod entry per "
-            "tab that has modifications.")
-        pull_all_btn.clicked.connect(self._pull_all_edits)
-        blay.addWidget(pull_all_btn)
         blay.addStretch(1)
 
         pull_dmm_btn = _size_button(QPushButton("⇅ Pull DMM"))
