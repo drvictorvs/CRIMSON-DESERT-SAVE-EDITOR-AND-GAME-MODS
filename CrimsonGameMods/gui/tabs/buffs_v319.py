@@ -6825,6 +6825,9 @@ class ItemBuffsTab(QWidget):
         # (UP mod applies 1001961 to ALL TwoHandSwords). Only the
         # 'docking_common_onehandsword' is strictly OneHandSword-only.
         'docking_common_onehandsword': ('OneHandSword',),
+        # Boots gimmicks only work on boots items - crashes on rings/accessories
+        'boots':                       ('PlateArmor_Boots', 'Boots', 'Sabatons'),
+        'jumpup_boots':                ('PlateArmor_Boots', 'Boots', 'Sabatons'),
         'twohandsword':        ('TwoHandSword',),
         'twohandspear':        ('TwoHandSpear', 'TwoHandGiantSpear'),
         'twohandhammer':       ('TwoHandHammer',),
@@ -9518,41 +9521,12 @@ class ItemBuffsTab(QWidget):
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
 
-            # Also export Kliff gun fix as a SEPARATE byte-replace JSON if staged.
-            # DMM's byte-replace format uses "old"/"new" hex pairs: DMM searches
-            # characterinfo.pabgb for the 12-byte old signature and replaces it.
-            # This sidesteps the dmm_parser alias limitation for action chart fields.
-            _gunfix = getattr(self, '_staged_gunfix_byte_pair', None)
             gunfix_path = ''
-            if _gunfix:
-                _dir = os.path.dirname(path)
-                gunfix_path = os.path.join(_dir, 'Kliff_Gun_Fix.field.json')
-                gunfix_doc = {
-                    'modinfo': {
-                        'title': 'Kliff Gun Fix (Gun Shooting)',
-                        'version': '1.0',
-                        'author': 'CrimsonGameMods Universal Proficiency',
-                        'description': (
-                            'Patches _upperActionChartPackageGroupName, '
-                            '_lowerActionChartPackageGroupName, and '
-                            '_characterGamePlayDataName on Kliff to enable gun fire/reload. '
-                            'Load alongside Universal_Proficiency.field.json in DMM.'
-                        ),
-                    },
-                    'format': 3,
-                    'target': 'characterinfo.pabgb',
-                    'intents': [_gunfix],
-                }
-                with open(gunfix_path, 'w', encoding='utf-8') as f:
-                    json.dump(gunfix_doc, f, indent=2, ensure_ascii=False, default=str)
 
             self._buff_status_label.setText(
                 f"Exported {len(intents)} field intents to {os.path.basename(path)}")
-            if gunfix_path:
-                gunfix_note = (
-                    f"\n\nKliff Gun Fix also exported:\n{os.path.basename(gunfix_path)}\n"
-                    f"Load BOTH files in DMM for full gun support."
-                )
+            if False:
+                gunfix_note = ''
             else:
                 _diag = _gunfix_diag or getattr(self, '_last_gunfix_msg', '(not run this session)')
                 gunfix_note = f"\n\nKliff Gun Fix diagnostic:\n{_diag.strip()}"
