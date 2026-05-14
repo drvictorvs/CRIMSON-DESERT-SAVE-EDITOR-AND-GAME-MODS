@@ -564,6 +564,25 @@ class StoreEditorTab(QWidget):
         top_row.addWidget(export_json_btn)
         self._dev_export_btn_store = export_json_btn
 
+        export_v3_btn = QPushButton("Export Field JSON v3")
+        export_v3_btn.setToolTip("Export store changes as DMM v3.1 field JSON (field-level, survives updates)")
+        export_v3_btn.clicked.connect(self._store_export_field_json_v3)
+        top_row.addWidget(export_v3_btn)
+
+        store_apply_btn = QPushButton(tr("Apply to Game"))
+        store_apply_btn.setObjectName("accentBtn")
+        store_apply_btn.setToolTip(
+            "Deploy modified storeinfo to the game as a PAZ overlay.\n"
+            "Original game files are NOT modified. Restart game to take effect.")
+        store_apply_btn.clicked.connect(self._store_apply)
+        top_row.addWidget(store_apply_btn)
+
+        store_restore_btn = QPushButton(tr("Restore"))
+        store_restore_btn.setStyleSheet("background-color: #424242; color: white; padding: 4px 8px;")
+        store_restore_btn.setToolTip("Remove the store overlay and restore vanilla storeinfo.")
+        store_restore_btn.clicked.connect(self._store_restore)
+        top_row.addWidget(store_restore_btn)
+
         top_row.addWidget(QLabel(tr("Overlay:")))
         self._store_overlay_spin = QSpinBox()
         self._store_overlay_spin.setRange(1, 9999)
@@ -1124,7 +1143,8 @@ class StoreEditorTab(QWidget):
             return
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import JSON Vendor Patch", "", "JSON Files (*.json)")
+            self, "Import JSON Vendor Patch", "",
+            "JSON Files (*.json *.field.json);;All Files (*)")
         if not path:
             return
 
@@ -1133,45 +1153,65 @@ class StoreEditorTab(QWidget):
             with open(path, 'r', encoding='utf-8') as f:
                 patch_data = json.load(f)
 
-            body = bytearray(dmm_parser.serialize_table('store_info', self._store_dmm))
             applied = 0
             skipped = 0
+            mod_name = (patch_data.get('modinfo', {}).get('title')
+                        or patch_data.get('name')
+                        or os.path.basename(path))
 
-            for patch_group in patch_data.get('patches', []):
-                if 'storeinfo.pabgb' not in patch_group.get('game_file', ''):
-                    continue
-                for change in patch_group.get('changes', []):
-                    offset = change['offset']
-                    original = bytes.fromhex(change['original'])
-                    patched = bytes.fromhex(change['patched'])
+            intents = []
+            if patch_data.get('format') == 3:
+                for t in patch_data.get('targets', []):
+                    if 'storeinfo' in t.get('file', ''):
+                        intents.extend(t.get('intents', []))
+                if not intents:
+                    intents = patch_data.get('intents', [])
 
-                    if offset + len(original) > len(body):
+            if intents:
+                dmm_by_key = {it['key']: it for it in self._store_dmm}
+                for intent in intents:
+                    key = intent.get('key')
+                    field = intent.get('field', '')
+                    new_val = intent.get('new')
+                    target = dmm_by_key.get(key)
+                    if not target:
                         skipped += 1
                         continue
-
-                    current = bytes(body[offset:offset + len(original)])
-                    if current == original:
-                        body[offset:offset + len(patched)] = patched
+                    if field and new_val is not None:
+                        target[field] = new_val
                         applied += 1
-                    elif current == patched:
-                        skipped += 1
                     else:
                         skipped += 1
-                        log.warning(tr("Patch mismatch at offset %d: expected %s, got %s"),
-                                    offset, original.hex(), current.hex())
+            else:
+                body = bytearray(dmm_parser.serialize_table('store_info', self._store_dmm))
+                for patch_group in patch_data.get('patches', []):
+                    if 'storeinfo.pabgb' not in patch_group.get('game_file', ''):
+                        continue
+                    for change in patch_group.get('changes', []):
+                        offset = change['offset']
+                        original = bytes.fromhex(change['original'])
+                        patched = bytes.fromhex(change['patched'])
+                        if offset + len(original) > len(body):
+                            skipped += 1
+                            continue
+                        current = bytes(body[offset:offset + len(original)])
+                        if current == original:
+                            body[offset:offset + len(patched)] = patched
+                            applied += 1
+                        else:
+                            skipped += 1
+                self._store_dmm = dmm_parser.parse_table('store_info', bytes(body), self._store_gh)
 
-            self._store_dmm = dmm_parser.parse_table('store_info', bytes(body), self._store_gh)
+            self._store_modified = True
             self._store_update_change_count(applied)
             self._store_populate_list(self._store_search.text())
             self._store_selected()
 
-            mod_name = patch_data.get('name', os.path.basename(path))
-            self._store_status.setText(f"Imported '{mod_name}': {applied} patches applied, {skipped} skipped")
+            self._store_status.setText(f"Imported '{mod_name}': {applied} applied, {skipped} skipped")
             QMessageBox.information(self, tr("Import Complete"),
                 f"Mod: {mod_name}\n"
-                f"Author: {patch_data.get('author', 'Unknown')}\n\n"
-                f"Applied: {applied} patches\n"
-                f"Skipped: {skipped} (already applied or mismatch)")
+                f"Applied: {applied}\n"
+                f"Skipped: {skipped}")
 
         except Exception as e:
             QMessageBox.critical(self, tr("Import Error"), str(e))
@@ -1266,17 +1306,19 @@ class StoreEditorTab(QWidget):
                 "Set the correct path using the Browse button at the top.")
             return
 
-        if not _is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
-                "Writing to game files requires administrator privileges.\n\n"
-                "Right-click the exe → Run as administrator")
+        from gui.utils import resolve_overlay_group
+        requested = self._store_overlay_spin.value()
+        group_num = resolve_overlay_group(game_path, requested, "Stores", parent=self)
+        if group_num is None:
             return
+        if group_num != requested:
+            self._store_overlay_spin.setValue(group_num)
 
         import dmm_parser
         body_data = dmm_parser.serialize_table('store_info', self._store_dmm)
         header_data = self._store_gh
 
-        store_dir = f"{self._store_overlay_spin.value():04d}"
+        store_dir = f"{group_num:04d}"
         reply = QMessageBox.question(
             self, tr("Apply Store Changes"),
             f"Pack modified storeinfo into {store_dir}/ override directory?\n\n"
@@ -1443,6 +1485,59 @@ class StoreEditorTab(QWidget):
         self._store_status.setText(tr("Restored"))
         QMessageBox.information(self, tr("Restored"), full_msg)
         self.paz_refresh_requested.emit()
+
+    def _store_export_field_json_v3(self) -> None:
+        """Export store changes as DMM v3.1 field JSON using crimson_rs."""
+        if not hasattr(self, '_store_dmm') or not self._store_dmm:
+            QMessageBox.warning(self, "Export Field JSON v3", "Load store data first.")
+            return
+        if not hasattr(self, '_store_dmm_vanilla') or not self._store_dmm_vanilla:
+            QMessageBox.warning(self, "Export Field JSON v3", "No vanilla baseline. Re-load store data.")
+            return
+        import copy
+        van_by_key = {r['key']: r for r in self._store_dmm_vanilla}
+        intents = []
+        for rec in self._store_dmm:
+            ikey = rec.get('key')
+            skey = rec.get('string_key', '')
+            van = van_by_key.get(ikey)
+            if van is None:
+                continue
+            for field in rec:
+                if field in ('key', 'string_key'):
+                    continue
+                if rec[field] != van.get(field):
+                    intents.append({'entry': skey, 'key': ikey, 'field': field, 'op': 'set', 'new': rec[field]})
+
+        if not intents:
+            QMessageBox.information(self, "Export Field JSON v3", "No field-level changes detected.")
+            return
+
+        from PySide6.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "Export Field JSON v3", "Mod name:", text="My Store Mod")
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        path, _ = QFileDialog.getSaveFileName(self, "Export Field JSON v3",
+            name.replace(' ', '_') + '.field.json',
+            "Field JSON (*.field.json *.json);;All Files (*)")
+        if not path:
+            return
+        doc = {
+            'modinfo': {'title': name, 'version': '1.0', 'author': 'CrimsonGameMods Stores',
+                'description': f'{len(intents)} field-level intent(s)',
+                'note': 'Format 3 field JSON for storeinfo.pabgb'},
+            'format': 3, 'format_minor': 1,
+            'targets': [{'file': 'storeinfo.pabgb', 'intents': intents}],
+        }
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+            self._store_status.setText(f"Exported {len(intents)} field intents to {os.path.basename(path)}")
+            QMessageBox.information(self, "Export Field JSON v3",
+                f"Exported {len(intents)} field-level intents.\n\nFile: {path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", str(e))
 
 
 class SpawnTab(QWidget):
@@ -3050,10 +3145,10 @@ class DropsetTab(QWidget):
         self._dropset_overlay_spin = QSpinBox()
         self._dropset_overlay_spin.setRange(1, 9999)
         self._dropset_overlay_spin.setValue(
-            self._config.get("dropset_overlay_dir", 36))
+            self._config.get("dropset_overlay_dir", 42))
         self._dropset_overlay_spin.setFixedWidth(70)
         self._dropset_overlay_spin.setToolTip(
-            "Overlay group number (0036 = default). Change if another mod\n"
+            "Overlay group number (0042 = default). Change if another mod\n"
             "already uses this slot. Apply to Game writes to <game>/NNNN/;\n"
             "Restore removes the same NNNN/.")
         self._dropset_overlay_spin.valueChanged.connect(
@@ -3290,6 +3385,15 @@ class DropsetTab(QWidget):
                "Affects all named sets (chests, factions, monsters, etc.)."))
         boost_apply_btn.clicked.connect(self._dropset_global_boost_formula)
         preset_row.addWidget(boost_apply_btn)
+
+        preset_row.addWidget(QLabel("  +Rate:"))
+        for mult, label in [(5, "5x+20%"), (10, "10x+20%"), (50, "50x+20%"), (100, "100x+20%")]:
+            btn = QPushButton(label)
+            btn.setToolTip(
+                f"x{mult} quantity + 20% rate increase on original values.\n"
+                f"Rates capped at 100%. Affects all named drop sets.")
+            btn.clicked.connect(lambda checked, m=mult: self._dropset_global_boost(m, rate_boost_percent=20))
+            preset_row.addWidget(btn)
 
         layout.addLayout(preset_row)
 
@@ -3743,7 +3847,7 @@ class DropsetTab(QWidget):
             log.exception("Unhandled exception")
             QMessageBox.critical(self, tr("Preset Failed"), str(e))
 
-    def _dropset_global_boost(self, multiplier: int):
+    def _dropset_global_boost(self, multiplier: int, rate_boost_percent=None):
         if not self._dropset_editor:
             QMessageBox.warning(self, tr("DropSets"), tr("Load drop set data first."))
             return
@@ -3751,18 +3855,30 @@ class DropsetTab(QWidget):
         summaries = self._dropset_editor.get_all_sets_summary(named_only=True)
         count = len(summaries)
 
-        reply = QMessageBox.question(
-            self, f"Global {multiplier}x Loot",
-            f"Set ALL {count} named drop sets to:\n"
-            f"  - 100% drop rate on every item\n"
-            f"  - x{multiplier} quantity on every item\n\n"
-            f"This affects chests, factions, monsters, quests — everything.\n"
-            f"Continue?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if rate_boost_percent is None:
+            reply = QMessageBox.question(
+                self, f"Global {multiplier}x Loot",
+                f"Set ALL {count} named drop sets to:\n"
+                f"  - 100% drop rate on every item\n"
+                f"  - x{multiplier} quantity on every item\n\n"
+                f"This affects chests, factions, monsters, quests — everything.\n"
+                f"Continue?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            mode_desc = "100% rates"
+        else:
+            reply = QMessageBox.question(
+                self, f"Global {multiplier}x + {rate_boost_percent}% Rate Boost",
+                f"Apply to ALL {count} named drop sets:\n"
+                f"  - Increase drop rates by {rate_boost_percent}% of original (capped at 100%)\n"
+                f"  - x{multiplier} quantity multiplier on every item\n\n"
+                f"This affects chests, factions, monsters, quests — everything.\n"
+                f"Continue?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            mode_desc = f"+{rate_boost_percent}% rates"
         if reply != QMessageBox.Yes:
             return
 
-        self._dropset_status.setText(f"Applying {multiplier}x to {count} sets...")
+        self._dropset_status.setText(f"Applying {multiplier}x ({mode_desc}) to {count} sets...")
         QApplication.processEvents()
 
         modified = []
@@ -3770,7 +3886,14 @@ class DropsetTab(QWidget):
             ds = self._dropset_editor.parse_dropset(s["key"])
             if not ds:
                 continue
-            self._dropset_editor.boost_rates(ds, rate=1_000_000)
+            if rate_boost_percent is None:
+                self._dropset_editor.boost_rates(ds, rate=1_000_000)
+            else:
+                for drop in ds.drops:
+                    if drop.rates < 1_000_000:
+                        increase = int(drop.rates * (rate_boost_percent / 100.0))
+                        drop.rates = min(drop.rates + increase, 1_000_000)
+                        drop.rates_100 = drop.rates // 10000
             for drop in ds.drops:
                 base_min = max(drop.max_amt, 1)
                 base_max = max(drop.min_amt, 1)
@@ -3787,12 +3910,18 @@ class DropsetTab(QWidget):
             self._dropset_refresh_items()
 
         self._dropset_status.setText(
-            f"Applied {multiplier}x to {len(modified)} drop sets — 100% rates, x{multiplier} qty")
-        QMessageBox.information(self, tr("Global Boost Applied"),
-            f"Modified {len(modified)} drop sets:\n"
-            f"  - All rates set to 100%\n"
-            f"  - All quantities x{multiplier}\n\n"
-            "")
+            f"Applied {multiplier}x ({mode_desc}) to {len(modified)} drop sets")
+        if rate_boost_percent is None:
+            detail = (f"Modified {len(modified)} drop sets:\n"
+                f"  - All rates set to 100%\n"
+                f"  - All quantities x{multiplier}\n\n"
+                f"Use 'Export as Mod' to save.")
+        else:
+            detail = (f"Modified {len(modified)} drop sets:\n"
+                f"  - Rates increased by {rate_boost_percent}% (capped at 100%)\n"
+                f"  - Quantities multiplied by x{multiplier}\n\n"
+                f"Use 'Export as Mod' to save.")
+        QMessageBox.information(self, tr("Global Boost Applied"), detail)
 
     def _dropset_global_boost_formula(self):
         import math

@@ -493,7 +493,14 @@ class BagSpaceTab(QWidget):
             QMessageBox.warning(self, "No Game Path", "Set the game install path first.")
             return
 
-        grp = self._overlay_group
+        from gui.utils import resolve_overlay_group
+        requested = self._overlay_spin.value() if hasattr(self, '_overlay_spin') else 61
+        group_num = resolve_overlay_group(game_path, requested, "BagSpace", parent=self)
+        if group_num is None:
+            return
+        if group_num != requested and hasattr(self, '_overlay_spin'):
+            self._overlay_spin.setValue(group_num)
+        grp = f"{group_num:04d}"
         reply = QMessageBox.question(
             self,
             "Apply BagSpace",

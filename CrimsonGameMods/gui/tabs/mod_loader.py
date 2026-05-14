@@ -58,6 +58,8 @@ OUR_GROUPS = {
     "0061": "Reserved",
     "0062": "Stacker (merged items)",
     "0063": "Stacker (equipslot) / SkillTree",
+    "0065": "Kliff Gun Fix (characterinfo)",
+    "0066": "ItemBuffs (index files)",
 }
 DMM_PREFIXES = ("dmmsa", "dmmgen", "dmmequ", "dmmlang")
 
@@ -793,32 +795,7 @@ class ModLoaderTab(QWidget):
             )
 
     def _export_format3(self) -> None:
-        """Export successfully analyzed mods as Format 3 semantic JSON.
-
-        Pre-fix the emitted intents had a broken shape:
-          * ``value`` instead of ``new`` (DMM's ``op:set`` requires
-            ``new``; ``value`` is reserved for ``array_append``)
-          * missing ``key`` (DMM falls back to ``entry`` lookup but
-            misses every record where the entry's string_key changed
-            across game versions)
-          * extra ``type`` field (harmless — DMM ignores)
-          * extra ``op`` field omitted entirely (defaulted to "set" via
-            DMM's missing-field default — works but explicit is clearer)
-          * doc envelope had no ``target`` or ``targets[]`` so DMM
-            defaulted to ``iteminfo.pabgb`` regardless of which table
-            the converted mod actually targeted
-
-        Net effect: every exported intent failed in DMM with "missing
-        new value" because of the ``value``/``new`` mismatch, AND when
-        the underlying mod targeted anything other than iteminfo the
-        intents got dispatched to the wrong table.
-
-        Post-fix uses the canonical v3 ``{entry, key, field, op:"set",
-        new}`` shape, includes the numeric ``key`` when the inspection
-        resolved one, and emits a multi-target ``targets[]`` envelope
-        keyed by each inspection's pabgb filename so downstream loaders
-        dispatch correctly.
-        """
+        """Export successfully analyzed mods as Format 3 semantic JSON."""
         if not self._last_convert_results:
             return
 
@@ -832,78 +809,36 @@ class ModLoaderTab(QWidget):
             if r["status"] != "ok" or r["resolved"] == 0:
                 continue
             inspections = r["inspections"]
-
-            # Bucket intents by target pabgb filename. Inspections may
-            # carry the target via .target_file / .game_file / similar;
-            # fall back to iteminfo.pabgb only when no per-inspection
-            # target is exposed (matches the legacy default behavior so
-            # this fix doesn't silently re-route iteminfo-targeted
-            # inspections).
-            buckets: dict[str, list[dict]] = {}
+            intents = []
             for insp in inspections:
                 if insp.field_path is None or insp.new_value is None:
                     continue
-                target = (
-                    getattr(insp, "target_file", None)
-                    or getattr(insp, "game_file", None)
-                    or getattr(insp, "pabgb", None)
-                    or "iteminfo.pabgb"
-                )
-                # Strip leading "gamedata/" so the target is a bare
-                # filename (DMM's normalize layer accepts both, but
-                # bare is the canonical form per FIELD_JSON_V3_SPEC).
-                if isinstance(target, str) and target.startswith("gamedata/"):
-                    target = target[len("gamedata/"):]
-                intent: dict = {
-                    "entry": insp.entry or "",
+                intents.append({
+                    "entry": insp.entry,
                     "field": insp.field_path,
-                    "op": "set",
-                    "new": insp.new_value,
-                }
-                # Numeric key when the inspection found one — gives DMM
-                # a stable index for records whose string_key may have
-                # been renamed across game versions.
-                key = getattr(insp, "key", None)
-                if key is not None:
-                    intent["key"] = int(key)
-                buckets.setdefault(target, []).append(intent)
-            if not buckets:
+                    "value": insp.new_value,
+                    "type": insp.field_ty or "unknown",
+                })
+            if not intents:
                 continue
 
             doc = r.get("doc", {})
             info = doc.get("modinfo") or doc
-            total_intents = sum(len(v) for v in buckets.values())
-            modinfo = {
-                "title": info.get("title") or info.get("name") or r["file"],
-                "author": info.get("author", ""),
-                "version": info.get("version", ""),
-                "description": (
-                    f"Semantic conversion of {r['file']}. "
-                    f"{total_intents} field edits from {r['total']} byte patches."
-                ),
-                "converted_from": r["file"],
-                "conversion_tool": "CrimsonGameMods Stacker Inspector",
+            out = {
+                "format": 3,
+                "modinfo": {
+                    "title": info.get("title") or info.get("name") or r["file"],
+                    "author": info.get("author", ""),
+                    "version": info.get("version", ""),
+                    "description": (
+                        f"Semantic conversion of {r['file']}. "
+                        f"{len(intents)} field edits from {r['total']} byte patches."
+                    ),
+                    "converted_from": r["file"],
+                    "conversion_tool": "CrimsonGameMods Stacker Inspector",
+                },
+                "intents": intents,
             }
-            # Multi-target shape when more than one pabgb is touched —
-            # legacy single-target shape otherwise so older loaders that
-            # haven't adopted targets[] still consume the file.
-            if len(buckets) == 1:
-                only_target, only_intents = next(iter(buckets.items()))
-                out = {
-                    "format": 3,
-                    "modinfo": modinfo,
-                    "target": only_target,
-                    "intents": only_intents,
-                }
-            else:
-                out = {
-                    "format": 3,
-                    "modinfo": modinfo,
-                    "targets": [
-                        {"file": target, "intents": ints}
-                        for target, ints in buckets.items()
-                    ],
-                }
             base = Path(r["file"]).stem
             out_path = os.path.join(export_dir, f"{base}_semantic.json")
             with open(out_path, "w", encoding="utf-8") as f:

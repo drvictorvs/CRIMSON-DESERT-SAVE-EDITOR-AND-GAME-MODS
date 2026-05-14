@@ -117,141 +117,6 @@ class SkillTreeTab(QWidget):
 
         root.addLayout(top_row)
 
-        # --- preset buttons by category ---
-        self._preset_btns: list[QPushButton] = []
-
-        # Kliff row
-        kliff_row = QHBoxLayout()
-        kliff_row.setSpacing(4)
-        lbl = QLabel("Kliff:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        kliff_row.addWidget(lbl)
-        kliff_row.addWidget(self._make_preset_btn(
-            "Damiane Skills", "#7B1FA2",
-            "Give Kliff Damiane's full skill tree + moveset.\n\n"
-            "Redirects Kliff's skill tree to load Damiane's tree data.\n"
-            "Kliff sees Damiane skills (Marksmanship, Rapier, Pistol, etc.)\n"
-            "and uses her combat animations.\n\n"
-            "Weapon trees: Sword/Shield/Bow/Spear -> Rapier/Pistol/Longsword",
-            {50: 0x332D},
-        ))
-        kliff_row.addWidget(self._make_preset_btn(
-            "Oongka Skills", "#E65100",
-            "Give Kliff Oongka's full skill tree + moveset.\n\n"
-            "Redirects Kliff's skill tree to load Oongka's tree data.\n"
-            "Kliff sees Oongka skills (Greataxe, Blaster, Axe, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Sword/Shield/Bow/Spear -> Greataxe/Blaster/Axe",
-            {50: 0x3391},
-        ))
-        kliff_row.addStretch()
-        root.addLayout(kliff_row)
-
-        # Damiane row
-        dami_row = QHBoxLayout()
-        dami_row.setSpacing(4)
-        lbl = QLabel("Damiane:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        dami_row.addWidget(lbl)
-        dami_row.addWidget(self._make_preset_btn(
-            "Kliff Skills", "#1565C0",
-            "Give Damiane Kliff's full skill tree + moveset.\n\n"
-            "Redirects Damiane's skill tree to load Kliff's tree data.\n"
-            "Damiane sees Kliff skills (Sword, Shield, Bow, Spear, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Rapier/Pistol/Longsword -> Sword/Shield/Bow/Spear",
-            {52: 0x32C9},
-        ))
-        dami_row.addWidget(self._make_preset_btn(
-            "Oongka Skills", "#E65100",
-            "Give Damiane Oongka's full skill tree + moveset.\n\n"
-            "Redirects Damiane's skill tree to load Oongka's tree data.\n"
-            "Damiane sees Oongka skills (Greataxe, Blaster, Axe, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Rapier/Pistol/Longsword -> Greataxe/Blaster/Axe",
-            {52: 0x3391},
-        ))
-        dami_row.addStretch()
-        root.addLayout(dami_row)
-
-        # Oongka row
-        oong_row = QHBoxLayout()
-        oong_row.setSpacing(4)
-        lbl = QLabel("Oongka:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        oong_row.addWidget(lbl)
-        oong_row.addWidget(self._make_preset_btn(
-            "Kliff Skills", "#1565C0",
-            "Give Oongka Kliff's full skill tree + moveset.\n\n"
-            "Redirects Oongka's skill tree to load Kliff's tree data.\n"
-            "Oongka sees Kliff skills (Sword, Shield, Bow, Spear, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Greataxe/Blaster/Axe -> Sword/Shield/Bow/Spear",
-            {51: 0x32C9},
-        ))
-        oong_row.addWidget(self._make_preset_btn(
-            "Damiane Skills", "#7B1FA2",
-            "Give Oongka Damiane's full skill tree + moveset.\n\n"
-            "Redirects Oongka's skill tree to load Damiane's tree data.\n"
-            "Oongka sees Damiane skills (Marksmanship, Rapier, Pistol, etc.)\n"
-            "and uses her combat animations.\n\n"
-            "Weapon trees: Greataxe/Blaster/Axe -> Rapier/Pistol/Longsword",
-            {51: 0x332D},
-        ))
-        oong_row.addStretch()
-        root.addLayout(oong_row)
-
-        # All row
-        all_row = QHBoxLayout()
-        all_row.setSpacing(4)
-        lbl = QLabel("All:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        all_row.addWidget(lbl)
-        all_row.addWidget(self._make_preset_btn(
-            "Share Kliff", "#1565C0",
-            "All 3 characters use Kliff's full skill tree + moveset.\n\n"
-            "Redirects Oongka and Damiane to load Kliff's trees.\n"
-            "Everyone sees Kliff skills and uses Sword/Shield/Bow/Spear.",
-            {50: 0x32C9, 51: 0x32C9, 52: 0x32C9},
-        ))
-        all_row.addWidget(self._make_preset_btn(
-            "Share Damiane", "#7B1FA2",
-            "All 3 characters use Damiane's full skill tree + moveset.\n\n"
-            "Redirects Kliff and Oongka to load Damiane's trees.\n"
-            "Everyone sees Damiane skills and uses Rapier/Pistol/Longsword.",
-            {50: 0x332D, 51: 0x332D, 52: 0x332D},
-        ))
-        all_row.addWidget(self._make_preset_btn(
-            "Share Oongka", "#E65100",
-            "All 3 characters use Oongka's full skill tree + moveset.\n\n"
-            "Redirects Kliff and Damiane to load Oongka's trees.\n"
-            "Everyone sees Oongka skills and uses Greataxe/Blaster/Axe.",
-            {50: 0x3391, 51: 0x3391, 52: 0x3391},
-        ))
-        all_row.addWidget(self._make_preset_btn(
-            "Reset Vanilla", "#424242",
-            "Reset all 3 characters to their original skill trees.\n\n"
-            "Restores vanilla group mappings and root packages.\n"
-            "Undoes any preset selection (still need to Apply to Game).",
-            None,  # special: reset to vanilla
-        ))
-        all_row.addStretch()
-        root.addLayout(all_row)
-
-        # --- table ---
-        self._table = QTableWidget()
-        self._table.setColumnCount(6)
-        self._table.setHorizontalHeaderLabels([
-            "Key", "Name", "Character", "Category", "Size", "Melee Root",
-        ])
-        hh = self._table.horizontalHeader()
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
-        self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self._table.setAlternatingRowColors(True)
-        root.addWidget(self._table)
-
         # ═══════════════════════════════════════════════════════════════
         # Skill Editor — Stamina & Cooldown Mods  (skill.pabgb)
         # ═══════════════════════════════════════════════════════════════
@@ -297,28 +162,21 @@ class SkillTreeTab(QWidget):
         preset_row.addWidget(preset_lbl)
 
         stamina_presets = [
-            ("10%", "CrimsonWings_Stamina_10pct.json",
-             "10% stamina drain — barely noticeable reduction."),
-            ("25%", "CrimsonWings_Stamina_25pct.json",
-             "25% stamina drain — mild reduction."),
-            ("50%", "CrimsonWings_Stamina_50pct.json",
-             "50% stamina drain — half drain rate."),
-            ("75%", "CrimsonWings_Stamina_75pct.json",
-             "75% stamina drain — significant reduction."),
-            ("Infinite", "CrimsonWings_Stamina_infinite.json",
-             "Infinite stamina — near-zero drain, massive recovery."),
+            ("10%", 0.10, "10% stamina drain — barely noticeable reduction."),
+            ("25%", 0.25, "25% stamina drain — mild reduction."),
+            ("50%", 0.50, "50% stamina drain — half drain rate."),
+            ("75%", 0.75, "75% stamina drain — significant reduction."),
+            ("Infinite", 0.0, "Infinite stamina — zero drain."),
         ]
-        self._stamina_preset_files = {}
-        for label, filename, tip in stamina_presets:
+        for label, factor, tip in stamina_presets:
             btn = QPushButton(label)
             btn.setToolTip(f"Apply Stamina Preset: {tip}")
             btn.setStyleSheet(
                 "QPushButton { background-color: #00695C; color: white; "
                 "font-weight: bold; padding: 4px 10px; }")
             btn.clicked.connect(
-                lambda _c=False, fn=filename: self._on_stamina_preset(fn))
+                lambda _c=False, f=factor: self._on_stamina_preset(f))
             preset_row.addWidget(btn)
-            self._stamina_preset_files[filename] = None
 
         preset_row.addStretch()
         sg_layout.addLayout(preset_row)
@@ -690,7 +548,14 @@ class SkillTreeTab(QWidget):
                                     "Nothing to deploy.")
             return
 
-        overlay_group = f"{self._overlay_spin.value():04d}"
+        from gui.utils import resolve_overlay_group
+        requested = self._overlay_spin.value()
+        group_num = resolve_overlay_group(game_path, requested, "SkillTree", parent=self)
+        if group_num is None:
+            return
+        if group_num != requested:
+            self._overlay_spin.setValue(group_num)
+        overlay_group = f"{group_num:04d}"
 
         # Build overlay with PackGroupBuilder(NONE)
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1379,41 +1244,75 @@ class SkillTreeTab(QWidget):
             f"All skills are now usable by all characters.\n"
             "")
 
-    def _on_stamina_preset(self, filename: str) -> None:
-        """One-click stamina preset: load skillinfo if needed, find preset, import it."""
+    _STAMINA_HASH = 1000026
+
+    def _on_stamina_preset(self, factor: float) -> None:
+        """One-click stamina preset using dmm_parser for full field access.
+        Zeros positive resource costs and stamina drain buffs.
+        Preserves recovery (negative) values."""
         if not self._skill_loaded:
             self._on_skill_load()
         if not self._skill_loaded:
             return
 
-        preset_path = None
-        for base_dir in [
-            os.path.dirname(os.path.abspath(__file__)),
-            getattr(sys, '_MEIPASS', ''),
-            os.getcwd(),
-        ]:
-            for rel in [
-                os.path.join(base_dir, '..', '..', 'stamina_presets', filename),
-                os.path.join(base_dir, 'stamina_presets', filename),
-                os.path.join(base_dir, '..', '..', filename),
-                os.path.join(base_dir, filename),
-            ]:
-                p = os.path.normpath(rel)
-                if os.path.isfile(p):
-                    preset_path = p
-                    break
-            if preset_path:
-                break
-
-        if not preset_path:
-            from PySide6.QtWidgets import QFileDialog
-            preset_path, _ = QFileDialog.getOpenFileName(
-                self, f"Locate {filename}", "",
-                "JSON Files (*.json);;All Files (*)")
-        if not preset_path:
+        try:
+            import dmm_parser, copy
+            dmm_items = dmm_parser.parse_table(
+                'skill_info', self._skill_pabgb, self._skill_pabgh)
+            vanilla_items = copy.deepcopy(dmm_items)
+        except Exception as e:
+            QMessageBox.critical(self, "Stamina Preset",
+                f"dmm_parser failed:\n{e}")
             return
 
-        self._apply_skill_value_patches(preset_path)
+        res_count = 0
+        buff_count = 0
+
+        for it in dmm_items:
+            hit = False
+            for list_key in ('use_resource_stat_list', 'use_driver_resource_stat_list'):
+                for r in (it.get(list_key) or []):
+                    if not isinstance(r, dict):
+                        continue
+                    d = r.get('d', 0)
+                    if isinstance(d, int) and d > 2**63:
+                        d = d - 2**64
+                    if d > 0:
+                        r['d'] = int(d * factor)
+                        res_count += 1
+                        hit = True
+
+            for level in (it.get('buff_level_list') or []):
+                for buff in level:
+                    var = buff.get('variant', {})
+                    body = var.get('body', {})
+                    if body.get('f00') != self._STAMINA_HASH:
+                        continue
+                    for fk in ('f01', 'f02'):
+                        val = body.get(fk, 0)
+                        if isinstance(val, int) and val > 2**63:
+                            val = val - 2**64
+                        if isinstance(val, (int, float)) and val < 0:
+                            body[fk] = 0
+                            buff_count += 1
+                            hit = True
+
+        new_pabgb = bytes(dmm_parser.serialize_table('skill_info', dmm_items))
+        self._skill_pabgb = new_pabgb
+
+        import skillinfo_parser as sip
+        self._skill_entries = sip.parse_all(self._skill_pabgh, new_pabgb)
+        self._populate_skill_table()
+
+        pct = f"{int(factor * 100)}%" if factor > 0 else "Infinite"
+        total = res_count + buff_count
+        self._lbl_skill_status.setText(
+            f"Stamina {pct}: {res_count} costs + {buff_count} buff drains modified")
+        QMessageBox.information(self, f"Stamina Preset: {pct}",
+            f"Modified {total} stamina values via dmm_parser:\n"
+            f"  {res_count} resource costs scaled to {pct}\n"
+            f"  {buff_count} buff-level drains zeroed\n\n"
+            f"Recovery values preserved.")
 
     def _apply_skill_value_patches(self, path: str) -> None:
         """Apply a legacy skill JSON mod by patching values in-place.

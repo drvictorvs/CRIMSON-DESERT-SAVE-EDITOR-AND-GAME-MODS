@@ -1083,10 +1083,11 @@ class FieldEditTab(QWidget):
         entries = self._gptrigger_entries
         filtered = entries if show_all else [e for e in entries if e['safe_zone_type'] != 0]
         self._gt_table.setRowCount(len(filtered))
+        self._gt_filtered = filtered
         for row, e in enumerate(filtered):
             item = QTableWidgetItem(str(e['key']))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            item.setData(Qt.UserRole, e)
+            item.setData(Qt.UserRole, row)
             self._gt_table.setItem(row, 0, item)
             name = e['name'].replace('GamePlayTrigger_SafeZone_', '').replace('GamePlayTrigger_', '')
             item = QTableWidgetItem(name)
@@ -1112,11 +1113,12 @@ class FieldEditTab(QWidget):
         entries = self._regioninfo_entries
         filtered = entries if show_all else [e for e in entries if e.get('_isTown', 0) or e.get('_limitVehicleRun', 0)]
         region_types = {3: 'World', 4: 'Continent', 5: 'Territory', 6: 'Area', 7: 'Node', 8: 'SubNode'}
+        self._ri_filtered = filtered
         self._ri_table.setRowCount(len(filtered))
         for row, e in enumerate(filtered):
             item = QTableWidgetItem(str(e.get('_key', '?')))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            item.setData(Qt.UserRole, e)
+            item.setData(Qt.UserRole, row)
             self._ri_table.setItem(row, 0, item)
             name = e.get('_stringKey', f"Region_{e.get('_key', '?')}")
             item = QTableWidgetItem(name)
@@ -1152,8 +1154,10 @@ class FieldEditTab(QWidget):
             return
         item0 = self._ri_table.item(row, 0)
         if not item0: return
-        e = item0.data(Qt.UserRole)
-        if not e: return
+        ridx = item0.data(Qt.UserRole)
+        if ridx is None or not hasattr(self, '_ri_filtered') or ridx >= len(self._ri_filtered):
+            return
+        e = self._ri_filtered[ridx]
         cell = self._ri_table.item(row, col)
         if not cell: return
         try:
@@ -1186,7 +1190,7 @@ class FieldEditTab(QWidget):
         for row, e in enumerate(entries):
             item = QTableWidgetItem(e.get('name', '?'))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            item.setData(Qt.UserRole, e)
+            item.setData(Qt.UserRole, row)
             self._mount_table.setItem(row, 0, item)
             vtype = e.get('_vehicleInfo', 0)
             vname = MOUNT_VEHICLE_TYPES.get(vtype, str(vtype))
@@ -1223,8 +1227,10 @@ class FieldEditTab(QWidget):
             return
         item0 = self._mount_table.item(row, 0)
         if not item0: return
-        e = item0.data(Qt.UserRole)
-        if not e: return
+        ridx = item0.data(Qt.UserRole)
+        if ridx is None or ridx >= len(self._charinfo_mount_entries):
+            return
+        e = self._charinfo_mount_entries[ridx]
         cell = self._mount_table.item(row, col)
         if not cell: return
         try:
@@ -1261,10 +1267,11 @@ class FieldEditTab(QWidget):
             entries = self._weapon_player_order()
             self._weapon_pkg_table.setRowCount(len(entries))
 
+            self._weapon_pkg_entries = entries
             for row, e in enumerate(entries):
                 name_item = QTableWidgetItem(e.get('name', '?'))
                 name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
-                name_item.setData(Qt.UserRole, e)
+                name_item.setData(Qt.UserRole, row)
                 self._weapon_pkg_table.setItem(row, 0, name_item)
                 for col_idx, col in enumerate(self._WEAPON_COLS, start=1):
                     self._weapon_refresh_cell(row, col_idx, e, col[0])
@@ -1313,10 +1320,13 @@ class FieldEditTab(QWidget):
         cell_item = self._weapon_pkg_table.item(row, col)
         if not name_item or not cell_item:
             return
-        target = name_item.data(Qt.UserRole)
+        tidx = name_item.data(Qt.UserRole)
         field = cell_item.data(Qt.UserRole)
-        if not target or not field:
+        if tidx is None or not field or not hasattr(self, '_weapon_pkg_entries'):
             return
+        if tidx >= len(self._weapon_pkg_entries):
+            return
+        target = self._weapon_pkg_entries[tidx]
 
         from PySide6.QtWidgets import QListWidget, QListWidgetItem, QLineEdit, QComboBox
 
@@ -1401,7 +1411,8 @@ class FieldEditTab(QWidget):
                 if disp:
                     label += f"   ({disp})"
                 item = QListWidgetItem(label)
-                item.setData(Qt.UserRole, (e, val))
+                item.setData(Qt.UserRole, val)
+                item.setData(Qt.UserRole + 1, e.get('_key', e.get('key', 0)))
                 list_widget.addItem(item)
                 shown += 1
                 if shown >= 800:
@@ -1441,8 +1452,8 @@ class FieldEditTab(QWidget):
         it = list_widget.currentItem()
         if not it:
             return
-        src_e, val = it.data(Qt.UserRole)
-        self._weapon_write_field(target, field, int(val), src_e.get('name', '?'))
+        val = it.data(Qt.UserRole)
+        self._weapon_write_field(target, field, int(val), 'source')
 
     def _weapon_write_field(self, target: dict, field: str, value: int,
                             source_label: str) -> None:
@@ -1453,10 +1464,10 @@ class FieldEditTab(QWidget):
         target[field] = value
         self._field_edit_modified = True
         self._charinfo_dmm_dirty = True
-        # Refresh just the row
         for row in range(self._weapon_pkg_table.rowCount()):
             ni = self._weapon_pkg_table.item(row, 0)
-            if ni and ni.data(Qt.UserRole) is target:
+            ri = ni.data(Qt.UserRole) if ni else None
+            if ri is not None and hasattr(self, '_weapon_pkg_entries') and ri < len(self._weapon_pkg_entries) and self._weapon_pkg_entries[ri] is target:
                 for col_idx, col in enumerate(self._WEAPON_COLS, start=1):
                     if col[0] == field:
                         self._weapon_refresh_cell(row, col_idx, target, field)
@@ -2762,11 +2773,14 @@ class FieldEditTab(QWidget):
         ri_dmm = getattr(self, '_regioninfo_dmm_items', None)
         if ri_dmm:
             for rit in ri_dmm:
-                if rit.get('limit_vehicle_run', 0):
-                    rit['limit_vehicle_run'] = 0
+                if rit.get('is_wild', 0):
+                    rit['is_wild'] = 0
                     ri_count += 1
                 if rit.get('is_town', 0):
                     rit['is_town'] = 0
+                    ri_count += 1
+                if rit.get('limit_vehicle_run', 0):
+                    rit['limit_vehicle_run'] = 0
                     ri_count += 1
             if ri_count:
                 self._regioninfo_dmm_dirty = True
@@ -3816,7 +3830,9 @@ class FieldEditTab(QWidget):
             return 0
 
 
-    _MOUNT_OVERLAY_GROUP = "0062"
+    @property
+    def _MOUNT_OVERLAY_GROUP(self):
+        return f"{self._config.get('mesh_swap_overlay_dir', 62):04d}"
 
     def _deploy_mount_overlays(self, game_path: str, queue: list[dict]) -> str:
         """Deploy skeleton (rider bone) + appearance (scale) overlays for mesh swaps."""
@@ -4109,10 +4125,18 @@ class FieldEditTab(QWidget):
                      len(dirty_names), ", ".join(dirty_names))
 
         try:
+            from gui.utils import resolve_overlay_group
+            requested = self._fieldedit_overlay_spin.value()
+            group_num = resolve_overlay_group(game_path, requested, "FieldEdit", parent=self)
+            if group_num is None:
+                return
+            if group_num != requested:
+                self._fieldedit_overlay_spin.setValue(group_num)
+
             import crimson_rs
             INTERNAL_DIR = "gamedata/binary__/client/bin"
             gp = Path(game_path)
-            base_group = self._fieldedit_overlay_spin.value()
+            base_group = group_num
 
             dirty_tables = []
             table_defs = [
@@ -4157,20 +4181,21 @@ class FieldEditTab(QWidget):
                 dirty_tables.append(("regioninfo", bytes(self._regioninfo_data)))
                 log.info("regioninfo: using byte-patched data")
 
-            # characterinfo: prefer dmm_parser field-level serialization
+            # characterinfo: deployed separately via merge helper to avoid
+            # conflicts with ItemBuffs Kliff gun fix overlay
             _dmm_dirty = getattr(self, '_charinfo_dmm_dirty', False)
             _dmm_items = getattr(self, '_charinfo_dmm_items', None)
             _byte_dirty = (self._charinfo_data is not None
                            and self._charinfo_original is not None
                            and bytes(self._charinfo_data) != self._charinfo_original)
+            _charinfo_pabgb = None
             if _dmm_dirty and _dmm_items:
                 import dmm_parser as _dmp
-                ci_pabgb = bytes(_dmp.serialize_table('character_info', _dmm_items))
-                dirty_tables.append(("characterinfo", ci_pabgb))
-                log.info("characterinfo: serialized via dmm_parser (%d bytes)", len(ci_pabgb))
+                _charinfo_pabgb = bytes(_dmp.serialize_table('character_info', _dmm_items))
+                log.info("characterinfo: serialized via dmm_parser (%d bytes)", len(_charinfo_pabgb))
             elif _byte_dirty:
-                dirty_tables.append(("characterinfo", bytes(self._charinfo_data)))
-                log.info("characterinfo: using byte-patched data (%d bytes)", len(self._charinfo_data))
+                _charinfo_pabgb = bytes(self._charinfo_data)
+                log.info("characterinfo: using byte-patched data (%d bytes)", len(_charinfo_pabgb))
 
             if not dirty_tables:
                 log.warning("FieldEdit apply: no dirty tables")
@@ -4210,6 +4235,18 @@ class FieldEditTab(QWidget):
                 deployed.append(f"{stem} -> {grp}/")
                 log.info("FieldEdit deployed %s to %s/ (%d bytes)",
                          stem, grp, len(pabgb_data))
+
+            # Deploy characterinfo separately via merge helper
+            if _charinfo_pabgb:
+                from gui.utils import deploy_merged_pabgb
+                ci_pabgh = bytes(crimson_rs.extract_file(
+                    game_path, "0008", INTERNAL_DIR, "characterinfo.pabgh"))
+                ci_grp = f"{self._config.get('charinfo_overlay_dir', 65):04d}"
+                deploy_merged_pabgb(
+                    game_path, 'character_info', 'characterinfo',
+                    _charinfo_pabgb, ci_pabgh, ci_grp,
+                    "FieldEdit mounts/mesh", parent=self)
+                deployed.append(f"characterinfo -> {ci_grp}/ (merged)")
 
             summary = "\n".join(f"  {d}" for d in deployed)
             self._field_edit_status.setText(f"Applied {len(deployed)} table(s)")

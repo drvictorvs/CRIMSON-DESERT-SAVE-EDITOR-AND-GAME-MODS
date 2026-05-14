@@ -136,6 +136,7 @@ class ItemBuffsTab(QWidget):
         self._buff_item_limits = {}
         self._experimental_mode: bool = bool(self._config.get("experimental_mode", False))
         self._favorite_items: List[dict] = self._config.setdefault("favorite_items", [])
+        self._copy_buffer: dict = {}
         self._build_ui()
 
     def _safely_replace_buff_item(self, target_key: int, new_dict: dict) -> None:
@@ -738,6 +739,8 @@ class ItemBuffsTab(QWidget):
                 self._build_buff_global_mods_page(), "Global Mods")
             self._buff_action_tabs.addTab(
                 self._build_buff_bulk_page(), "Bulk Actions")
+            self._buff_action_tabs.addTab(
+                self._build_buff_json_edit_page(), "Edit JSON")
             self._buff_action_adv_idx = self._buff_action_tabs.count()
             self._buff_action_tabs.addTab(
                 self._build_buff_advanced_page(), "Advanced")
@@ -2337,6 +2340,104 @@ class ItemBuffsTab(QWidget):
         page.setWidget(inner)
         return page
 
+    def _build_buff_json_edit_page(self) -> 'QWidget':
+        """Edit JSON tab - shows full item JSON for selected item."""
+        from PySide6.QtGui import QFont
+        from PySide6.QtWidgets import QTextEdit
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(6, 6, 6, 6)
+        info = QLabel(
+            "Full JSON for the selected item. Edit any field and click Apply. "
+            "Changes to enchant_stat_data / equip_buffs apply to ALL enchant levels.")
+        info.setWordWrap(True)
+        info.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px; padding: 2px;")
+        lay.addWidget(info)
+        self._buff_json_editor = QTextEdit()
+        self._buff_json_editor.setFont(QFont("Consolas", 10))
+        self._buff_json_editor.setPlaceholderText("Select an item to edit its JSON...")
+        lay.addWidget(self._buff_json_editor, 1)
+        btn_row = QHBoxLayout()
+        apply_btn = QPushButton("Apply Changes")
+        apply_btn.setStyleSheet("background-color: #cc3333; color: white; font-weight: bold; padding: 6px 16px;")
+        apply_btn.clicked.connect(self._buff_json_apply)
+        btn_row.addWidget(apply_btn)
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setToolTip("Reload JSON from current in-memory item data")
+        refresh_btn.clicked.connect(lambda: self._buff_json_refresh(force=True))
+        btn_row.addWidget(refresh_btn)
+        fmt_btn = QPushButton("Format")
+        fmt_btn.setToolTip("Re-format JSON with consistent indentation")
+        fmt_btn.clicked.connect(self._buff_json_format)
+        btn_row.addWidget(fmt_btn)
+        btn_row.addStretch()
+        self._buff_json_status = QLabel("")
+        self._buff_json_status.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px;")
+        btn_row.addWidget(self._buff_json_status)
+        lay.addLayout(btn_row)
+        return w
+
+    def _buff_json_refresh(self, force: bool = False) -> None:
+        if not hasattr(self, '_buff_json_editor'):
+            return
+        if not hasattr(self, '_buff_current_item') or self._buff_current_item is None:
+            self._buff_json_editor.setPlaceholderText("Select an item to edit its JSON...")
+            self._buff_json_editor.clear()
+            return
+        if not hasattr(self, '_buff_rust_lookup') or self._buff_rust_lookup is None:
+            return
+        rust_info = self._buff_rust_lookup.get(self._buff_current_item.item_key)
+        if rust_info is None:
+            return
+        try:
+            self._buff_json_editor.setPlainText(
+                json.dumps(rust_info, indent=2, ensure_ascii=False, default=str))
+            self._buff_json_status.setText("")
+        except Exception as e:
+            self._buff_json_status.setText(f"Refresh error: {e}")
+
+    def _buff_json_format(self) -> None:
+        if not hasattr(self, '_buff_json_editor'):
+            return
+        try:
+            data = json.loads(self._buff_json_editor.toPlainText())
+            self._buff_json_editor.setPlainText(
+                json.dumps(data, indent=2, ensure_ascii=False, default=str))
+            self._buff_json_status.setText("Formatted.")
+        except json.JSONDecodeError as e:
+            self._buff_json_status.setText(f"Invalid JSON: {e}")
+
+    def _buff_json_apply(self) -> None:
+        if not hasattr(self, '_buff_json_editor'):
+            return
+        if not hasattr(self, '_buff_current_item') or self._buff_current_item is None:
+            QMessageBox.warning(self, "Edit JSON", "Select an item first.")
+            return
+        if not hasattr(self, '_buff_rust_lookup') or self._buff_rust_lookup is None:
+            QMessageBox.warning(self, "Edit JSON", "Extract iteminfo first.")
+            return
+        try:
+            new_data = json.loads(self._buff_json_editor.toPlainText())
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Edit JSON", f"Invalid JSON:\n{e}")
+            return
+        ikey = self._buff_current_item.item_key
+        rust_info = self._buff_rust_lookup.get(ikey)
+        if rust_info is None:
+            return
+        new_data['key'] = rust_info['key']
+        new_data['string_key'] = rust_info.get('string_key', '')
+        rust_info.clear()
+        rust_info.update(new_data)
+        for it in self._buff_rust_items:
+            if it.get('key') == ikey:
+                it.clear()
+                it.update(new_data)
+                break
+        self._buff_modified = True
+        self._buff_refresh_stats()
+        self._buff_json_status.setText("Applied.")
+
     def _build_buff_bulk_page(self) -> QWidget:
         """Bulk Actions sub-tab — apply-to-many operations, scroll-safe.
 
@@ -3419,6 +3520,7 @@ class ItemBuffsTab(QWidget):
             f"color: {COLORS['accent']}; font-weight: bold; padding: 2px 4px;"
         )
         self._buff_refresh_stats()
+        self._buff_json_refresh()
 
 
     def _buff_toggle_icons(self) -> None:
@@ -3524,7 +3626,7 @@ class ItemBuffsTab(QWidget):
             ddd = rust_info.get('drop_default_data', {})
             self._eb_drop_enchant_level.setValue(ddd.get('drop_enchant_level', 0))
 
-            if ddd.get('use_socket') is not None and ddd.get('use_socket') != 0:
+            if ddd.get('use_socket'):
                 svc = ddd.get('socket_valid_count', 0)
                 sml = ddd.get('add_socket_material_item_list', [])
                 self._eb_socket_valid.setValue(svc)
@@ -3534,6 +3636,7 @@ class ItemBuffsTab(QWidget):
                 s_sep.setForeground(QBrush(QColor("#F83B3B")))
                 s_sep.setFont(QFont("Consolas", 9, QFont.Bold))
                 s_sep.setFlags(s_sep.flags() & ~Qt.ItemIsSelectable)
+                s_sep.setData(Qt.UserRole + 1, ('header', 'sockets'))
                 table.setRowCount(row + 1)
                 table.setItem(row, 0, s_sep)
                 table.setItem(row, 1, QTableWidgetItem(""))
@@ -3541,23 +3644,15 @@ class ItemBuffsTab(QWidget):
                 row += 1
 
                 sil = ddd.get('socket_item_list', [])
-                if sil:
-                    for si in sil:
-                        si_name = self._name_db.get_name(si) if hasattr(self, '_name_db') else si
-                        si_c = QTableWidgetItem(f"  {si_name}")
-                        si_c.setForeground(QBrush(QColor("#F83B3B")))
-                        si_c.setData(Qt.UserRole + 1, ('socket', si))
-                        table.setRowCount(row + 1)
-                        table.setItem(row, 0, si_c)
-                        table.setItem(row, 1, QTableWidgetItem(""))
-                        table.setSpan(row, 0, 1, 2)
-                        row += 1
-                else:
-                    si_c = QTableWidgetItem("  (none)")
-                    si_c.setForeground(QBrush(QColor(COLORS["text_dim"])))
+                for si in sil:
+                    si_name = self._name_db.get_name(si) if hasattr(self, '_name_db') else si
+                    si_c = QTableWidgetItem(f"  {si_name}")
+                    si_c.setForeground(QBrush(QColor("#F83B3B")))
+                    si_c.setData(Qt.UserRole + 1, ('socket', si))
                     table.setRowCount(row + 1)
                     table.setItem(row, 0, si_c)
                     table.setItem(row, 1, QTableWidgetItem(""))
+                    table.setSpan(row, 0, 1, 2)
                     row += 1
 
             edl = rust_info.get('enchant_data_list', [])
@@ -3567,32 +3662,25 @@ class ItemBuffsTab(QWidget):
             ps_sep.setForeground(QBrush(QColor("#4FC3F7")))
             ps_sep.setFont(QFont("Consolas", 9, QFont.Bold))
             ps_sep.setFlags(ps_sep.flags() & ~Qt.ItemIsSelectable)
+            ps_sep.setData(Qt.UserRole + 1, ('header', 'passives'))
             table.setRowCount(row + 1)
             table.setItem(row, 0, ps_sep)
             table.setItem(row, 1, QTableWidgetItem(""))
             table.setSpan(row, 0, 1, 2)
             row += 1
 
-            if psl:
-                for ps in psl:
-                    sk_name = self._PASSIVE_SKILL_NAMES.get(ps['skill'], f"Skill {ps['skill']}")
-                    c1 = QTableWidgetItem(f"  {sk_name}  ← click to select for Remove")
-                    c1.setForeground(QBrush(QColor("#4FC3F7")))
-                    c1.setData(Qt.UserRole + 1, ('passive', ps['skill']))
-                    c2 = QTableWidgetItem(f"Lv {ps['level']}")
-                    c2.setFont(QFont("Consolas", 10))
-                    c2.setForeground(QBrush(QColor("#4FC3F7")))
-                    c2.setData(Qt.UserRole + 1, ('passive', ps['skill']))
-                    table.setRowCount(row + 1)
-                    table.setItem(row, 0, c1)
-                    table.setItem(row, 1, c2)
-                    row += 1
-            else:
-                c1 = QTableWidgetItem("  (none)")
-                c1.setForeground(QBrush(QColor(COLORS["text_dim"])))
+            for ps in psl:
+                sk_name = self._PASSIVE_SKILL_NAMES.get(ps['skill'], f"Skill {ps['skill']}")
+                c1 = QTableWidgetItem(f"  {sk_name}")
+                c1.setForeground(QBrush(QColor("#4FC3F7")))
+                c1.setData(Qt.UserRole + 1, ('passive', ps['skill']))
+                c2 = QTableWidgetItem(f"Lv {ps['level']}")
+                c2.setFont(QFont("Consolas", 10))
+                c2.setForeground(QBrush(QColor("#4FC3F7")))
+                c2.setData(Qt.UserRole + 1, ('passive', ps['skill']))
                 table.setRowCount(row + 1)
                 table.setItem(row, 0, c1)
-                table.setItem(row, 1, QTableWidgetItem(""))
+                table.setItem(row, 1, c2)
                 row += 1
 
             gi = rust_info.get('gimmick_info', 0)
@@ -4198,30 +4286,36 @@ class ItemBuffsTab(QWidget):
 
 
     def _apply_transmog_swaps(self, final_data: bytearray) -> int:
+        """Apply transmog swaps at field level to rust items, then re-serialize."""
         if not getattr(self, '_transmog_swaps', None):
             return 0
-        try:
-            from armor_catalog import apply_swaps_to_blob
-            applied = apply_swaps_to_blob(final_data, self._transmog_swaps)
-            log.info("Transmog: applied %d byte patches for %d queued swap(s)",
-                     applied, len(self._transmog_swaps))
-            if applied == 0 and self._transmog_swaps:
-                try:
-                    QMessageBox.warning(
-                        self, "Transmog Not Applied",
-                        "Transmog swaps were queued but 0 byte patches landed.\n\n"
-                        "Likely cause: heavy ItemBuffs edits (many equip_buffs or\n"
-                        "passives) expanded item records so the transmog catalog\n"
-                        "lost the target items during re-parse.\n\n"
-                        "Check the log for 'apply_swaps_to_blob' warnings, then\n"
-                        "reduce buff stacks or report with the log attached.",
-                    )
-                except Exception:
-                    pass
-            return applied
-        except Exception as e:
-            log.warning("Transmog apply failed: %s", e)
+        if not self._buff_rust_lookup:
             return 0
+        import copy as _cp
+        applied = 0
+        for sw in self._transmog_swaps:
+            src_obj = sw['src']
+            tgt_obj = sw['tgt']
+            src_key = src_obj.item_id if hasattr(src_obj, 'item_id') else sw.get('src_key')
+            tgt_key = tgt_obj.item_id if hasattr(tgt_obj, 'item_id') else sw.get('tgt_key')
+            src_ri = self._buff_rust_lookup.get(src_key)
+            tgt_ri = self._buff_rust_lookup.get(tgt_key)
+            if not src_ri or not tgt_ri:
+                log.warning("Transmog: missing src=%s or tgt=%s in rust lookup", src_key, tgt_key)
+                continue
+            for field in ('prefab_data_list', 'gimmick_visual_prefab_data_list'):
+                src_val = src_ri.get(field)
+                if src_val is not None:
+                    tgt_ri[field] = _cp.deepcopy(src_val)
+            applied += 1
+        if applied:
+            import crimson_rs
+            new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+            final_data.clear()
+            final_data.extend(new_data)
+            log.info("Transmog: applied %d field-level swap(s), re-serialized %d bytes",
+                     applied, len(new_data))
+        return applied
 
 
     def _apply_vfx_changes(self, final_data: bytearray) -> bool:
@@ -5422,7 +5516,7 @@ class ItemBuffsTab(QWidget):
             self._buff_modified = self._buff_modified or bool(local_swaps)
             count = len(local_swaps)
             self._buff_status_label.setText(
-                f"Transmog queue: {count} swap(s). Applied on Export Field JSON v3 / Apply to Game.")
+                f"Transmog queue: {count} swap(s). Applied on Apply to Game / Export.")
             dlg.accept()
 
         ok_btn.clicked.connect(on_ok)
@@ -5746,13 +5840,27 @@ class ItemBuffsTab(QWidget):
             name = self._PASSIVE_SKILL_NAMES.get(skill_id, f"Skill {skill_id}")
             if isinstance(name, dict):
                 name = name.get('suffix', name.get('english_name', str(skill_id)))
+            act_copy = menu.addAction(f"Copy passive: {name}")
+            act_paste = None
+            if self._copy_buffer.get('type') == 'passive':
+                copy_id = self._copy_buffer['data']['skill']
+                act_paste = menu.addAction(
+                    f"Paste passive: {self._PASSIVE_SKILL_NAMES.get(copy_id, f'Skill {copy_id}')}")
+            menu.addSeparator()
             act_remove = menu.addAction(f"Remove passive: {name}")
             act_remove_all = menu.addAction("Remove ALL passives")
             act_show_similar = menu.addAction("Show items with this passive")
             psl = rust_info.get('equip_passive_skill_list', []) or []
 
             action = menu.exec(table.viewport().mapToGlobal(pos))
-            if action == act_remove:
+            if action == act_copy:
+                entry = next((p for p in psl if p['skill'] == skill_id), None)
+                if entry:
+                    self._copy_buffer = {'type': 'passive', 'data': entry}
+                    log.info(f"Passive ({skill_id}) added to copy buffer")
+            elif action == act_paste:
+                self._paste_from_copy_buffer(rust_info)
+            elif action == act_remove:
                 rust_info['equip_passive_skill_list'] = [p for p in psl if p['skill'] != skill_id]
                 self._buff_modified = True
                 self._buff_refresh_stats()
@@ -5771,13 +5879,34 @@ class ItemBuffsTab(QWidget):
         elif kind == 'buff':
             buff_id = kind_data[1]
             name = self._EQUIP_BUFF_NAMES.get(buff_id, f"Buff {buff_id}")
+            act_copy = menu.addAction(f"Copy buff: {name}")
+            act_paste = None
+            if hasattr(self, '_copy_buffer') and self._copy_buffer.get('type') == 'buff':
+                copy_id = self._copy_buffer['data']['buff']
+                act_paste = menu.addAction(
+                    f"Paste buff: {self._EQUIP_BUFF_NAMES.get(copy_id, f'Buff {copy_id}')}")
+            menu.addSeparator()
             act_remove = menu.addAction(f"Remove buff: {name}")
             act_remove_all = menu.addAction("Remove ALL buffs")
             act_show_similar = menu.addAction("Show items with this buff")
 
             action = menu.exec(table.viewport().mapToGlobal(pos))
             edl = rust_info.get('enchant_data_list', [])
-            if action == act_remove:
+            if action == act_copy:
+                entry = None
+                for ed in edl:
+                    for b in (ed.get('equip_buffs', []) or []):
+                        if b['buff'] == buff_id:
+                            entry = b
+                            break
+                    if entry:
+                        break
+                if entry:
+                    self._copy_buffer = {'type': 'buff', 'data': entry}
+                    log.info(f"Buff ({buff_id}) added to copy buffer")
+            elif action == act_paste:
+                self._paste_from_copy_buffer(rust_info)
+            elif action == act_remove:
                 removed_levels = 0
                 for ed in edl:
                     old = ed.get('equip_buffs', []) or []
@@ -5980,59 +6109,71 @@ class ItemBuffsTab(QWidget):
             log.warning("Could not load gimmick names: %s", ge)
 
         seen_gimmicks = {}
+        _skipped = 0
         for item in items:
-            psl = item.get('equip_passive_skill_list', [])
-            gi = item.get('gimmick_info', 0)
-            if not psl or not gi:
+            gi = item.get('gimmick_info', 0) or 0
+            if not gi or gi >= 18000000:
                 continue
-            if gi >= 18000000:
-                continue
-
             if gi in seen_gimmicks:
                 continue
-            seen_gimmicks[gi] = True
 
-            skill_parts = []
-            for s in psl:
-                sid = s['skill']
-                sname = self._PASSIVE_SKILL_NAMES.get(sid, {})
-                if isinstance(sname, dict):
-                    display = sname.get('suffix', sname.get('english_name', str(sid)))
+            try:
+                psl = item.get('equip_passive_skill_list') or []
+                skill_parts = []
+                for s in (psl if psl else []):
+                    sid = s.get('skill', 0) if isinstance(s, dict) else s
+                    sname = self._PASSIVE_SKILL_NAMES.get(sid, '')
+                    if isinstance(sname, dict):
+                        display = sname.get('suffix', sname.get('english_name', str(sid)))
+                    else:
+                        display = str(sname) if sname else str(sid)
+                    skill_parts.append(display)
+
+                _src_key = item.get('key', 0)
+                _ndb = getattr(self, '_name_db', None)
+                src = (_ndb.get_name(_src_key) if _ndb else '') or ''
+                if not src or src.startswith('Unknown'):
+                    src = item.get('string_key', '')
+                gi_name = gimmick_names.get(gi, '')
+                if skill_parts:
+                    label = f"{gi_name or f'gi={gi}'}  ({' + '.join(skill_parts)})  [{src}]"
                 else:
-                    display = str(sname) if sname else str(sid)
-                skill_parts.append(display)
+                    label = f"{gi_name or f'gi={gi}'}  [{src}]"
 
-            _src_key = item.get('key', 0)
-            _ndb = getattr(self, '_name_db', None)
-            src = (_ndb.get_name(_src_key) if _ndb else '') or ''
-            if not src or src.startswith('Unknown'):
-                src = item.get('string_key', '')
-            gi_name = gimmick_names.get(gi, '')
-            if gi_name:
-                label = f"{gi_name}  ({' + '.join(skill_parts)})  [{src}]"
-            else:
-                label = f"{' + '.join(skill_parts)}  [{src}]  gi={gi}"
+                dcd = item.get('docking_child_data')
+                _ct = item.get('cooltime', 0)
+                if isinstance(_ct, dict):
+                    _ct = _ct.get('a', 0) or 0
+                _mcu = item.get('max_charged_useable_count', 0)
+                if isinstance(_mcu, dict):
+                    _mcu = _mcu.get('a', 0) or 0
+                effect_data = {
+                    'equip_passive_skill_list': psl,
+                    'gimmick_info': gi,
+                    'cooltime': max(int(_ct or 0), 1),
+                    'item_charge_type': item.get('item_charge_type', 0),
+                    'max_charged_useable_count': max(int(_mcu or 0), 1),
+                    'respawn_time_seconds': item.get('respawn_time_seconds', 0),
+                    'docking_child_data': dcd,
+                    'source_key': item.get('key'),
+                    'source_name': src,
+                    'gimmick_name': gi_name,
+                }
 
-            dcd = item.get('docking_child_data')
-
-            effect_data = {
-                'equip_passive_skill_list': psl,
-                'gimmick_info': gi,
-                'cooltime': max(item.get('cooltime', 0), 1),
-                'item_charge_type': item.get('item_charge_type', 0),
-                'max_charged_useable_count': max(item.get('max_charged_useable_count', 0), 1),
-                'respawn_time_seconds': item.get('respawn_time_seconds', 0),
-                'docking_child_data': dcd,
-                'source_key': item.get('key'),
-                'source_name': src,
-                'gimmick_name': gi_name,
-            }
-
-            idx = len(self._effect_catalog_data)
-            self._effect_catalog_data[idx] = effect_data
-            self._effect_catalog_all.append((label, idx))
+                idx = len(self._effect_catalog_data)
+                self._effect_catalog_data[idx] = effect_data
+                self._effect_catalog_all.append((label, idx))
+                seen_gimmicks[gi] = True
+            except Exception as _eff_err:
+                _skipped += 1
+                if _skipped <= 5:
+                    log.warning("Effect catalog skip item %s: %s", item.get('key', '?'), _eff_err)
+        if _skipped > 5:
+            log.warning("Effect catalog: %d more items skipped", _skipped - 5)
 
         self._effect_catalog_all.sort(key=lambda x: x[0].lower())
+        log.info("Effect catalog built: %d effects from %d items (scanned %d gimmicks)",
+                 len(self._effect_catalog_all), len(items), len(seen_gimmicks))
 
         self._effect_populate_combo("")
 
@@ -6471,7 +6612,13 @@ class ItemBuffsTab(QWidget):
                     'max_charged_useable_count', 'respawn_time_seconds',
                     'docking_child_data', 'max_stack_count'):
             if preset.get(gf) is not None:
-                rust_info[gf] = preset[gf]
+                cur = rust_info.get(gf)
+                new = preset[gf]
+                if isinstance(cur, dict) and isinstance(new, (int, float)):
+                    for dk in cur:
+                        cur[dk] = int(new)
+                else:
+                    rust_info[gf] = new
         
         
         if preset.get('drop_default_data') is not None:
@@ -8095,39 +8242,22 @@ class ItemBuffsTab(QWidget):
     def _buff_deploy_charinfo_0065(self, game_path: str,
                                    new_pabgb: bytes,
                                    new_pabgh: bytes) -> None:
-        """Write characterinfo.pabgb/.pabgh to 0065/ as a separate overlay.
-
-        Same principle as equipslotinfo → 0059/: bundling characterinfo
-        into 0058/ alongside iteminfo causes the Kliff gun fix to silently
-        fail.  Deploying to its own overlay group makes it work.
-        """
-        import crimson_rs, shutil, tempfile
-        INTERNAL_DIR = "gamedata/binary__/client/bin"
-        GROUP = "0065"
-        with tempfile.TemporaryDirectory() as tmp:
-            build_dir = os.path.join(tmp, GROUP)
-            b = crimson_rs.PackGroupBuilder(
-                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
-            b.add_file(INTERNAL_DIR, "characterinfo.pabgb", new_pabgb)
-            b.add_file(INTERNAL_DIR, "characterinfo.pabgh", new_pabgh)
-            pamt_bytes = bytes(b.finish())
-            pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
-            dst = os.path.join(game_path, GROUP)
-            if os.path.isdir(dst):
-                shutil.rmtree(dst)
-            os.makedirs(dst, exist_ok=True)
-            for fname in os.listdir(build_dir):
-                shutil.copy2(os.path.join(build_dir, fname),
-                             os.path.join(dst, fname))
-        papgt_path = os.path.join(game_path, "meta", "0.papgt")
-        papgt = crimson_rs.parse_papgt_file(papgt_path)
-        papgt["entries"] = [e for e in papgt["entries"]
-                            if e.get("group_name") != GROUP]
-        papgt = crimson_rs.add_papgt_entry(
-            papgt, GROUP, pamt_checksum, 0, 16383)
-        crimson_rs.write_papgt_file(papgt, papgt_path)
-        log.info("characterinfo deployed to %s/ (pabgb=%d, pabgh=%d, checksum=0x%08X)",
-                 GROUP, len(new_pabgb), len(new_pabgh), pamt_checksum)
+        """Write characterinfo.pabgb/.pabgh to a separate overlay, merging
+        with any existing characterinfo edits from other tabs (FieldEdit mounts, etc.)."""
+        from gui.utils import resolve_overlay_group, deploy_merged_pabgb
+        requested = self._config.get("charinfo_overlay_dir", 65)
+        group_num = resolve_overlay_group(game_path, requested, "Kliff Gun Fix (characterinfo)", parent=self)
+        if group_num is None:
+            return
+        if group_num != requested:
+            self._config["charinfo_overlay_dir"] = group_num
+            self.config_save_requested.emit()
+        GROUP = f"{group_num:04d}"
+        deploy_merged_pabgb(
+            game_path, 'character_info', 'characterinfo',
+            new_pabgb, new_pabgh, GROUP, "ItemBuffs Kliff Gun Fix",
+            parent=self)
+        log.info("characterinfo deployed (merged) to %s/ (%d bytes)", GROUP, len(new_pabgb))
 
     def _eb_bulk_make_dyeable(self) -> None:
         """Flip is_dyeable + is_editable_grime on every equipment item.
@@ -9043,7 +9173,11 @@ class ItemBuffsTab(QWidget):
             diffs = self._field_diff(skey, ikey, vanilla, item)
             intents.extend(diffs)
 
-        if not intents:
+        equip_intents = self._diff_staged_equipslotinfo()
+        charinfo_intents = self._diff_staged_characterinfo()
+        total = len(intents) + len(equip_intents) + len(charinfo_intents)
+
+        if total == 0:
             QMessageBox.information(self, "Export Field JSON v3",
                 "No field-level changes detected. Nothing to export.")
             return
@@ -9062,33 +9196,34 @@ class ItemBuffsTab(QWidget):
         if not path:
             return
 
-        doc = {
-            'modinfo': {
-                'title': name,
-                'version': '1.0',
-                'author': 'CrimsonGameMods ItemBuffs',
-                'description': f'{len(intents)} field-level intent(s)',
-                'note': 'Format 3 — uses field names, survives game updates',
-            },
-            'format': 3,
-            'format_minor': 1,
-            'targets': [
-                {
-                    'file': 'iteminfo.pabgb',
-                    'intents': intents,
-                }
-            ],
+        modinfo = {
+            'title': name, 'version': '1.0',
+            'author': 'CrimsonGameMods ItemBuffs',
+            'description': f'{total} field-level intent(s)',
+            'note': 'Format 3 — uses field names, survives game updates',
         }
+        targets = []
+        if intents:
+            targets.append({'file': 'iteminfo.pabgb', 'intents': intents})
+        if equip_intents:
+            targets.append({'file': 'equipslotinfo.pabgb', 'intents': equip_intents})
+        if charinfo_intents:
+            targets.append({'file': 'characterinfo.pabgb', 'intents': charinfo_intents})
+
+        doc = {'modinfo': modinfo, 'format': 3, 'format_minor': 1, 'targets': targets}
 
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+            target_summary = (f"{len(intents)} iteminfo"
+                + (f", {len(equip_intents)} equipslotinfo" if equip_intents else "")
+                + (f", {len(charinfo_intents)} characterinfo" if charinfo_intents else ""))
             self._buff_status_label.setText(
-                f"Exported {len(intents)} field intents to {os.path.basename(path)}")
+                f"Exported {total} field intents ({target_summary}) to {os.path.basename(path)}")
             QMessageBox.information(self, "Export Field JSON v3",
-                f"Exported {len(intents)} field-level intents.\n\n"
-                f"This file uses field names — it survives game updates.\n"
-                f"Compatible with Stacker Tool and future mod loaders.\n\n"
+                f"Exported {total} field-level intents.\n"
+                f"  {target_summary}\n\n"
+                f"Compatible with Stacker Tool, DMM, and future mod loaders.\n\n"
                 f"File: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
@@ -12576,6 +12711,88 @@ class ItemBuffsTab(QWidget):
             log.exception("Item creator deploy failed")
             QMessageBox.critical(self, "Deploy Failed", str(e))
 
+    def _diff_staged_equipslotinfo(self) -> list:
+        """Diff staged equipslotinfo against vanilla for v3 multi-target export."""
+        import base64
+        staged = getattr(self, '_staged_equip_files', None)
+        if not staged or 'equipslotinfo.pabgb' not in staged:
+            return []
+        try:
+            import crimson_rs
+            import equipslotinfo_parser as esp
+        except Exception as e:
+            log.warning("v3 export: equipslotinfo parser unavailable (%s)", e)
+            return []
+        try:
+            gp = (self._buff_game_path.text().strip() if hasattr(self, '_buff_game_path') and self._buff_game_path else '') or self._config.get("game_install_path", "")
+            dp = 'gamedata/binary__/client/bin'
+            v_pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'equipslotinfo.pabgh'))
+            v_pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'equipslotinfo.pabgb'))
+            vanilla = esp.parse_all(v_pabgh, v_pabgb)
+            mod_pabgb = staged['equipslotinfo.pabgb']
+            mod_pabgh = staged.get('equipslotinfo.pabgh', v_pabgh)
+            modified = esp.parse_all(mod_pabgh, mod_pabgb)
+        except Exception as e:
+            log.warning("v3 export: equipslotinfo parse failed (%s)", e)
+            return []
+        v_by_key = {r.key: r for r in vanilla}
+        intents = []
+        for rec in modified:
+            v_rec = v_by_key.get(rec.key)
+            if v_rec is None:
+                intents.append({'entry': '', 'key': rec.key, 'op': 'add_entry',
+                    'data': {'_blob_b64': base64.b64encode(rec.to_bytes()).decode('ascii')}})
+                continue
+            v_entries = v_rec.entries
+            for i, m_entry in enumerate(rec.entries):
+                if i >= len(v_entries):
+                    intents.append({'entry': '', 'key': rec.key, 'field': '_blob_b64', 'op': 'set',
+                        'new': base64.b64encode(rec.to_bytes()).decode('ascii')})
+                    break
+                if list(v_entries[i].etl_hashes) != list(m_entry.etl_hashes):
+                    intents.append({'entry': '', 'key': rec.key,
+                        'field': f'entries[{i}].etl_hashes', 'op': 'set',
+                        'new': list(m_entry.etl_hashes)})
+        return intents
+
+    def _diff_staged_characterinfo(self) -> list:
+        """Diff staged characterinfo against vanilla for v3 multi-target export."""
+        staged = getattr(self, '_staged_charinfo_files', None)
+        if not staged or 'characterinfo.pabgb' not in staged:
+            return []
+        try:
+            import crimson_rs
+            from characterinfo_full_parser import parse_all_entries as ci_parse_all
+        except Exception as e:
+            log.warning("v3 export: characterinfo parser unavailable (%s)", e)
+            return []
+        try:
+            gp = (self._buff_game_path.text().strip() if hasattr(self, '_buff_game_path') and self._buff_game_path else '') or self._config.get("game_install_path", "")
+            dp = 'gamedata/binary__/client/bin'
+            v_pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'characterinfo.pabgb'))
+            v_pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'characterinfo.pabgh'))
+            mod_pabgb = staged['characterinfo.pabgb']
+            mod_pabgh = staged.get('characterinfo.pabgh', v_pabgh)
+            v_entries = ci_parse_all(v_pabgb, v_pabgh)
+            m_entries = ci_parse_all(mod_pabgb, mod_pabgh)
+        except Exception as e:
+            log.warning("v3 export: characterinfo parse failed (%s)", e)
+            return []
+        v_by_name = {e.get('name'): e for e in v_entries}
+        intents = []
+        for m in m_entries:
+            name = m.get('name')
+            v = v_by_name.get(name)
+            if v is None:
+                continue
+            for k, m_val in m.items():
+                if k == 'name':
+                    continue
+                if v.get(k) != m_val and isinstance(m_val, (int, float, str)):
+                    intents.append({'entry': name or '', 'key': int(m.get('key', 0)),
+                        'field': k, 'op': 'set', 'new': m_val})
+        return intents
+
     def _goto_stacker_legacy_export(self) -> None:
         """Switch to Stacker Tool tab for legacy JSON export."""
         self.navigate_requested.emit("stacker")
@@ -13064,7 +13281,7 @@ class ItemBuffsTab(QWidget):
                     record_overlay(game_path, "0059", "ItemBuffs",
                                    sorted(staged_equip_deploy.keys()))
                 if staged_charinfo:
-                    record_overlay(game_path, "0065", "ItemBuffs",
+                    record_overlay(game_path, f"{self._config.get('charinfo_overlay_dir', 65):04d}", "ItemBuffs",
                                    sorted(staged_charinfo.keys()))
             except Exception:
                 pass
@@ -13369,7 +13586,7 @@ class ItemBuffsTab(QWidget):
                     record_overlay(game_path, "0059", "ItemBuffs",
                                    sorted(staged_equip_deploy.keys()))
                 if staged_charinfo:
-                    record_overlay(game_path, "0065", "ItemBuffs",
+                    record_overlay(game_path, f"{self._config.get('charinfo_overlay_dir', 65):04d}", "ItemBuffs",
                                    sorted(staged_charinfo.keys()))
             except Exception:
                 pass
@@ -13511,7 +13728,7 @@ class ItemBuffsTab(QWidget):
         game_mod = os.path.join(game_path, buff_dir)
         legacy_mod = os.path.join(game_path, "0038")
         equip_group_dir = os.path.join(game_path, "0059")
-        charinfo_group_dir = os.path.join(game_path, "0065")
+        charinfo_group_dir = os.path.join(game_path, f"{self._config.get('charinfo_overlay_dir', 65):04d}")
         idx_group_dir = os.path.join(game_path, "0066")
         equip_legacy_dir = os.path.join(game_path, "0061")
         papgt_path = os.path.join(game_path, "meta", "0.papgt")
@@ -13539,7 +13756,8 @@ class ItemBuffsTab(QWidget):
         if os.path.isdir(equip_group_dir):
             parts.append("Delete 0059/ (equipslotinfo — Universal Proficiency)")
         if os.path.isdir(charinfo_group_dir):
-            parts.append("Delete 0065/ (characterinfo — Kliff Gun Fix)")
+            _ci_grp = f"{self._config.get('charinfo_overlay_dir', 65):04d}"
+            parts.append(f"Delete {_ci_grp}/ (characterinfo — Kliff Gun Fix)")
         if os.path.isdir(legacy_mod):
             parts.append("Delete 0038/ (legacy overlay)")
         if has_charinfo:
@@ -13641,9 +13859,10 @@ class ItemBuffsTab(QWidget):
         if "Removed 0059/" in "\n".join(messages):
             removed_folders.append("0059")
             affected.append("  0059/  —  Universal Proficiency (equipslotinfo)")
-        if "Removed 0065/" in "\n".join(messages):
-            removed_folders.append("0065")
-            affected.append("  0065/  —  Kliff Gun Fix (characterinfo)")
+        _ci_grp2 = f"{self._config.get('charinfo_overlay_dir', 65):04d}"
+        if f"Removed {_ci_grp2}/" in "\n".join(messages):
+            removed_folders.append(_ci_grp2)
+            affected.append(f"  {_ci_grp2}/  —  Kliff Gun Fix (characterinfo)")
         if "Removed 0066/" in "\n".join(messages):
             removed_folders.append("0066")
             affected.append("  0066/  —  ItemBuffs index files (pabgh, NONE compression)")
@@ -13716,8 +13935,10 @@ class ItemBuffsTab(QWidget):
         sim_passive_action = sim_buff_action = None
         diff_action = dump_action = None
         rust_info = self._buff_rust_lookup.get(item.item_key) if self._buff_rust_lookup else None
+        copy_action = None
         if rust_info is not None and self._index is not None:
             menu.addSeparator()
+            copy_action = menu.addAction("Copy data to items")
             similar_menu = menu.addMenu("Find similar items")
             cat_label = self._index.category_label(rust_info.get("category_info") or 0)
             sim_cat_action = similar_menu.addAction(f"In same category ({cat_label})")
@@ -13758,6 +13979,274 @@ class ItemBuffsTab(QWidget):
                 self._buff_open_item_diff_dialog(initial_a=rust_info["key"])
             elif action == dump_action:
                 self._dump_item_info(rust_info)
+            elif action == copy_action:
+                self._open_item_copy_dialog(rust_info)
+
+    def _paste_from_copy_buffer(self, rust_info: dict):
+        if not hasattr(self, '_copy_buffer') or not self._copy_buffer:
+            return
+        btype, bdata = self._copy_buffer.values()
+        match btype:
+            case 'passive':
+                i = self._eb_passive_combo.findData(bdata['skill'])
+                self._eb_passive_combo.setCurrentIndex(i)
+                self._eb_level_spin.setValue(bdata['level'])
+                self._eb_apply()
+            case 'buff':
+                i = self._eb_buff_combo.findData(bdata['buff'])
+                self._eb_buff_combo.setCurrentIndex(i)
+                self._eb_buff_level.setValue(bdata['level'])
+                self._eb_add_buff()
+            case 'passives_list':
+                psl = rust_info['equip_passive_skill_list']
+                merged = {s['skill']: s for s in psl} | {s['skill']: s for s in bdata}
+                rust_info['equip_passive_skill_list'] = list(merged.values())
+                self._buff_modified = True
+                self._buff_refresh_stats()
+            case 'buffs_list':
+                edl = rust_info.get('enchant_data_list', [])
+                if edl:
+                    ed0 = edl[0]
+                    merged = {b['buff']: b for b in ed0.get('equip_buffs', [])} | {b['buff']: b for b in bdata}
+                    for ed in edl:
+                        ed["equip_buffs"] = list(merged.values())
+                self._buff_modified = True
+                self._buff_refresh_stats()
+            case 'sockets_list':
+                ddd = rust_info['drop_default_data']
+                ddd['socket_item_list'] = bdata
+                if len(ddd['add_socket_material_item_list']) < len(bdata):
+                    count = self._eb_socket_count.value()
+                    valid = self._eb_socket_valid.value()
+                    self._eb_socket_count.setValue(max(count, len(bdata)))
+                    self._eb_socket_valid.setValue(max(valid, len(bdata)))
+                    self._eb_extend_sockets()
+                self._buff_modified = True
+                self._buff_refresh_stats()
+            case _:
+                log.warning("Unknown copy buffer type: %s\n%s", btype, bdata)
+
+    def _open_item_copy_dialog(self, rust_info: dict) -> None:
+        from PySide6.QtWidgets import QAbstractItemView
+        current_item = self._buff_current_item
+        display_name = lambda i: self._name_db.get_name(i.item_key) if hasattr(self, '_name_db') else i.name
+
+        search = self._buff_search
+        bit = self._buff_items_table
+        bst = self._buff_stats_table
+
+        def set_item():
+            self._buff_current_item = current_item
+            self._buff_refresh_stats()
+
+        def refresh():
+            return (
+                list(map(lambda row: bst.item(row.row(), 0).data(Qt.UserRole + 1), bst.selectionModel().selectedRows())),
+                {item.item_key: item for item in map(lambda row: bit.item(row.row(), 1).data(Qt.UserRole), bit.selectionModel().selectedRows())}
+            )
+
+        search_parent = search.parentWidget()
+        search_parent_layout = search_parent.layout()
+        search_idx = search_parent_layout.indexOf(search)
+        search.returnPressed.connect(set_item)
+        search_parent.setVisible(False)
+
+        bit_parent = bit.parentWidget()
+        bit_parent_layout = bit_parent.layout()
+        bit_idx = bit_parent_layout.indexOf(bit)
+        bit_sm = bit.selectionMode()
+        bit.clearSelection()
+        bit.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        bit.selectionModel().selectionChanged.disconnect(self._buff_item_selected)
+        bit.customContextMenuRequested.disconnect(self._buff_items_context_menu)
+        bit_parent.setVisible(False)
+
+        bst_parent = bst.parentWidget()
+        bst_parent_layout = bst_parent.layout()
+        bst_idx = bst_parent_layout.indexOf(bst)
+        bst_sm = bst.selectionMode()
+        bst.clearSelection()
+        bst.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        bst.customContextMenuRequested.disconnect(self._buff_stats_context_menu)
+        bst_parent.setVisible(False)
+
+        def cleanup():
+            search_parent_layout.insertWidget(search_idx, search)
+            search.returnPressed.disconnect(set_item)
+            search_parent.setVisible(True)
+            bit.setSelectionMode(bit_sm)
+            bit.selectionModel().selectionChanged.connect(self._buff_item_selected)
+            bit.customContextMenuRequested.connect(self._buff_items_context_menu)
+            bit_parent_layout.insertWidget(bit_idx, bit)
+            bit_parent.setVisible(True)
+            bst.setSelectionMode(bst_sm)
+            bst.customContextMenuRequested.connect(self._buff_stats_context_menu)
+            bst_parent_layout.insertWidget(bst_idx, bst)
+            bst_parent.setVisible(True)
+            self._rebuild_index()
+
+        selected_items: dict = {}
+        selected_items_view = QListWidget()
+        selected_items_view.setMaximumHeight(120)
+        def reload_selected():
+            selected_items_view.clear()
+            self._buff_items_table.clearSelection()
+            selected_items_view.addItems(
+                map(lambda i: f"{display_name(i)} (ID: {i.item_key})",
+                    [i for i in selected_items.values() if i.item_key != self._buff_current_item.item_key]))
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Copy Item Data")
+        dlg.setMinimumHeight(750)
+        root_layout = QVBoxLayout(dlg)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        top_bar_wrap = QWidget()
+        top_bar = QHBoxLayout(top_bar_wrap)
+        bottom_bar_wrap = QWidget()
+        bottom_bar = QHBoxLayout(bottom_bar_wrap)
+
+        add_btn = QPushButton("Add Selected")
+        add_btn.clicked.connect(lambda: [selected_items.update(refresh()[1]), reload_selected()])
+        remove_btn = QPushButton("Remove Selected")
+        remove_btn.clicked.connect(lambda: [[selected_items.pop(k, None) for k in refresh()[1].keys()], reload_selected()])
+
+        def copy_data(donor, copy_type=None, skip=False):
+            if not skip:
+                warn = ""
+                if copy_type == "data":
+                    warn = ("\n\nWARNING: Copying RAW data from one item to another is"
+                            " dangerous, undefined behaviour!")
+                reply = QMessageBox.question(
+                    dlg, "Replace Item Data",
+                    f"All {copy_type or 'selected data'} in the selected items will be"
+                    f" overwritten by the donor item.{warn}\n\nContinue?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply != QMessageBox.Yes:
+                    return
+
+            clone = lambda data: json.loads(json.dumps(data))
+            skipped = 0
+            for key in selected_items:
+                target = self._buff_rust_lookup.get(key)
+                if not target:
+                    skipped += 1
+                    continue
+                match copy_type:
+                    case 'passives':
+                        target['equip_passive_skill_list'] = clone(donor['equip_passive_skill_list'])
+                    case 'buffs':
+                        src_edl = donor.get('enchant_data_list', [])
+                        if src_edl:
+                            src_buffs = clone(src_edl[0].get('equip_buffs', []))
+                            edl = target.setdefault('enchant_data_list', [{"level": 0, "equip_buffs": []}])
+                            for ed in edl:
+                                ed['equip_buffs'] = src_buffs
+                    case 'stats':
+                        src_edl = clone(donor.get('enchant_data_list', []))
+                        edl = target.get('enchant_data_list', [])
+                        if len(src_edl) > len(edl):
+                            target['enchant_data_list'] = [
+                                {"level": i, 'enchant_stat_data': ed['enchant_stat_data']} for i, ed in enumerate(src_edl)]
+                        else:
+                            for i, ed in enumerate(src_edl):
+                                edl[i]['enchant_stat_data'] = ed['enchant_stat_data']
+                    case 'sockets':
+                        src_ddd = clone(donor.get('drop_default_data'))
+                        ddd = target.setdefault('drop_default_data', {})
+                        if src_ddd:
+                            ddd['socket_item_list'] = src_ddd['socket_item_list']
+                            ddd['add_socket_material_item_list'] = src_ddd['add_socket_material_item_list']
+                            ddd['socket_valid_count'] = src_ddd['socket_valid_count']
+                            ddd['use_socket'] = src_ddd['use_socket']
+                    case 'data':
+                        new_data = clone(donor)
+                        new_data['key'] = target['key']
+                        new_data['string_key'] = target['string_key']
+                        self._safely_replace_buff_item(key, new_data)
+                    case 'selected':
+                        selected_data = refresh()[0]
+                        sp, sb, ss, sl = [], [], {}, []
+                        data_types = set()
+                        for data in selected_data:
+                            if not data or data[0] == 'header':
+                                continue
+                            data_types.add(data[0])
+                            match data[0]:
+                                case 'socket': sl.append(data[1])
+                                case 'passive': sp.append(data[1])
+                                case 'stat': ss.setdefault(data[2], []).append(data[1])
+                                case 'buff': sb.append(data[1])
+                        edl = clone(donor['enchant_data_list'])
+                        bl = [b for b in edl[0]['equip_buffs'] if b['buff'] in sb] if edl else []
+                        new_data = {}
+                        if edl:
+                            new_data['enchant_data_list'] = []
+                            for ed in edl:
+                                esd = ed['enchant_stat_data']
+                                new_data['enchant_data_list'].append({
+                                    "level": ed['level'],
+                                    "enchant_stat_data": {
+                                        "max_stat_list": [s for s in esd.get('max_stat_list', []) if s['stat'] in ss.get('max_stat_list', [])],
+                                        "regen_stat_list": [s for s in esd.get('regen_stat_list', []) if s['stat'] in ss.get('regen_stat_list', [])],
+                                        "stat_list_static": [s for s in esd.get('stat_list_static', []) if s['stat'] in ss.get('stat_list_static', [])],
+                                        "stat_list_static_level": [s for s in esd.get('stat_list_static_level', []) if s['stat'] in ss.get('stat_list_static_level', [])],
+                                    },
+                                    "equip_buffs": bl,
+                                })
+                        new_data['equip_passive_skill_list'] = [
+                            p for p in clone(donor['equip_passive_skill_list']) if p['skill'] in sp]
+                        if sl:
+                            new_data['drop_default_data'] = {
+                                "socket_item_list": sl,
+                                "socket_valid_count": len(sl),
+                                "use_socket": 1,
+                                "add_socket_material_item_list": donor['drop_default_data']['add_socket_material_item_list'][:len(sl)],
+                            }
+                        for dtype in data_types:
+                            copy_data(new_data, copy_type=f"{dtype}s", skip=True)
+                    case _:
+                        pass
+            if not skip:
+                self._buff_modified = True
+                self._buff_refresh_stats()
+                QMessageBox.information(dlg, "Copy Successful",
+                    f"Item data replaced for {len(selected_items) - skipped} items.")
+
+        selected_btn = QPushButton("Copy Selected Data")
+        selected_btn.clicked.connect(lambda: copy_data(rust_info, "selected"))
+        sockets_btn = QPushButton("Copy Socket Data")
+        sockets_btn.clicked.connect(lambda: copy_data(rust_info, "sockets"))
+        passive_btn = QPushButton("Copy Passive Data")
+        passive_btn.clicked.connect(lambda: copy_data(rust_info, "passives"))
+        stat_btn = QPushButton("Copy Stat Data")
+        stat_btn.clicked.connect(lambda: copy_data(rust_info, "stats"))
+        buff_btn = QPushButton("Copy Buff Data")
+        buff_btn.clicked.connect(lambda: copy_data(rust_info, "buffs"))
+        raw_btn = QPushButton("Copy RAW Data")
+        raw_btn.clicked.connect(lambda: copy_data(rust_info, "data"))
+
+        top_bar.addWidget(self._buff_search)
+        top_bar.addWidget(add_btn)
+        top_bar.addWidget(remove_btn)
+        bottom_bar.addWidget(selected_btn)
+        bottom_bar.addWidget(sockets_btn)
+        bottom_bar.addWidget(passive_btn)
+        bottom_bar.addWidget(stat_btn)
+        bottom_bar.addWidget(buff_btn)
+        bottom_bar.addWidget(raw_btn)
+
+        splitter.addWidget(self._buff_stats_table)
+        splitter.addWidget(self._buff_items_table)
+        label = QLabel(f"Copying from {display_name(current_item)} to target items:")
+
+        root_layout.addWidget(top_bar_wrap)
+        root_layout.addWidget(splitter, 1)
+        root_layout.addWidget(label)
+        root_layout.addWidget(selected_items_view)
+        root_layout.addWidget(bottom_bar_wrap)
+
+        dlg.exec()
+        cleanup()
 
     def _add_to_favorites(self, item) -> None:
         self._buff_status_label.setText(f"{item.name}({item.item_key}) added to favorites.")
