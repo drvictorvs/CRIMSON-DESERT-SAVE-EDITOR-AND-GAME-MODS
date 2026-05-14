@@ -479,34 +479,12 @@ def _classify(path: str) -> ModEntry:
     if grp:
         return ModEntry(name=display, path=path, kind="folder_paz",
                         group=grp, note=f"compiled PAZ mod (group {grp})")
-    # Bare 0.paz dropped directly: look for 0.pamt sibling and walk up to mod root
-    if os.path.isfile(path) and path.lower().endswith(".paz"):
-        paz_dir = os.path.dirname(path)
-        pamt = os.path.join(paz_dir, "0.pamt")
-        if os.path.isfile(pamt):
-            parent = os.path.dirname(paz_dir)
-            grp = _find_folder_paz_group(parent)
-            if grp:
-                disp = Path(parent).name or parent
-                return ModEntry(name=disp, path=parent, kind="folder_paz",
-                                group=grp, note=f"compiled PAZ mod (group {grp})")
-            grp = _find_folder_paz_group(paz_dir)
-            if grp:
-                disp = Path(paz_dir).name or paz_dir
-                return ModEntry(name=disp, path=paz_dir, kind="folder_paz",
-                                group=grp, note=f"compiled PAZ mod (group {grp})")
-        return ModEntry(name=Path(path).name, path=path, kind="", ok=False,
-                        note="Drop the mod ROOT FOLDER not the .paz file directly")
     if os.path.isfile(path) and path.lower().endswith(".json"):
         try:
             with open(path, encoding="utf-8") as f:
                 doc = json.load(f)
-            # v3.1 uses "targets" array; old flat format used top-level "intents"
-            _targets = doc.get("targets") or []
-            _flat = doc.get("intents") or []
-            _all = _flat + [i for t in _targets for i in (t.get("intents") or [])]
-            if doc.get("format") == 3 and _all:
-                n = len(_all)
+            if doc.get("format") == 3 and doc.get("intents"):
+                n = len(doc["intents"])
                 title = (doc.get("modinfo") or {}).get("title", display)
                 return ModEntry(name=title, path=path, kind="field_json",
                                 note=f"Format 3 field JSON ({n} intents)")
@@ -800,42 +778,26 @@ def _strip_meta(d: dict) -> dict:
     return {k: v for k, v in d.items() if k not in ('key', 'string_key')}
 
 
-def _norm_val(v):
-    """Normalise dmm_parser {a,b,c} dicts to a plain value for comparison."""
-    if isinstance(v, dict) and set(v) == {'a', 'b', 'c'} and len(set(v.values())) == 1:
-        return next(iter(v.values()))
-    return v
-
-
 def _deep_diff_to_intents(entry: str, key: int, a: dict, b: dict,
                           prefix: str = '') -> list[dict]:
-    """Recursively diff two parsed item dicts and emit Format 3 intents.
-
-    Skips unk_* placeholder fields and normalises dmm_parser {a,b,c} dicts
-    before comparing so false diffs are suppressed.
-    Lists always emit a full set replacement - one intent per field.
-    """
+    """Recursively diff two parsed item dicts and emit Format 3 intents."""
     intents = []
     all_keys = set(list(a.keys()) + list(b.keys()))
     for k in sorted(all_keys):
         if k in ('key', 'string_key'):
             continue
-        if str(k).startswith('unk_'):
-            continue
         path = f'{prefix}.{k}' if prefix else k
         va, vb = a.get(k), b.get(k)
-        if _norm_val(va) == _norm_val(vb):
+        if va == vb:
             continue
         if isinstance(va, dict) and isinstance(vb, dict):
             intents.extend(_deep_diff_to_intents(entry, key, va, vb, path))
         elif isinstance(va, list) and isinstance(vb, list):
-            if va == vb:
-                continue
-            # Full list replacement - one clean intent per field
-            intents.append({
-                'entry': entry, 'key': key,
-                'field': path, 'op': 'set', 'new': vb,
-            })
+            if len(va) != len(vb) or va != vb:
+                intents.append({
+                    'entry': entry, 'key': key,
+                    'field': path, 'op': 'set', 'new': vb,
+                })
         else:
             intents.append({
                 'entry': entry, 'key': key,
@@ -1412,15 +1374,6 @@ class StackerTab(QWidget):
         self._merged_other_files: dict = {}
         self._conflicts: list[FieldConflict] = []
         self._build_ui()
-        self.setAcceptDrops(True)
-
-    def dragEnterEvent(self, e) -> None:
-        if e.mimeData().hasUrls():
-            e.acceptProposedAction()
-
-    def dropEvent(self, e) -> None:
-        paths = [u.toLocalFile() for u in e.mimeData().urls()]
-        self._add_files(paths)
 
     def set_game_path(self, path: str) -> None:
         self._game_path = path or ""
@@ -1504,18 +1457,9 @@ class StackerTab(QWidget):
         gbl.addWidget(browse)
         v.addWidget(game_bar)
 
-        # --- Drop zone + Browse button ------------------------------------
-        drop_row = QHBoxLayout()
-        drop_row.setSpacing(6)
+        # --- Drop zone --------------------------------------------------
         self._drop = DropZone(self._add_files)
-        drop_row.addWidget(self._drop, stretch=1)
-        browse_mod_btn = _size_button(QPushButton("+ Browse Mod..."))
-        browse_mod_btn.setObjectName("flatBtn")
-        browse_mod_btn.setToolTip(
-            "Browse for a mod folder or .json file to add as a stacker source.")
-        browse_mod_btn.clicked.connect(self._browse_add_mod)
-        drop_row.addWidget(browse_mod_btn)
-        v.addLayout(drop_row)
+        v.addWidget(self._drop)
 
         # --- Main 3-column splitter ------------------------------------
         main = QSplitter(Qt.Horizontal)
@@ -1837,6 +1781,16 @@ class StackerTab(QWidget):
         pull_btn.clicked.connect(self._pull_from_itembuffs)
         blay.addWidget(pull_btn)
 
+        pull_all_btn = _size_button(QPushButton("⇅ Pull All Edits"), extra_px=52)
+        pull_all_btn.setObjectName("flatBtn")
+        pull_all_btn.setStyleSheet(
+            "QPushButton { background-color: #00695C; color: white; font-weight: bold; }")
+        pull_all_btn.setToolTip(
+            "Pull edits from ALL tabs: ItemBuffs + FieldEdit + SpawnEdit + "
+            "BagSpace + ReserveSlot + DropSets. Creates one mod entry per "
+            "tab that has modifications.")
+        pull_all_btn.clicked.connect(self._pull_all_edits)
+        blay.addWidget(pull_all_btn)
         blay.addStretch(1)
 
         pull_dmm_btn = _size_button(QPushButton("⇅ Pull DMM"))
@@ -1925,20 +1879,6 @@ class StackerTab(QWidget):
             "", "Mod files (*.json *.pabgb);;All files (*.*)")
         if paths:
             self._add_files(paths)
-
-    def _browse_add_mod(self) -> None:
-        """Open a file/folder dialog to add a mod source manually."""
-        from PySide6.QtWidgets import QFileDialog
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Add Mod",
-            self._game_path or "",
-            "Mod files (*.json *.paz *.pabgb);;All files (*)")
-        if not path:
-            # Also try folder selection
-            path = QFileDialog.getExistingDirectory(
-                self, "Add Mod Folder", self._game_path or "")
-        if path:
-            self._add_files([path])
 
     def _add_files(self, paths: list[str]):
         for p in paths:
@@ -2308,10 +2248,7 @@ class StackerTab(QWidget):
 
             # Classify: if it has format:3 intents, load as field_json;
             # otherwise as legacy_json
-            _dtargets = doc.get("targets") or []
-            _dall = (doc.get("intents") or []) + [
-                i for t in _dtargets for i in (t.get("intents") or [])]
-            if doc.get("format") == 3 and _dall:
+            if doc.get("format") == 3 and doc.get("intents"):
                 entry = ModEntry(
                     name=f"[DMM] {title}",
                     path=json_path,
@@ -2880,13 +2817,7 @@ class StackerTab(QWidget):
                 elif m.kind == "field_json":
                     with open(m.path, encoding="utf-8") as f:
                         doc = json.load(f)
-                    # Support both flat intents and v3.1 targets array
-                    _doc_targets = doc.get("targets") or []
-                    _flat_i = doc.get("intents") or []
-                    intents = _flat_i + [
-                        i for t in _doc_targets
-                        if t.get("file", "").lower() in ("iteminfo.pabgb", "")
-                        for i in (t.get("intents") or [])]
+                    intents = doc.get("intents", [])
                     items = copy.deepcopy(vanilla_items)
                     items_by_key = {it['string_key']: it for it in items}
                     applied_count = 0
@@ -4508,8 +4439,8 @@ class StackerTab(QWidget):
                     'note': 'Format 3 — uses field names, survives game updates',
                 },
                 'format': 3,
-                'format_minor': 1,
-                'targets': [{'file': 'iteminfo.pabgb', 'intents': intents}],
+                'target': 'iteminfo.pabgb',
+                'intents': intents,
             }
             log_msg = f"✔ Exported {len(intents)} intents to {path}"
             ui_msg = (f"Exported {len(intents)} field-level intents.\n\n"

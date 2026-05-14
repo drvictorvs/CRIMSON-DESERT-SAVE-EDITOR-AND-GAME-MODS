@@ -67,126 +67,69 @@ def clean_display_name(internal_name: str) -> str:
 
 
 def parse_transmog_items_crimson_rs(data: bytes) -> list[ArmorItem]:
-    # Try dmm_parser first (works on Python 3.14+), then crimson_rs.
-    items = None
     try:
-        import dmm_parser as _dmp
-        items = _dmp.parse_iteminfo_from_bytes(data)
-    except Exception:
-        pass
-    if not items:
-        try:
-            import crimson_rs
-            items = crimson_rs.parse_iteminfo_from_bytes(data)
-        except Exception:
-            return []
-    if not items:
+        import crimson_rs
+    except ImportError:
         return []
 
-    # ── Fast path: build a single full-blob hash-position index up front ──
-    # Instead of scanning 5 MB per item (O(n * blob_size)), we scan once for
-    # every distinct 4-byte hash value that appears in any item's prefab lists,
-    # building a dict {hash_int: [byte_offset, ...]}. Per-item lookup is then
-    # O(1) dict access.  Total work: one pass over the blob per unique hash.
-    all_hash_values: set[int] = set()
-    item_hashes_map: dict[str, list[int]] = {}  # string_key -> [hash_int, ...]
+    try:
+        items = crimson_rs.parse_iteminfo_from_bytes(data)
+    except Exception:
+        return []
+
+    results: list[ArmorItem] = []
     for it in items:
         sk = it.get('string_key', '')
         if not sk:
             continue
-        seen_hv: set[int] = set()
-        hvs: list[int] = []
-        for pd in (it.get('prefab_data_list', []) or []):
-            for h in (pd.get('prefab_names') or []):
-                if h and h != 0 and int(h) not in seen_hv:
-                    hvs.append(int(h)); seen_hv.add(int(h))
-        for pv in (it.get('gimmick_visual_prefab_data_list', []) or []):
+        prefab_lists = it.get('gimmick_visual_prefab_data_list', []) or []
+        hash_values = []
+        for pv in prefab_lists:
             for h in (pv.get('prefab_names') or []):
-                if h and h != 0 and int(h) not in seen_hv:
-                    hvs.append(int(h)); seen_hv.add(int(h))
-        if hvs:
-            item_hashes_map[sk] = hvs
-            all_hash_values.update(hvs)
-
-    # Build position index: one data.find scan per unique hash value.
-    hash_positions: dict[int, list[int]] = {}
-    for hv in all_hash_values:
-        hv_bytes = struct.pack('<I', hv)
-        positions: list[int] = []
-        pos = data.find(hv_bytes)
-        while pos >= 0:
-            positions.append(pos)
-            pos = data.find(hv_bytes, pos + 4)
-        if positions:
-            hash_positions[hv] = positions
-
-    # ── Pre-index needle positions for all string_keys at once ──
-    # Instead of data.find(needle) per item, scan once per unique string length,
-    # collecting all length-prefixed string positions, then map to string_key.
-    import bisect as _bisect
-
-    # Build: length -> sorted list of offsets where a length-prefixed string of
-    # that length starts (i.e. the 4 bytes before the string equal the length).
-    len_to_offsets: dict[int, list[int]] = {}
-    i = 0
-    dlen = len(data)
-    while i < dlen - 4:
-        try:
-            slen = struct.unpack_from('<I', data, i)[0]
-        except struct.error:
-            i += 1
+                if h and h != 0:
+                    hash_values.append(int(h))
+        if not hash_values:
             continue
-        if 2 <= slen <= 128:
-            bucket = len_to_offsets.setdefault(slen, [])
-            bucket.append(i + 4)  # offset of first char
-            i += 4 + slen
-        else:
-            i += 1
 
-    # Build needle -> anchor offset map
-    needle_anchor: dict[str, int] = {}
-    for sk, hvs in item_hashes_map.items():
         needle = sk.encode('ascii', errors='ignore')
         if not needle:
             continue
-        slen = len(needle)
-        candidates = len_to_offsets.get(slen, [])
-        for off in candidates:
-            if data[off:off + slen] == needle:
-                needle_anchor[sk] = off
+        anchor = -1
+        search_from = 0
+        while True:
+            found = data.find(needle, search_from)
+            if found < 0:
                 break
-
-    # ── Per-item: O(1) anchor lookup + bisect hash lookup ──
-    results: list[ArmorItem] = []
-    for it in items:
-        sk = it.get('string_key', '')
-        hvs = item_hashes_map.get(sk)
-        if not hvs:
+            if found >= 4:
+                try:
+                    candidate_len = struct.unpack_from('<I', data, found - 4)[0]
+                except struct.error:
+                    candidate_len = 0
+                if candidate_len == len(needle):
+                    anchor = found
+                    break
+            search_from = found + 1
+        if anchor < 0:
             continue
-        anchor = needle_anchor.get(sk)
-        if anchor is None:
-            continue
 
-        window_start = anchor + len(sk)
-        window_end = min(window_start + 20000, dlen - 4)
-
+        window_start = anchor + len(needle)
+        window_end = min(window_start + 20000, len(data) - 4)
         hashes: list[tuple[int, int]] = []
-        for hv in hvs:
-            positions = hash_positions.get(hv)
-            if not positions:
-                continue
-            idx = _bisect.bisect_left(positions, window_start)
-            if idx < len(positions) and positions[idx] < window_end:
-                hashes.append((positions[idx], hv))
+        for hv in hash_values:
+            hv_bytes = struct.pack('<I', hv)
+            pos = data.find(hv_bytes, window_start, window_end)
+            if pos >= 0:
+                hashes.append((pos, hv))
 
         if not hashes:
             continue
 
-        category = get_category(sk) or "Other"
+        internal_name = sk
+        category = get_category(internal_name) or "Other"
         results.append(ArmorItem(
             item_id=it.get('key', 0),
-            internal_name=sk,
-            display_name=clean_display_name(sk),
+            internal_name=internal_name,
+            display_name=clean_display_name(internal_name),
             category=category,
             hashes=hashes,
         ))
@@ -195,14 +138,13 @@ def parse_transmog_items_crimson_rs(data: bytes) -> list[ArmorItem]:
 
 
 def parse_transmog_items(data: bytes, loc_dict: Optional[dict] = None) -> list[ArmorItem]:
-    try:
-        rs = parse_transmog_items_crimson_rs(data)
-    except Exception:
-        rs = []
     legacy = _parse_transmog_items_legacy(data, loc_dict)
-    if rs and len(rs) >= len(legacy):
-        return rs
-    return legacy or []
+    if legacy:
+        return legacy
+    try:
+        return parse_transmog_items_crimson_rs(data)
+    except Exception:
+        return []
 
 
 def _parse_transmog_items_legacy(data: bytes, loc_dict: Optional[dict] = None) -> list[ArmorItem]:

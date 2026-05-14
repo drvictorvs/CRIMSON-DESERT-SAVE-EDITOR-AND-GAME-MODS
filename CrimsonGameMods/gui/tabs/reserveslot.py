@@ -110,12 +110,9 @@ class ReserveSlotTab(QWidget):
         apply_btn.clicked.connect(self._apply_to_game)
         top_row.addWidget(apply_btn)
 
-        export_btn = QPushButton("Export Field JSON v3")
+        export_btn = QPushButton("Export Field JSON")
         export_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
-        export_btn.setToolTip(
-            "Export changes as DMM v3.1 field JSON (reserveslot.pabgb).\n"
-            "Diffs vehicle list, mercenary list, and special name hash list.\n"
-            "Load into DMM when multi-target support ships.")
+        export_btn.setToolTip("Export edits as Format 3 field-name JSON.")
         export_btn.clicked.connect(self._export_field_json)
         top_row.addWidget(export_btn)
 
@@ -143,7 +140,7 @@ class ReserveSlotTab(QWidget):
     def _load(self) -> None:
         try:
             import reserveslot_parser as rsp
-            import dmm_parser
+            import crimson_rs
         except Exception as e:
             QMessageBox.critical(self, "Load", f"Import failed:\n{e}")
             return
@@ -154,24 +151,26 @@ class ReserveSlotTab(QWidget):
             return
 
         try:
-            h = bytes(dmm_parser.extract_file(gp, "0008",
-                "gamedata/binary__/client/bin", "reserveslot.pabgh"))
-            b = bytes(dmm_parser.extract_file(gp, "0008",
-                "gamedata/binary__/client/bin", "reserveslot.pabgb"))
+            h = crimson_rs.extract_file(gp, "0008",
+                "gamedata/binary__/client/bin", "reserveslot.pabgh")
+            b = crimson_rs.extract_file(gp, "0008",
+                "gamedata/binary__/client/bin", "reserveslot.pabgb")
         except Exception as e:
             QMessageBox.critical(self, "Load", f"Extract failed:\n{e}")
             return
 
-        try:
-            self._vanilla_pabgh = h
-            self._vanilla_pabgb = b
-            self._entries = rsp.parse_all(h, b)
-            self._modified = False
-            self._rebuild_rows()
-            self._status.setText(
-                f"Loaded {len(self._entries)} slots. Edit vehicle lists and click Apply / Export.")
-        except Exception as _e:
-            QMessageBox.critical(self, "Load", f"Failed to load reserveslot data: {_e}")
+        if not rsp.roundtrip_test(h, b):
+            QMessageBox.warning(self, "Load",
+                "Parser roundtrip mismatch — aborting. File format may have changed.")
+            return
+
+        self._vanilla_pabgh = h
+        self._vanilla_pabgb = b
+        self._entries = rsp.parse_all(h, b)
+        self._modified = False
+        self._rebuild_rows()
+        self._status.setText(
+            f"Loaded {len(self._entries)} slots. Edit vehicle lists and click Apply / Export.")
 
     def _rebuild_rows(self) -> None:
         while self._rows_layout.count() > 1:
@@ -184,7 +183,7 @@ class ReserveSlotTab(QWidget):
         import reserveslot_parser as rsp
 
         for entry in self._entries:
-            is_vehicle = entry.using_type in (1, 9)  # 1=old, 9=v1.1+ Vehicle
+            is_vehicle = entry.using_type == 1
             name = entry.name
             type_label = entry.using_type_name
 
@@ -225,7 +224,7 @@ class ReserveSlotTab(QWidget):
                 for h_val in rsp.ALL_KNOWN_VEHICLE_HASHES:
                     h_name = rsp.VEHICLE_NAMES.get(h_val, f"0x{h_val:04X}")
                     cb = QCheckBox(h_name)
-                    cb.setChecked(h_val in entry.enable_special_name_hash_list)
+                    cb.setChecked(h_val in entry.enable_vehicle_list)
                     cb.setToolTip(f"Hash: 0x{h_val:04X} ({h_val})")
                     cb.stateChanged.connect(self._mark_modified)
                     veh_row.addWidget(cb)
@@ -245,14 +244,14 @@ class ReserveSlotTab(QWidget):
         import reserveslot_parser as rsp
         for row in self._row_widgets:
             entry = row["entry"]
-            if entry.using_type not in (1, 9):  # only Vehicle-type entries have the checkbox UI
+            if entry.using_type != 1:
                 continue
             new_vehicles = []
             for h_val in rsp.ALL_KNOWN_VEHICLE_HASHES:
                 cb = row.get(f"veh_{h_val}")
                 if cb and cb.isChecked():
                     new_vehicles.append(h_val)
-            entry.enable_special_name_hash_list = new_vehicles
+            entry.enable_vehicle_list = new_vehicles
 
     def _preset_all_mounts(self) -> None:
         if not self._entries:
@@ -260,8 +259,8 @@ class ReserveSlotTab(QWidget):
             return
         import reserveslot_parser as rsp
         for entry in self._entries:
-            if entry.using_type in (1, 9):  # 1 = Vehicle (standard), 9 = v1.1+ variant
-                entry.enable_special_name_hash_list = list(rsp.ALL_KNOWN_VEHICLE_HASHES)
+            if entry.using_type == 1:
+                entry.enable_vehicle_list = list(rsp.ALL_KNOWN_VEHICLE_HASHES)
         self._rebuild_rows()
         self._modified = True
         self._status.setText("All mount types added to every vehicle slot. Click Apply.")
@@ -372,13 +371,13 @@ class ReserveSlotTab(QWidget):
             van = van_by_key.get(entry.key)
             if not van:
                 continue
-            skey = entry.name
-            # UI stores vehicle category selections in enable_special_name_hash_list
-            if entry.enable_special_name_hash_list != van.enable_special_name_hash_list:
+            if entry.enable_vehicle_list != van.enable_vehicle_list:
                 intents.append({
-                    "entry": skey, "key": entry.key,
-                    "field": "enable_special_name_hash_list",
-                    "op": "set", "new": entry.enable_special_name_hash_list,
+                    "key": entry.key,
+                    "name": entry.name,
+                    "field": "_enableVehicleList",
+                    "value": entry.enable_vehicle_list,
+                    "vanilla": van.enable_vehicle_list,
                 })
 
         if not intents:
@@ -387,30 +386,20 @@ class ReserveSlotTab(QWidget):
 
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON v3", "reserveslot_mod.field.json",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self, "Export Field JSON", "reserveslot_mod.json",
+            "JSON Files (*.json)")
         if not path:
             return
 
         doc = {
-            "modinfo": {
-                "title": "ReserveSlot Mod",
-                "version": "1.0",
-                "author": "CrimsonGameMods ReserveSlot Editor",
-                "description": f"{len(intents)} field-level intent(s)",
-                "note": "Format 3 field JSON for reserveslot.pabgb",
-            },
-            "format": 3, "format_minor": 1,
-            "targets": [{"file": "reserveslot.pabgb", "intents": intents}],
+            "format": 3,
+            "table": "reserveslot",
+            "tool": "CrimsonGameMods ReserveSlot Editor",
+            "intents": intents,
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(doc, f, indent=2, ensure_ascii=False)
-        self._status.setText(f"Exported {len(intents)} field intent(s) to {os.path.basename(path)}")
-        QMessageBox.information(self, "Export Field JSON v3",
-            f"Exported {len(intents)} field-level intent(s).\n\n"
-            f"File: {path}\n\n"
-            "Load into DMM to apply reserve slot changes.\n"
-            "(Note: DMM multi-target support required for non-iteminfo tables.)")
+        self._status.setText(f"Exported {len(intents)} change(s) to {os.path.basename(path)}")
 
     def _restore(self) -> None:
         gp = self._get_game_path()

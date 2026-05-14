@@ -35,13 +35,26 @@ __all__ = [
 ]
 
 
-# Game v1.1+ uses 1-byte vehicle category IDs in enable_special_name_hash_list
 VEHICLE_NAMES = {
-    0x4E: "Normal Mounts (Horse/Donkey/Wolf/Camel/Ox/etc.)",
-    0x4F: "Dragon",
-    0x50: "WarMachine/ATAG",
-    0x51: "Land Vehicles (Cart/etc.)",
-    0x52: "Mechanic/Other",
+    0x4240: "Horse",
+    0x4242: "Donkey",
+    0x4246: "Wolf",
+    0x4249: "Boar",
+    0x424A: "Bear",
+    0x424B: "Deer",
+    0x424C: "Cucubird",
+    0x424D: "Iguana",
+    0x424E: "Birdsaurus",
+    0x424F: "AlpineIbex",
+    0x4253: "Camel",
+    0x4254: "DragonRide",
+    0x4258: "Dragon",
+    0x425C: "WarMachine/ATAG",
+    0x4261: "Elephant",
+    0x4263: "Ox",
+    0x4264: "MuleCart",
+    0x4265: "HorseCart",
+    0x4267: "MachineBird",
 }
 
 VEHICLE_HASHES = {v: k for k, v in VEHICLE_NAMES.items()}
@@ -82,7 +95,7 @@ class ReserveSlotEntry:
     using_type: int = 0
     enable_tribe_list: List[int] = field(default_factory=list)
     enable_vehicle_list: List[int] = field(default_factory=list)
-    enable_special_name_hash_list: List[int] = field(default_factory=list)  # 1-byte vehicle category IDs (v1.1+)
+    enable_special_name_hash_list: List[bytes] = field(default_factory=list)
     target_item_group_list: List[int] = field(default_factory=list)
     send_gimmick_event_key: int = 0
     is_self_player_only: int = 0
@@ -97,7 +110,7 @@ class ReserveSlotEntry:
 
     @property
     def vehicle_names(self) -> List[str]:
-        return [VEHICLE_NAMES.get(h, f"0x{h:02X}") for h in self.enable_special_name_hash_list]
+        return [VEHICLE_NAMES.get(h, f"0x{h:04X}") for h in self.enable_vehicle_list]
 
 
 def parse_pabgh(pabgh_bytes: bytes) -> List[Tuple[int, int]]:
@@ -143,21 +156,13 @@ def _parse_entry(data: bytes, offset: int, end: int) -> ReserveSlotEntry:
     vehicles = [struct.unpack_from("<H", data, p + j * 2)[0] for j in range(vehicle_cnt)]
     p += vehicle_cnt * 2
 
-    special_cnt = struct.unpack_from("<I", data, p)[0]; p += 4
-    # v1.1+: special entries are now 1 byte each (vehicle category IDs)
-    specials = [data[p + j] for j in range(special_cnt)]
-    p += special_cnt * 1
-
     target_cnt = struct.unpack_from("<I", data, p)[0]; p += 4
     targets = [struct.unpack_from("<H", data, p + j * 2)[0] for j in range(target_cnt)]
     p += target_cnt * 2
 
     gimmick = struct.unpack_from("<I", data, p)[0]; p += 4
     self_only = data[p]; p += 1
-
-    # v1.1+: new u32 field at end of every entry
-    new_field = struct.unpack_from("<I", data, p)[0] if p + 4 <= end else 0
-    p = end  # clamp - tolerates any further unknown fields
+    specials = []
 
     return ReserveSlotEntry(
         key=key,
@@ -213,10 +218,8 @@ def serialize_entry(entry: ReserveSlotEntry) -> bytes:
     for v in entry.enable_vehicle_list:
         parts.append(struct.pack("<H", v))
     parts.append(struct.pack("<I", len(entry.enable_special_name_hash_list)))
-    for v in entry.enable_special_name_hash_list:
-        parts.append(struct.pack("<B", v))
-    # v1.1+: new u32 field at end
-    parts.append(struct.pack("<I", 0))
+    for chunk in entry.enable_special_name_hash_list:
+        parts.append(chunk)
     parts.append(struct.pack("<I", len(entry.target_item_group_list)))
     for v in entry.target_item_group_list:
         parts.append(struct.pack("<H", v))
@@ -245,6 +248,7 @@ def serialize_all(entries: List[ReserveSlotEntry]) -> Tuple[bytes, bytes]:
 def roundtrip_test(pabgh_bytes: bytes, pabgb_bytes: bytes) -> bool:
     try:
         entries = parse_all(pabgh_bytes, pabgb_bytes)
-        return len(entries) > 0
+        new_h, new_b = serialize_all(entries)
+        return new_h == pabgh_bytes and new_b == pabgb_bytes
     except Exception:
         return False

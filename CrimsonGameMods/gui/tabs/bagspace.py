@@ -117,9 +117,11 @@ class BagSpaceTab(QWidget):
         apply_btn.clicked.connect(self._apply_to_game)
         top_row.addWidget(apply_btn)
 
+        export_btn = QPushButton("Export as Mod")
+        export_btn.clicked.connect(self._export_as_mod)
+        top_row.addWidget(export_btn)
 
-        export_field_btn = QPushButton("Export Field JSON v3")
-        export_field_btn.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
+        export_field_btn = QPushButton("Export Field JSON")
         export_field_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
         export_field_btn.setToolTip(
             "Export edits as Format 3 field-name JSON.\n"
@@ -491,7 +493,14 @@ class BagSpaceTab(QWidget):
             QMessageBox.warning(self, "No Game Path", "Set the game install path first.")
             return
 
-        grp = self._overlay_group
+        from gui.utils import resolve_overlay_group
+        requested = self._overlay_spin.value() if hasattr(self, '_overlay_spin') else 61
+        group_num = resolve_overlay_group(game_path, requested, "BagSpace", parent=self)
+        if group_num is None:
+            return
+        if group_num != requested and hasattr(self, '_overlay_spin'):
+            self._overlay_spin.setValue(group_num)
+        grp = f"{group_num:04d}"
         reply = QMessageBox.question(
             self,
             "Apply BagSpace",
@@ -698,87 +707,34 @@ class BagSpaceTab(QWidget):
                 game_path, '0008', INTERNAL_DIR, 'inventory.pabgb'))
             van_pabgh = bytes(crimson_rs.extract_file(
                 game_path, '0008', INTERNAL_DIR, 'inventory.pabgh'))
+            parser = self._load_parser()
+            vanilla_records = parser.parse_inventory_pabgb(van_data, van_pabgh)
         except Exception as e:
             QMessageBox.critical(self, "Export", f"Failed to load vanilla baseline:\n{e}")
             return
 
-        # Try dmm_parser field-level diff first — uses canonical field names
-        # that DMM's apply pipeline knows, and dispatches correctly via
-        # 'inventory_info.pabgb' (the canonical target name DMM expects).
-        intents = None
-        try:
-            import dmm_parser as _dmp
-            _van_recs = _dmp.parse_table('inventory_info', van_data, van_pabgh)
-            _mod_recs = _dmp.parse_table(
-                'inventory_info', bytes(self._inventory_data),
-                bytes(self._inventory_pabgh) if self._inventory_pabgh else van_pabgh)
+        van_by_name = {r['name']: r for r in vanilla_records if 'default_slots' in r}
 
-            def _id(r):
-                return (r.get('string_key') or '', r.get('key'))
-
-            _v_by_id = {_id(r): r for r in _van_recs}
-            _m_by_id = {_id(r): r for r in _mod_recs}
-
-            def _deep_diff(v, m, pfx=''):
-                if isinstance(v, dict) and isinstance(m, dict):
-                    for k in sorted(set(v) | set(m)):
-                        sub = f'{pfx}.{k}' if pfx else k
-                        vv, mv = v.get(k), m.get(k)
-                        if vv != mv:
-                            yield from _deep_diff(vv, mv, sub)
-                elif isinstance(v, list) and isinstance(m, list):
-                    if v != m:
-                        yield (pfx, m)
-                else:
-                    if v != m:
-                        yield (pfx, m)
-
-            _dmp_intents = []
-            for _ident in set(_v_by_id) & set(_m_by_id):
-                _vr, _mr = _v_by_id[_ident], _m_by_id[_ident]
-                _sk, _k = _ident
-                for _path, _nv in _deep_diff(_vr, _mr):
-                    if _path in ('string_key', 'key'):
-                        continue
-                    _dmp_intents.append({
-                        'entry': _sk or '', 'key': int(_k) if _k is not None else 0,
-                        'field': _path, 'op': 'set', 'new': _nv,
-                    })
-            intents = _dmp_intents
-        except Exception:
-            pass  # fall through to local-parser path below
-
-        # Fallback: use local parser with known field names.
-        # Target is inventory_info.pabgb (canonical DMM name).
-        if intents is None:
-            try:
-                parser = self._load_parser()
-                vanilla_records = parser.parse_inventory_pabgb(van_data, van_pabgh)
-            except Exception as e:
-                QMessageBox.critical(self, "Export",
-                    f"Failed to parse vanilla baseline:\n{e}")
-                return
-            van_by_name = {r['name']: r for r in vanilla_records if 'default_slots' in r}
-            intents = []
-            for rec in self._records:
-                if 'default_slots' not in rec:
-                    continue
-                name = rec['name']
-                van = van_by_name.get(name)
-                if not van:
-                    continue
-                if rec['default_slots'] != van['default_slots']:
-                    intents.append({
-                        'entry': name, 'key': rec.get('key', 0),
-                        'field': 'default_slots', 'op': 'set',
-                        'new': rec['default_slots'],
-                    })
-                if rec['max_slots'] != van['max_slots']:
-                    intents.append({
-                        'entry': name, 'key': rec.get('key', 0),
-                        'field': 'max_slots', 'op': 'set',
-                        'new': rec['max_slots'],
-                    })
+        intents = []
+        for rec in self._records:
+            if 'default_slots' not in rec:
+                continue
+            name = rec['name']
+            van = van_by_name.get(name)
+            if not van:
+                continue
+            if rec['default_slots'] != van['default_slots']:
+                intents.append({
+                    'entry': name, 'key': rec.get('key', 0),
+                    'field': 'default_slots', 'op': 'set',
+                    'new': rec['default_slots'],
+                })
+            if rec['max_slots'] != van['max_slots']:
+                intents.append({
+                    'entry': name, 'key': rec.get('key', 0),
+                    'field': 'max_slots', 'op': 'set',
+                    'new': rec['max_slots'],
+                })
 
         if not intents:
             QMessageBox.information(self, "Export", "No changes to export.")
@@ -799,13 +755,8 @@ class BagSpaceTab(QWidget):
                 'note': 'Format 3 — uses field names, survives game updates',
             },
             'format': 3,
-            'format_minor': 1,
-            'targets': [
-                {
-                    'file': 'inventory.pabgb',
-                    'intents': intents,
-                }
-            ],
+            'target': 'inventory.pabgb',
+            'intents': intents,
         }
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
@@ -826,49 +777,23 @@ class BagSpaceTab(QWidget):
             return
         with open(path, 'r', encoding='utf-8') as f:
             doc = json.load(f)
-        if doc.get('format') != 3:
+        if doc.get('format') != 3 or not doc.get('intents'):
             QMessageBox.warning(self, "Import", "Not a valid Format 3 Field JSON file.")
-            return
-
-        # Collect intents from targets array (v3.1) or top-level intents (v3.0)
-        _INVENTORY_TARGETS = {'inventory_info.pabgb', 'inventory.pabgb',
-                              'inventory_info', 'inventory'}
-        all_intents = []
-        for t in doc.get('targets', []):
-            fname = t.get('file', '').replace('_', '').lower().replace('.pabgb', '')
-            if fname in {'inventoryinfo', 'inventory'}:
-                all_intents.extend(t.get('intents', []))
-        if not all_intents:
-            # Fallback: old single-target format
-            all_intents = doc.get('intents', [])
-        if not all_intents:
-            QMessageBox.warning(self, "Import", "No inventory intents found in this file.")
             return
 
         rec_by_name = {r['name']: r for r in self._records if 'default_slots' in r}
         applied = skipped = 0
-        for intent in all_intents:
+        for intent in doc['intents']:
             target = rec_by_name.get(intent.get('entry'))
             if not target:
                 skipped += 1
                 continue
             field = intent.get('field', '')
-            # Accept both local names (default_slots/max_slots) and
-            # dmm_parser canonical names (default_slot_count/max_slot_count)
-            _FIELD_MAP = {
-                'default_slots':     'default_offset',
-                'max_slots':         'max_offset',
-                'default_slot_count':'default_offset',
-                'max_slot_count':    'max_offset',
-            }
-            if intent.get('op') != 'set' or field not in _FIELD_MAP:
+            if intent.get('op') != 'set' or field not in ('default_slots', 'max_slots'):
                 skipped += 1
                 continue
             val = int(intent['new'])
-            offset_key = _FIELD_MAP[field]
-            if offset_key not in target:
-                skipped += 1
-                continue
+            offset_key = 'default_offset' if field == 'default_slots' else 'max_offset'
             struct.pack_into("<H", self._inventory_data, int(target[offset_key]), val)
             applied += 1
 
@@ -881,4 +806,4 @@ class BagSpaceTab(QWidget):
         self._status.setText(f"Imported {applied} intents, {skipped} skipped.")
         QMessageBox.information(self, "Import Field JSON",
             f"Applied {applied} intent(s), skipped {skipped}.\n\n"
-            f"Click")
+            f"Click Apply to Game to deploy.")
