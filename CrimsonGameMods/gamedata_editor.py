@@ -69,11 +69,6 @@ class GameDataEditor:
         if self._pamt_index is not None:
             return self._pamt_index
 
-        for d in (os.path.join(os.path.dirname(__file__), 'Includes', 'BestCrypto'),
-                  os.path.join(os.path.dirname(__file__), 'tools')):
-            if os.path.isdir(d) and d not in sys.path:
-                sys.path.insert(0, d)
-
         from paz_parse import parse_pamt
 
         self._pamt_index = {}

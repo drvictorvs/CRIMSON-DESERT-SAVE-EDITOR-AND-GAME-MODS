@@ -78,13 +78,6 @@ class PamtIndex:
         self._built = False
 
     def build(self) -> int:
-        import sys as _sys
-        my_dir = os.path.dirname(os.path.abspath(__file__))
-        for d in (os.path.join(my_dir, 'Includes', 'BestCrypto'),
-                  os.path.join(my_dir, 'tools')):
-            if os.path.isdir(d) and d not in _sys.path:
-                _sys.path.insert(0, d)
-
         try:
             from paz_parse import parse_pamt
         except ImportError:

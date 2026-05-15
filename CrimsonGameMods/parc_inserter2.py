@@ -8,14 +8,7 @@ from typing import List, Tuple, Optional
 
 log = logging.getLogger(__name__)
 
-_MY_DIR = os.path.dirname(os.path.abspath(__file__))
-_DESKTOP_DIR = os.path.join(_MY_DIR, 'desktopeditor')
-if not os.path.isdir(_DESKTOP_DIR):
-    _DESKTOP_DIR = os.path.join(_MY_DIR, 'Includes', 'desktopeditor')
-
 def _get_full_parser():
-    if _DESKTOP_DIR not in sys.path:
-        sys.path.insert(0, _DESKTOP_DIR)
     import save_parser as sp
     return sp
 

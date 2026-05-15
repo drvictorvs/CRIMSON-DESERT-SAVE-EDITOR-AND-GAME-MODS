@@ -2376,8 +2376,6 @@ class DyeTab(QWidget):
         equip_slot = self._dye_current_item.get('slot', -1)
 
         try:
-            import sys
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Includes', 'desktopeditor'))
             from save_parser import parse_schema
             schema = parse_schema(bytes(self._save_data.decompressed_blob))
             has_dye_type = any(t.name == 'ItemDyeSaveData' for t in schema['types'])

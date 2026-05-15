@@ -7,8 +7,6 @@ import logging
 
 log = logging.getLogger(__name__)
 
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Includes', 'desktopeditor'))
 from save_parser import GenericFieldValue, ObjectBlock, TypeDef
 
 

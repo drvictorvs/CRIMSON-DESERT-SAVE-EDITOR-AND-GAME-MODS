@@ -48,6 +48,12 @@ def _final(a: int, b: int, c: int) -> tuple:
 
 
 def pa_checksum(data: bytes) -> int:
+    try:
+        import crimson_rs
+        return crimson_rs.calculate_checksum(data)
+    except (ImportError, AttributeError):
+        pass
+
     length = len(data)
     if length == 0:
         return 0
@@ -842,13 +848,6 @@ def _find_pabgb_in_pamt(game_path: str, filename: str):
         return None
 
     try:
-        import sys as _sys
-        my_dir = os.path.dirname(os.path.abspath(__file__))
-        for d in (os.path.join(my_dir, 'Includes', 'source'),
-                  os.path.join(my_dir, 'Includes', 'BestCrypto'),
-                  os.path.join(my_dir, 'tools')):
-            if os.path.isdir(d) and d not in _sys.path:
-                _sys.path.insert(0, d)
         from paz_parse import parse_pamt
 
         paz_dir = os.path.join(game_path, "0008")
@@ -1760,12 +1759,6 @@ class StoragePatcher:
         if self._entry:
             return self._entry
         try:
-            import sys as _sys
-            my_dir = os.path.dirname(os.path.abspath(__file__))
-            for d in [os.path.join(my_dir, 'Includes', 'source'),
-                      os.path.join(my_dir, 'Includes', 'BestCrypto')]:
-                if os.path.isdir(d) and d not in _sys.path:
-                    _sys.path.insert(0, d)
             from paz_parse import parse_pamt
 
             pamt_path = os.path.join(self.game_path, "0008", "0.pamt")
@@ -1943,12 +1936,6 @@ class MountPatcher:
 
     def _find_pamt_entry(self, filename: str):
         try:
-            import sys as _sys
-            my_dir = os.path.dirname(os.path.abspath(__file__))
-            for d in [os.path.join(my_dir, 'Includes', 'source'),
-                      os.path.join(my_dir, 'Includes', 'BestCrypto')]:
-                if os.path.isdir(d) and d not in _sys.path:
-                    _sys.path.insert(0, d)
             from paz_parse import parse_pamt
             pamt_path = os.path.join(self.game_path, "0008", "0.pamt")
             entries = parse_pamt(pamt_path, paz_dir=os.path.join(self.game_path, "0008"))
@@ -2147,12 +2134,6 @@ class ItemEffectPatcher:
 
     def _find_pamt_entry(self, filename: str):
         try:
-            import sys as _sys
-            my_dir = os.path.dirname(os.path.abspath(__file__))
-            for d in [os.path.join(my_dir, 'Includes', 'source'),
-                      os.path.join(my_dir, 'Includes', 'BestCrypto')]:
-                if os.path.isdir(d) and d not in _sys.path:
-                    _sys.path.insert(0, d)
             from paz_parse import parse_pamt
             pamt_path = os.path.join(self.game_path, "0008", "0.pamt")
             entries = parse_pamt(pamt_path, paz_dir=os.path.join(self.game_path, "0008"))

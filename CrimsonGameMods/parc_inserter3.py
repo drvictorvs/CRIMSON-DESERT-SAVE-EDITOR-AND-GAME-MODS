@@ -23,15 +23,6 @@ _MY_DIR = os.path.dirname(os.path.abspath(__file__))
 import sys
 if _MY_DIR not in sys.path:
     sys.path.insert(0, _MY_DIR)
-_MEIPASS = getattr(sys, '_MEIPASS', None)
-_base = _MEIPASS if _MEIPASS else _MY_DIR
-for _sub in ['Includes/desktopeditor', 'desktopeditor', 'Includes/source', 'Includes/BestCrypto']:
-    _p = os.path.join(_base, _sub)
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.append(_p)
-    _p2 = os.path.join(_MY_DIR, _sub)
-    if _p2 != _p and os.path.isdir(_p2) and _p2 not in sys.path:
-        sys.path.append(_p2)
 
 SENTINEL = b'\xff\xff\xff\xff\xff\xff\xff\xff'
 
@@ -2818,11 +2809,7 @@ def _parse_tree_full(blob: bytes) -> dict:
 
 
 def _ensure_desktop_path():
-    for sub in ['Includes/desktopeditor', 'desktopeditor']:
-        for base in [_MY_DIR, getattr(sys, '_MEIPASS', _MY_DIR)]:
-            p = os.path.join(base, sub)
-            if os.path.isdir(p) and p not in sys.path:
-                sys.path.append(p)
+    pass
 
 
 def insert_abyss_gates(

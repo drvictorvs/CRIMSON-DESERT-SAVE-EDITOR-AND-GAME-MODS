@@ -4943,12 +4943,6 @@ class PabgbBrowserTab(QWidget):
         QApplication.processEvents()
 
         try:
-            import sys as _sys
-            my_dir = os.path.dirname(os.path.abspath(__file__))
-            for d in [os.path.join(my_dir, 'Includes', 'source'),
-                       os.path.join(my_dir, 'Includes', 'BestCrypto')]:
-                if os.path.isdir(d) and d not in _sys.path:
-                    _sys.path.insert(0, d)
             from paz_parse import parse_pamt
 
             pabgb_files = []

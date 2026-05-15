@@ -714,13 +714,6 @@ class QuestEditorWindow(QDialog):
         QApplication.processEvents()
 
         try:
-            _meipass = getattr(sys, '_MEIPASS', None)
-            _mydir = os.path.dirname(os.path.abspath(__file__))
-            for sub in ['Includes/desktopeditor', 'desktopeditor']:
-                for base in [_mydir, _meipass] if _meipass else [_mydir]:
-                    p = os.path.join(base, sub)
-                    if os.path.isdir(p) and p not in sys.path:
-                        sys.path.insert(0, p)
             import save_parser as sp
 
             raw = self._save_data.decompressed_blob

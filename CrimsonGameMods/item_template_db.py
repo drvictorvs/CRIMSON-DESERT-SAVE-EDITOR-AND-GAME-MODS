@@ -19,11 +19,6 @@ MASTER_URL = (
 
 
 def _get_parser():
-    desktop_dir = os.path.join(_BASE_DIR, 'desktopeditor')
-    if not os.path.isdir(desktop_dir):
-        desktop_dir = os.path.join(_BASE_DIR, 'Communitydump', 'desktopeditor')
-    if desktop_dir not in sys.path:
-        sys.path.insert(0, desktop_dir)
     import save_parser as sp
     return sp
 

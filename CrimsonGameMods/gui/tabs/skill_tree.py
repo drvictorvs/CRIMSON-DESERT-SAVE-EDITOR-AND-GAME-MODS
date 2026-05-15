@@ -430,10 +430,19 @@ class SkillTreeTab(QWidget):
         # Also include skill.pabgb if stamina/cooldown edits are pending
         try:
             if self._has_skill_modifications():
-                import skillinfo_parser as sip
-                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
-                result["skill.pabgb"] = bytes(skill_pabgb)
-                result["skill.pabgh"] = bytes(skill_pabgh)
+                if getattr(self, '_skill_dmm_loaded', False):
+                    try:
+                        import dmm_parser as _dmp_ser
+                    except ImportError:
+                        import crimson_rs as _dmp_ser
+                    result["skill.pabgb"] = bytes(_dmp_ser.serialize_table(
+                        'skill_info', self._skill_entries))
+                    result["skill.pabgh"] = self._skill_pabgh
+                else:
+                    import skillinfo_parser as sip
+                    skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                    result["skill.pabgb"] = bytes(skill_pabgb)
+                    result["skill.pabgh"] = bytes(skill_pabgh)
         except Exception:
             pass
         return result
@@ -579,10 +588,20 @@ class SkillTreeTab(QWidget):
 
             # Pack skill.pabgb + skill.pabgh if skill edits are active
             if has_skill_edits:
-                import skillinfo_parser as sip
-                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
-                builder.add_file(INTERNAL_DIR, "skill.pabgb", skill_pabgb)
-                builder.add_file(INTERNAL_DIR, "skill.pabgh", skill_pabgh)
+                if getattr(self, '_skill_dmm_loaded', False):
+                    try:
+                        import dmm_parser as _dmp_ser2
+                    except ImportError:
+                        import crimson_rs as _dmp_ser2
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb",
+                                     bytes(_dmp_ser2.serialize_table(
+                                         'skill_info', self._skill_entries)))
+                    builder.add_file(INTERNAL_DIR, "skill.pabgh", self._skill_pabgh)
+                else:
+                    import skillinfo_parser as sip
+                    skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb", skill_pabgb)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgh", skill_pabgh)
                 mod_count = self._count_skill_modifications()
                 changes.append(f"skill.pabgb: {mod_count} skill(s) modified")
 
@@ -723,25 +742,54 @@ class SkillTreeTab(QWidget):
         self._skill_pabgh = pabgh
         self._skill_pabgb = pabgb
 
+        dmm_loaded = False
         try:
-            import skillinfo_parser as sip
-            self._skill_entries = sip.parse_all(pabgh, pabgb)
-            # Deep copy vanilla baseline for diffing
-            self._skill_vanilla_entries = sip.parse_all(pabgh, pabgb)
-        except Exception as e:
-            QMessageBox.critical(self, "Parse failed",
-                                 f"skillinfo_parser.parse_all failed:\n{e}")
-            return
+            import dmm_parser as _dmp_sk
+            import copy as _copy_sk
+            dmm_entries = list(_dmp_sk.parse_table('skill_info', pabgb, pabgh))
+            if dmm_entries:
+                self._skill_entries = dmm_entries
+                self._skill_vanilla_entries = _copy_sk.deepcopy(dmm_entries)
+                self._skill_dmm_loaded = True
+                dmm_loaded = True
+                self._skill_loaded = True
+                self._skill_dirty_keys: set = set()
+                self._btn_skill_export.setEnabled(True)
+                self._btn_apply.setEnabled(True)
+                self._populate_skill_table()
+                self._lbl_skill_status.setText(
+                    f"Loaded {len(self._skill_entries)} skills via dmm_parser "
+                    f"({len(pabgb):,} bytes)")
+                self.status_message.emit(
+                    f"Loaded {len(self._skill_entries)} skill entries (dmm_parser)")
+            else:
+                log.warning("dmm_parser returned 0 skill_info entries — "
+                            "falling back to skillinfo_parser")
+        except Exception as _dmp_err:
+            log.warning("dmm_parser skill_info failed (%s) — "
+                        "falling back to skillinfo_parser", _dmp_err)
 
-        self._skill_loaded = True
-        self._btn_skill_export.setEnabled(True)
-        self._btn_apply.setEnabled(True)
-        self._populate_skill_table()
-        self._lbl_skill_status.setText(
-            f"Loaded {len(self._skill_entries)} skills "
-            f"({len(pabgb):,} bytes)")
-        self.status_message.emit(
-            f"Loaded {len(self._skill_entries)} skill entries from skill.pabgb")
+        if not dmm_loaded:
+            try:
+                import skillinfo_parser as sip
+                self._skill_entries = sip.parse_all(pabgh, pabgb)
+                self._skill_vanilla_entries = sip.parse_all(pabgh, pabgb)
+                self._skill_dmm_loaded = False
+            except Exception as e:
+                QMessageBox.critical(self, "Parse failed",
+                                     f"skillinfo_parser.parse_all failed:\n{e}")
+                return
+
+            self._skill_loaded = True
+            self._skill_dirty_keys: set = set()
+            self._btn_skill_export.setEnabled(True)
+            self._btn_apply.setEnabled(True)
+            self._populate_skill_table()
+            self._lbl_skill_status.setText(
+                f"Loaded {len(self._skill_entries)} skills "
+                f"({len(pabgb):,} bytes)")
+            self.status_message.emit(
+                f"Loaded {len(self._skill_entries)} skill entries from skill.pabgb")
 
     def _populate_skill_table(self) -> None:
         """Fill the skill table from self._skill_entries."""
@@ -842,6 +890,8 @@ class SkillTreeTab(QWidget):
         """Check if skill entry at idx differs from vanilla."""
         if idx >= len(self._skill_vanilla_entries):
             return True
+        if getattr(self, '_skill_dmm_loaded', False):
+            return self._skill_entries[idx] != self._skill_vanilla_entries[idx]
         import skillinfo_parser as sip
         cur = sip.serialize_entry(self._skill_entries[idx])
         van = sip.serialize_entry(self._skill_vanilla_entries[idx])
@@ -851,6 +901,10 @@ class SkillTreeTab(QWidget):
         """Return True if any skill entry has been modified."""
         if not self._skill_loaded or not self._skill_entries:
             return False
+        if getattr(self, '_skill_dmm_loaded', False):
+            return any(self._skill_entries[i] != self._skill_vanilla_entries[i]
+                       for i in range(min(len(self._skill_entries),
+                                          len(self._skill_vanilla_entries))))
         import skillinfo_parser as sip
         for i, e in enumerate(self._skill_entries):
             if i >= len(self._skill_vanilla_entries):
@@ -1300,8 +1354,11 @@ class SkillTreeTab(QWidget):
         new_pabgb = bytes(dmm_parser.serialize_table('skill_info', dmm_items))
         self._skill_pabgb = new_pabgb
 
-        import skillinfo_parser as sip
-        self._skill_entries = sip.parse_all(self._skill_pabgh, new_pabgb)
+        if getattr(self, '_skill_dmm_loaded', False):
+            self._skill_entries = dmm_items
+        else:
+            import skillinfo_parser as sip
+            self._skill_entries = sip.parse_all(self._skill_pabgh, new_pabgb)
         self._populate_skill_table()
 
         pct = f"{int(factor * 100)}%" if factor > 0 else "Infinite"

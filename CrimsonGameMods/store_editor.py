@@ -50,12 +50,6 @@ class StoreInfoParser:
             self._name_lookup[row['item_key']] = row['name']
 
     def extract(self) -> bool:
-        import sys
-        for d in (os.path.join(os.path.dirname(__file__), 'Communitydump', 'BestCrypto'),
-                  os.path.join(os.path.dirname(__file__), 'tools')):
-            if os.path.isdir(d) and d not in sys.path:
-                sys.path.insert(0, d)
-
         try:
             from paz_parse import parse_pamt
         except ImportError:
@@ -315,10 +309,6 @@ class StoreInfoParser:
             import lz4.block
             import shutil
 
-            for d in (os.path.join(os.path.dirname(__file__), 'Communitydump', 'BestCrypto'),
-                      os.path.join(os.path.dirname(__file__), 'tools')):
-                if os.path.isdir(d) and d not in sys.path:
-                    sys.path.insert(0, d)
             from paz_parse import parse_pamt
 
             pamt_path = os.path.join(self.game_path, '0008', '0.pamt')
