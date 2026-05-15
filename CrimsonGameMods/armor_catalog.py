@@ -8,32 +8,123 @@ from typing import Optional
 ITEMINFO_MARKER = b"\x00\x01\x00\x00\x00\x00\x00\x00\x00\x07\x70\x00\x00\x00"
 
 CATEGORY_KEYWORDS = [
-    ("Helm",        ["_Helm", "_Head", "_Mask", "_Hat", "_Hood", "_Crown"]),
-    ("Gloves",      ["_Glove", "_Gauntlet", "_Hand_L", "_Hand_R", "_Hand"]),
-    ("Boots",       ["_Boots", "_Foot", "_Shoes"]),
-    ("Cloak",       ["_Cloak", "_Cape", "_BackPack", "_Back"]),
-    ("Shoulder",    ["_Shoulder", "_Pauldron"]),
-    ("TwoHand Sword",  ["_TwoHandSword", "_Twohandsword", "_GreatSword"]),
-    ("OneHand Sword",  ["_OneHandSword", "_Onehandsword", "_Rapier", "_Sword"]),
+    ("Helm",           ["_Helm", "_Head", "_Mask", "_Hat", "_Hood", "_Crown"]),
+    ("Gloves",         ["_Glove", "_Gauntlet", "_Hand_L", "_Hand_R", "ThiefGloves"]),
+    ("Boots",          ["_Boots", "_Foot", "_Shoes"]),
+    ("Cloak",          ["_Cloak", "_Cape", "_BackPack", "_Back"]),
+    ("Shoulder",       ["_Shoulder", "_Pauldron"]),
+    ("2H Sword",       ["TwoHandSword", "Twohandsword", "_GreatSword",
+                        "TwoHandAlebard", "Alebard", "TwoHandGiantBastard"]),
+    ("1H Sword",       ["OneHandSword", "Onehandsword", "OneHandRapier",
+                        "_Rapier", "_Sword", "Ghost_TwohandSword"]),
     ("Dual Daggers",   ["_DualDagger", "_Dagger"]),
     ("Dual Sword",     ["_DualSword"]),
-    ("TwoHand Axe",    ["_TwoHandAxe"]),
+    ("2H Axe",         ["TwoHandAxe", "TwoHandGiantAxe"]),
     ("Dual Axe",       ["_DualAxe"]),
-    ("Hammer",         ["_Hammer", "_Mace"]),
-    ("Spear",          ["_Spear", "_Lance"]),
-    ("Bow",            ["_OneHandBow", "_Bow"]),
-    ("Shield",         ["_SwordShield", "_Shield"]),
+    ("Hammer",         ["_Hammer", "OneHandMace", "TwoHandMace",
+                        "TwoHandHammer", "TwoHandGiantHammer",
+                        "TwoHandedWarHammer", "TwoHandWarHammer",
+                        "OneHandWarHammer", "_Mace"]),
+    ("Spear",          ["TwoHandSpear", "TwoHandGiantSpear", "OneHandLance",
+                        "_Spear", "_Lance"]),
+    ("Bow",            ["OneHandBow", "OneHandCrossbow", "OneHandCrossBow",
+                        "_Bow"]),
+    ("Gun",            ["OneHandMusket", "TwoHandMusket", "OneHandShotgun",
+                        "TwoHandShotgun", "OneHandPistol", "OneHandGun",
+                        "TwoHandCannon", "OneHandCannon", "Chongtong",
+                        "FlameThrower", "IceThrower", "LightningThrower"]),
+    ("Shield",         ["OneHandShield", "TwoHandShield", "TowerShield",
+                        "_SwordShield", "_Shield"]),
     ("Bracer",         ["_Bracer", "_Bracelet"]),
     ("Lantern",        ["Lantern", "Lamp"]),
     ("Torch",          ["_Torch", "Torch"]),
     ("Necklace",       ["_Necklace", "Necklace"]),
     ("Earring",        ["_Earring", "Earring"]),
-    ("Ring",           ["_Ring", "Ring"]),
+    ("Ring",           ["_Ring", "Ring", "Daeil_Band"]),
     ("Belt",           ["_Belt", "Belt"]),
     ("Trinket",        ["_Trinket", "_Charm", "_Talisman"]),
     ("Chest",          ["_UpperBody", "_Upperbody", "_PlateArmor", "_ChainMail",
-                        "_FabricArmor", "_LeatherArmor", "_Armor"]),
+                        "_FabricArmor", "_LeatherArmor", "_Armor",
+                        "Optionary_", "Testarmor"]),
+    ("Tool",           ["Equip_Broom", "Equip_Drum", "Equip_Felling",
+                        "Equip_Hoe", "Equip_Iron_Chain", "Equip_Magic",
+                        "Equip_Pickaxe", "Equip_Rake", "Equip_Saw",
+                        "Equip_Shovel", "Equip_Stick", "Equip_Trumpet",
+                        "Equip_TriRake", "Equip_WoodRake", "Equip_Sturdy",
+                        "Equip_Large", "FishingRod"]),
+    ("Horse Armor",    ["HorseArmor"]),
+    ("Special",        ["PriestWand", "Witch_WingFan", "Poison_Stick",
+                        "Diver_Steel_Drill", "MarniMachineDrill",
+                        "MarniMachineLaser", "Mining_Drill",
+                        "Giant_Copper_Drill", "Kliff_Glasses",
+                        "Muscan_Ghost_Fist", "TestShield", "TestSword",
+                        "Knuckle", "Wand", "Chainsaw"]),
 ]
+
+# Item string_key prefixes that are never wearable equipment.
+# Checked with str.startswith() — order does not matter.
+SKIP_PREFIXES = (
+    # Crafting / blueprints
+    'CraftingRecipe_', 'Blueprint_', 'Recipe_',
+    # Quest / event / drops
+    'QuestItem_', 'Quest_', 'Token_', 'DropItem_', 'EventItem_',
+    'Boss_Reward', 'Puzzle_Reward', 'AbyssReward_',
+    # Resources / materials
+    'Material_', 'Ingredient_', 'GatherItem_',
+    # Collections / cosmetic props (not worn)
+    'Collection_', 'Visione_', 'CharacterCustomize_',
+    # Food / consumables
+    'Food_', 'HorseFeed_', 'Potion_',
+    'Pan_fried_', 'Freshly_Grilled_', 'Braised_', 'Grilled_',
+    'Meat_', 'Fish_', 'Roast_', 'Surasang_',
+    # Trade goods
+    'Trade_',
+    # Mount / pet items (not worn by character)
+    'Riding_', 'Pet_',
+    # Contribution tokens
+    'Contribution_',
+    # Legendary animals (not items)
+    'Legendary_Animal_',
+    # Abyss non-gear
+    'Abyss_', 'AbyssGear_', 'AbyssRuins', 'AbyssStone_',
+    # Internal / dev
+    'Dev_', 'TestNeck_', 'Itemgimmick_', 'Item_gimmick_',
+    'gimmick_', 'fort_', 'demenissnobility_', 'WarRobot_',
+    # Notices / letters / papers / books (lore items)
+    'NoticePaper_', 'Paper_', 'Memo_', 'Book_', 'Letter_',
+    'LostLetter_', 'UnknownDiary_',
+    # Misc non-wearable
+    'BountyHunter_', 'Permit_', 'Inventory_Expansion',
+    'Money_', 'Immediate_', 'FarmSlot_', 'HorseShoe_HorseArmor',
+    'Sealed_Abyss', 'MarniDragon_', 'Item_Skill_', 'Item_Stat_',
+    'Item_AbyssGear_', 'Item_Set_', 'Item_Rare_',
+    'Item_gimmick_', 'Item_puzzle_', 'Item_in_',
+    'Item_cabinet_', 'Item_dresser_', 'Item_closet_',
+    'Item_bookcase_', 'Item_dff_', 'Item_cd_',
+    'Item_craft_', 'Item_troll_',
+)
+
+# Substring tokens — if ANY appear anywhere in the name, item is skipped.
+# Catches items without recognisable prefixes (food, ammo, keys, resources).
+SKIP_SUBSTRINGS = (
+    # Ammo
+    'CannonBall', '_Arrow', 'MagicBullet', '_Bullet', 'Quiver',
+    'MultiArrow', 'MultiBullet', 'MultiCannonBall',
+    # Explosives / traps
+    '_Bomb', 'CircusMachine', 'InstallationBomb', 'TimeBomb', 'BattleSticky',
+    # Food / drink (substrings safe to match mid-name)
+    'Porridge', 'Bibimbap', 'Tteokbokki', 'Japchae', 'Kimbap',
+    'Nureumjeok', 'Sanjeok', 'Tteokgalbi', 'Haemuljjim',
+    'SamGyeTang', 'Sinseollo',
+    # Consumables
+    'HolyWater', 'RevivalItem',
+    # Lore/junk tokens
+    'TreasureMap', 'TreasureBuried',
+    # Fishing
+    'FishingRod', 'ItemCatch_',
+    # Housing / furniture items
+    '_housing', '_Housing',
+)
 
 
 @dataclass
@@ -81,6 +172,10 @@ def parse_transmog_items_crimson_rs(data: bytes) -> list[ArmorItem]:
     for it in items:
         sk = it.get('string_key', '')
         if not sk:
+            continue
+        if sk.startswith(SKIP_PREFIXES):
+            continue
+        if any(t in sk for t in SKIP_SUBSTRINGS):
             continue
         prefab_lists = it.get('gimmick_visual_prefab_data_list', []) or []
         hash_values = []
@@ -194,8 +289,10 @@ def _parse_transmog_items_legacy(data: bytes, loc_dict: Optional[dict] = None) -
         internal_name = data[name_start:name_start + name_len].decode('ascii')
         if item_id in seen_ids:
             continue
-
-        category = get_category(internal_name) or "Other"
+        if internal_name.startswith(SKIP_PREFIXES):
+            continue
+        if any(t in internal_name for t in SKIP_SUBSTRINGS):
+            continue
 
         loc_id = 0
         after_marker = name_start + name_len + len(marker)

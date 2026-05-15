@@ -5539,38 +5539,72 @@ class ItemBuffsTab(QWidget):
             if not local_swaps:
                 QMessageBox.information(dlg, "Export Field JSON v3", "No swaps queued.")
                 return
-            rust_items = getattr(self, '_buff_rust_items', None) or []
-            lk = {it.get('key'): it for it in rust_items if 'key' in it}
-            lk_sk = {it.get('string_key', ''): it for it in rust_items}
+            # Use _buff_rust_lookup (int-keyed, same source as _apply_transmog_swaps)
+            # rather than building a new lookup from _buff_rust_items, which can
+            # have key-type mismatches and misses _apply_transmog_swaps mutations.
+            rust_lookup = getattr(self, '_buff_rust_lookup', None) or {}
+            if not rust_lookup:
+                QMessageBox.warning(dlg, "Export Field JSON v3",
+                    "Item data not extracted.\n"
+                    "Click Extract first, then try again.")
+                return
+            import json as _jstf, copy as _cptf
             intents = []
             skipped = []
+            same_visual = []
             PREFAB_FIELDS = ('prefab_data_list', 'gimmick_visual_prefab_data_list')
             for sw in local_swaps:
                 tgt = sw['tgt']
                 src = sw['src']
-                tgt_item = lk.get(tgt.item_id) or lk_sk.get(tgt.internal_name)
-                src_item = lk.get(src.item_id) or lk_sk.get(src.internal_name)
+                src_key = src.item_id if hasattr(src, 'item_id') else 0
+                tgt_key = tgt.item_id if hasattr(tgt, 'item_id') else 0
+                tgt_item = rust_lookup.get(int(tgt_key))
+                src_item = rust_lookup.get(int(src_key))
                 if not tgt_item or not src_item:
                     skipped.append(tgt.internal_name)
                     continue
+                # Invisible swap: clear visual fields
+                is_invisible = (src_key == 0 or
+                                getattr(src, 'internal_name', '') == '__INVISIBLE_ZERO__')
+                swap_had_diff = False
                 for field in PREFAB_FIELDS:
-                    src_val = src_item.get(field)
-                    if src_val is None:
-                        continue
-                    if src_val == tgt_item.get(field):
-                        continue
+                    if is_invisible:
+                        src_val = []
+                    else:
+                        src_val = src_item.get(field)
+                        if src_val is None:
+                            continue
+                    tgt_val = tgt_item.get(field)
+                    # Use JSON round-trip for reliable deep equality check on
+                    # nested structures that may not support Python == correctly.
+                    try:
+                        src_json = _jstf.dumps(src_val, sort_keys=True, default=str)
+                        tgt_json = _jstf.dumps(tgt_val, sort_keys=True, default=str)
+                        if src_json == tgt_json:
+                            continue
+                    except Exception:
+                        if src_val == tgt_val:
+                            continue
                     intents.append({
                         'entry': tgt.internal_name,
-                        'key': tgt.item_id,
+                        'key': tgt_key,
                         'field': field,
                         'op': 'set',
                         'new': src_val,
                         '_comment': f'transmog: visual from {src.internal_name}',
                     })
+                    swap_had_diff = True
+                if not swap_had_diff and not is_invisible:
+                    same_visual.append(f"{tgt.display_name} → {src.display_name}")
             if not intents:
                 msg = "No field-level differences found."
+                if same_visual:
+                    msg += (f"\n\nThese item pairs share the same visual appearance "
+                            f"(identical prefab data):\n" + "\n".join(same_visual))
+                    msg += ("\n\nTransmog only works between visually distinct items. "
+                            "Try selecting items with different meshes or skins.")
                 if skipped:
-                    msg += f"\n\nSkipped: {', '.join(skipped)}"
+                    msg += f"\n\nItems not found in extracted data: {', '.join(skipped)}"
                 QMessageBox.warning(dlg, "Export Field JSON v3", msg)
                 return
             import os as _os_tf
