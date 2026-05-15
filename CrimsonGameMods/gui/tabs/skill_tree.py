@@ -1517,7 +1517,7 @@ class SkillTreeTab(QWidget):
             'format_minor': 1,
             'targets': [
                 {
-                    'file': 'skillinfo.pabgb',
+                    'file': 'skill.pabgb',
                     'intents': intents,
                 }
             ],

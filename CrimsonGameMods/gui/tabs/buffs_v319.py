@@ -6954,6 +6954,42 @@ class ItemBuffsTab(QWidget):
         """Return True if this is a hardcoded character weapon that cannot be charge-converted."""
         return item_string_key in self._CHARACTER_WEAPON_KEYS
 
+    # Kliff runtime-package characterinfo intents.
+    # Sets appearance_name and character_prefab_path on Kliff / Kliff_Clone /
+    # Kliff_AI / PlayerAll so Kliff uses Damian's appearance package → gun
+    # mesh renders correctly when Kliff equips firearms.
+    #
+    # Field mapping (dmm_parser snake_case → game _camelCase, from field_aliases_v3_1.rs):
+    #   appearance_name      → _appearanceName        (weapon mesh attachment lookup)
+    #   character_prefab_path→ _characterPrefabPath   (same hash for all vanilla chars)
+    #
+    # IMPORTANT: appearance_name = Damian's _appearanceName (2453219380), NOT his
+    # _upperActionChartPackageGroupName (1767116530). Using the action chart key here
+    # produces an invalid appearance hash → gun mesh is invisible when Kliff equips guns.
+    #
+    # DO NOT add lookup_24, lookup_25, or flag_c here. Those fields hold skeleton/
+    # variation hashes — putting Damian's skeleton refs into Kliff's lookup fields
+    # causes the game to load Damian's skeleton assets for Kliff at startup, which
+    # produces an infinite loading hang. Apply to Game (binary path) never touches
+    # these fields and loads correctly; the export must match that safe subset.
+    #
+    # skeleton_name (Oongka gun fix) is set separately via _stage_kliff_gun_fix
+    # so it always reflects the live game value.
+    _KLIFF_RUNTIME_CHARINFO_INTENTS = [
+        # Kliff
+        {'entry': 'Kliff',       'key': 1,       'field': 'appearance_name',       'op': 'set', 'new': 2453219380},  # Damian _appearanceName
+        {'entry': 'Kliff',       'key': 1,       'field': 'character_prefab_path',  'op': 'set', 'new': 3938836851},  # correct _characterPrefabPath (same for all 3 vanilla chars)
+        # Kliff_Clone
+        {'entry': 'Kliff_Clone', 'key': 1001367, 'field': 'appearance_name',       'op': 'set', 'new': 2453219380},
+        {'entry': 'Kliff_Clone', 'key': 1001367, 'field': 'character_prefab_path',  'op': 'set', 'new': 3938836851},
+        # Kliff_AI
+        {'entry': 'Kliff_AI',    'key': 1002113, 'field': 'appearance_name',       'op': 'set', 'new': 2453219380},
+        {'entry': 'Kliff_AI',    'key': 1002113, 'field': 'character_prefab_path',  'op': 'set', 'new': 3938836851},
+        # PlayerAll
+        {'entry': 'PlayerAll',   'key': 100,     'field': 'appearance_name',       'op': 'set', 'new': 2453219380},
+        {'entry': 'PlayerAll',   'key': 100,     'field': 'character_prefab_path',  'op': 'set', 'new': 3938836851},
+    ]
+
 
     # Weapon-type hints extracted from gimmick names.
     # Maps fragment found in gimmick_name -> item string_key suffixes it can attach to.
@@ -8323,13 +8359,21 @@ class ItemBuffsTab(QWidget):
             log.exception("UP v3: equipslotinfo expansion failed")
             equip_msg = f"\nEquipslotinfo expansion failed: {e}"
 
+        # Step 3: Kliff runtime packages + gun fix (skeleton_name from Oongka)
+        gp_text_for_kliff = gp_text if 'gp_text' in dir() else (
+            getattr(self, '_game_path', '') or
+            r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert')
+        charinfo_msg = self._stage_kliff_gun_fix(gp_text_for_kliff)
+        self._staged_kliff_runtime = True
+
         buff_slot = f"{self._buff_overlay_spin.value():04d}"
         self._buff_status_label.setText(
             f"Prof v3 staged: {tg_cleared} items cleared + {total_slot_added} slot hashes.")
         QMessageBox.information(self, "Universal Proficiency v3",
             f"Tribe restriction: cleared on {tg_cleared} items\n"
             f"(empty list = no restriction = all characters can equip).\n"
-            f"{equip_msg}\n\n"
+            f"{equip_msg}\n"
+            f"{charinfo_msg}\n\n"
             f"Deploy via Apply to Game.\n\n"
             f"Note: weapons may lack animations on non-native characters.")
 
@@ -9381,6 +9425,19 @@ class ItemBuffsTab(QWidget):
 
         equip_intents = self._diff_staged_equipslotinfo()
         charinfo_intents = self._diff_staged_characterinfo()
+
+        # If UP v3 / Enable Everything was run, include the Kliff runtime-package
+        # intents (appearance_name, character_prefab_path, lookup_24, lookup_25,
+        # flag_c for Kliff / Kliff_Clone / Kliff_AI / PlayerAll).
+        # Deduplicate so we never emit two intents for the same (entry, key, field).
+        if getattr(self, '_staged_kliff_runtime', False):
+            existing_keys = {(i['entry'], i['key'], i['field']) for i in charinfo_intents}
+            for intent in self._KLIFF_RUNTIME_CHARINFO_INTENTS:
+                k = (intent['entry'], intent['key'], intent['field'])
+                if k not in existing_keys:
+                    charinfo_intents.append(intent)
+                    existing_keys.add(k)
+
         total = len(intents) + len(equip_intents) + len(charinfo_intents)
 
         if total == 0:
@@ -11025,6 +11082,7 @@ class ItemBuffsTab(QWidget):
             getattr(self, '_game_path', '') or
             r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert')
         charinfo_msg = self._stage_kliff_gun_fix(_gp_for_kliff)
+        self._staged_kliff_runtime = True
 
         # ── Finalise ──
         self._buff_modified = True
