@@ -2803,27 +2803,59 @@ class SpawnTab(QWidget):
                     tr('No spawn data loaded. Extract spawn data first.'))
                 return
 
+            def _deep_diff_value(cur, van, path, leaf_intents):
+                """Recursively walk cur vs van, collecting leaf-level changes as
+                (path, new_value) pairs. Uses DMM's bracket+dot notation:
+                  list[N].field   →  e.g. faction_schedule_list[0].slot_inner_list[2].lookup_a
+                  dict.field      →  e.g. raw_data_ext.flag
+                Rules:
+                  - dicts: recurse key-by-key
+                  - lists of same length with dict items: recurse element-by-element
+                  - lists of different length OR list of scalars: whole replacement
+                  - scalars: emit leaf if changed
+                """
+                if isinstance(cur, dict) and isinstance(van, dict):
+                    for k in cur:
+                        sub_path = f'{path}.{k}' if path else k
+                        _deep_diff_value(cur[k], van.get(k), sub_path, leaf_intents)
+                elif (isinstance(cur, list) and isinstance(van, list)
+                      and len(cur) == len(van)
+                      and all(isinstance(c, dict) for c in cur)):
+                    for i, (c_item, v_item) in enumerate(zip(cur, van)):
+                        _deep_diff_value(c_item, v_item, f'{path}[{i}]', leaf_intents)
+                else:
+                    # Scalar, list of scalars, or length mismatch → whole replacement
+                    if cur != van:
+                        leaf_intents.append((path, cur))
+
             def _struct_diff(current_records, vanilla_records, skip_fields=('key', 'string_key')):
-                """Diff two dmm_parser record lists at the field level.
-                Returns list of Format 3 intents with real entry keys and field names."""
+                """Diff two dmm_parser record lists using deep field-path diffing.
+                Emits precise nested intents (e.g. faction_schedule_list[0].slot_inner_list[2].lookup_a)
+                instead of whole-list replacements, so DMM can apply each scalar change
+                independently without needing to re-serialize complex nested structures."""
                 van_by_key = {r['key']: r for r in vanilla_records}
                 intents = []
                 for rec in current_records:
-                    rkey = rec.get('key')
+                    rkey  = rec.get('key')
                     rskey = rec.get('string_key', f'entry_{rkey}')
-                    van = van_by_key.get(rkey)
+                    van   = van_by_key.get(rkey)
                     if van is None:
                         continue
                     for field in rec:
                         if field in skip_fields:
                             continue
-                        if rec[field] != van.get(field):
+                        if rec[field] == van.get(field):
+                            continue
+                        # Deep diff this field — collect all leaf-level changes
+                        leaf_changes = []
+                        _deep_diff_value(rec[field], van.get(field), field, leaf_changes)
+                        for fpath, new_val in leaf_changes:
                             intents.append({
                                 'entry': rskey,
                                 'key':   rkey,
-                                'field': field,
+                                'field': fpath,
                                 'op':    'set',
-                                'new':   rec[field],
+                                'new':   new_val,
                             })
                 return intents
 
