@@ -136,6 +136,12 @@ class MercPetsTab(QWidget):
         restore_btn.clicked.connect(self._restore)
         top_row.addWidget(restore_btn)
 
+        reset_btn = QPushButton("Reset Edits")
+        reset_btn.setToolTip("Revert all spinners back to the loaded vanilla values.")
+        reset_btn.setStyleSheet("background-color: #37474F; color: white; font-weight: bold;")
+        reset_btn.clicked.connect(lambda: self._apply_preset(None))
+        top_row.addWidget(reset_btn)
+
         layout.addLayout(top_row)
 
         scroll = QScrollArea()
@@ -555,6 +561,11 @@ class MercPetsTab(QWidget):
         van_by_key = {r.key: r for r in vanilla}
 
         intents = []
+        _FIELD_MAP = {
+            'default_summon_count': 'default_limit_summon_count',
+            'default_hire_count':   'default_limit_hire_count',
+            'max_hire_count':       'max_limit_hire_count',
+        }
         for rec in self._records:
             van = van_by_key.get(rec.key)
             if not van:
@@ -565,9 +576,10 @@ class MercPetsTab(QWidget):
                 cur = getattr(rec, f)
                 orig = getattr(van, f)
                 if cur != orig:
+                    dmm_field = _FIELD_MAP.get(f, f)
                     intents.append({
                         'entry': name, 'key': rec.key,
-                        'field': f, 'op': 'set', 'new': cur,
+                        'field': dmm_field, 'op': 'set', 'new': cur,
                     })
 
         if not intents:
