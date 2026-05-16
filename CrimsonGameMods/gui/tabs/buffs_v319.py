@@ -2583,7 +2583,7 @@ class ItemBuffsTab(QWidget):
         dragon_row = QHBoxLayout()
         dragon_row.addWidget(QLabel("Speed multiplier:"))
         self._dragon_speed_spin = QDoubleSpinBox()
-        self._dragon_speed_spin.setRange(0.5, 5.0)
+        self._dragon_speed_spin.setRange(0.5, 3.0)
         self._dragon_speed_spin.setSingleStep(0.25)
         self._dragon_speed_spin.setValue(1.5)
         self._dragon_speed_spin.setDecimals(2)

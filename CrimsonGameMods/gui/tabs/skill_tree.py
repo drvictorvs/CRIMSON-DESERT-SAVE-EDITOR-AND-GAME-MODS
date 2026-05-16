@@ -62,6 +62,7 @@ class SkillTreeTab(QWidget):
         self._table: 'QTableWidget | None' = None
         self._preset_btns: list = []
         self._root_combos: dict = {}
+        self._btn_swap_export: 'QPushButton | None' = None
 
         # Parser state — skillinfo (skill.pabgb stamina/cooldown editor)
         self._skill_entries: list[dict] = []
@@ -88,6 +89,14 @@ class SkillTreeTab(QWidget):
         self._btn_extract = QPushButton("Extract from Game")
         self._btn_extract.clicked.connect(self._on_extract)
         top_row.addWidget(self._btn_extract)
+
+        self._btn_swap_export = QPushButton("Export Swap as Field JSON v3")
+        self._btn_swap_export.setEnabled(False)
+        self._btn_swap_export.setToolTip(
+            "Export the current Cross-Character Skill Swap combo box selections\n"
+            "as a Format 3 _buff_data_raw JSON for DMM (skilltreeinfo.pabgb).")
+        self._btn_swap_export.clicked.connect(self._on_swap_export)
+        top_row.addWidget(self._btn_swap_export)
 
         top_row.addStretch()
 
@@ -363,6 +372,8 @@ class SkillTreeTab(QWidget):
         for btn in self._preset_btns:
             btn.setEnabled(True)
         self._btn_apply.setEnabled(True)
+        if self._btn_swap_export is not None:
+            self._btn_swap_export.setEnabled(True)
         n = len(self._records)
         if hasattr(self, '_lbl_swap_status'):
             self._lbl_swap_status.setText(
@@ -375,7 +386,13 @@ class SkillTreeTab(QWidget):
     def _populate_table(self) -> None:
         if self._table is None:
             return
-        from skilltreeinfo_parser import ROOT_PACKAGES, CHAR_MELEE_ROOT
+        from skilltreeinfo_parser import ROOT_PACKAGES, CHAR_MELEE_ROOT, MAIN_TREE_KEYS
+
+        # Sort: main tree entries (50/51/52) first so combo boxes are immediately visible
+        self._records = sorted(
+            self._records,
+            key=lambda r: (0 if r.key in MAIN_TREE_KEYS else 1, r.key)
+        )
 
         self._table.setRowCount(len(self._records))
         self._root_combos: dict[int, QComboBox] = {}
@@ -441,6 +458,8 @@ class SkillTreeTab(QWidget):
     def _apply_preset(self, swaps: Optional[dict[int, int]]) -> None:
         """Apply a preset by updating the table combo boxes."""
         if not self._loaded:
+            QMessageBox.warning(self, "Not loaded",
+                "Click 'Extract from Game' first to load skill tree entries.")
             return
         from skilltreeinfo_parser import CHAR_MELEE_ROOT
 
@@ -448,6 +467,7 @@ class SkillTreeTab(QWidget):
             # Reset to vanilla
             swaps = dict(CHAR_MELEE_ROOT)
 
+        first_row = None
         for key, new_root in swaps.items():
             if key in self._root_combos:
                 combo = self._root_combos[key]
@@ -455,6 +475,120 @@ class SkillTreeTab(QWidget):
                     if combo.itemData(i) == new_root:
                         combo.setCurrentIndex(i)
                         break
+                # Find the row for this key to scroll to it
+                if first_row is None and self._table is not None:
+                    for row in range(self._table.rowCount()):
+                        item = self._table.item(row, 0)
+                        if item and item.text() == str(key):
+                            first_row = row
+                            break
+
+        # Scroll to the first modified row so the user can see the change
+        if first_row is not None and self._table is not None:
+            self._table.scrollToItem(
+                self._table.item(first_row, 0),
+                QTableWidget.ScrollHint.PositionAtCenter)
+
+    # -- export swap as field json -------------------------------------
+
+    def _on_swap_export(self) -> None:
+        """Export the current combo box selections as _buff_data_raw intents
+        targeting skilltreeinfo.pabgb via DMM's skill_tree_info dispatcher."""
+        if not self._loaded:
+            QMessageBox.warning(self, "Not loaded",
+                "Click 'Extract from Game' first.")
+            return
+
+        import json as _json
+        from PySide6.QtWidgets import QFileDialog
+        from skilltreeinfo_parser import (
+            parse_all, serialize_all, CHAR_MELEE_ROOT
+        )
+
+        # Parse vanilla records from the original bytes
+        vanilla_records = parse_all(
+            self._original_pabgh, self._original_pabgb)
+        van_by_key = {r.key: r for r in vanilla_records}
+
+        # Build modified records by applying current combo selections
+        import copy as _copy
+        mod_records = parse_all(
+            self._original_pabgh, self._original_pabgb)
+        mod_by_key = {r.key: r for r in mod_records}
+
+        intents = []
+        changed = 0
+
+        # Build the full set of swaps from the current combo selections
+        # {native_root: new_root} for each character whose combo changed
+        root_swaps: dict[int, int] = {}
+        for char_key, combo in self._root_combos.items():
+            new_root = combo.currentData()
+            if new_root is None:
+                continue
+            native_root = CHAR_MELEE_ROOT.get(char_key)
+            if native_root is None or new_root == native_root:
+                continue
+            root_swaps[native_root] = new_root
+
+        if not root_swaps:
+            QMessageBox.information(self, "Export Swap",
+                "No changes detected — all combos are at their vanilla values.\n"
+                "Select a different moveset from the combo boxes first.")
+            return
+
+        # Patch ALL records that contain any of the native root package IDs
+        # (not just the main tree entry — weapon/martial art/special skill
+        # entries also reference the melee root and need to be updated too)
+        for van_rec, mod_rec in zip(vanilla_records, mod_records):
+            van_bytes = van_rec.to_bytes()
+            patched = False
+            for native_root, new_root in root_swaps.items():
+                count = mod_rec.patch_root_package(native_root, new_root)
+                if count > 0:
+                    patched = True
+            if not patched:
+                continue
+            mod_bytes = mod_rec.to_bytes()
+            if van_bytes == mod_bytes:
+                continue
+            intents.append({
+                'entry': mod_rec.name,
+                'key': mod_rec.key,
+                'field': '_buff_data_raw',
+                'old': van_bytes.hex(),
+                'new': mod_bytes.hex(),
+            })
+            changed += 1
+
+        doc = {
+            'modinfo': {
+                'title': 'Cross-Character Skill Swap',
+                'version': '1.0',
+                'author': 'CrimsonGameMods SkillTree',
+                'description': f'{changed} skilltreeinfo entry swap(s)',
+                'note': 'Format 3 — _buff_data_raw byte-replace via dmmski dispatcher',
+            },
+            'format': 3,
+            'format_minor': 1,
+            'target': 'skilltreeinfo.pabgb',
+            'intents': intents,
+            'targets': [{'file': 'skilltreeinfo.pabgb', 'intents': intents}],
+        }
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Skill Swap",
+            "SkillSwap.field.json",
+            "Field JSON (*.field.json *.json);;All Files (*)")
+        if not path:
+            return
+
+        with open(path, 'w', encoding='utf-8') as f:
+            _json.dump(doc, f, indent=2, ensure_ascii=False)
+
+        QMessageBox.information(self, "Export Swap",
+            f"Exported {len(intents)} swap intent(s).\n\n"
+            f"Drop the JSON into your DMM mods folder.")
 
     # -- apply to game -------------------------------------------------
 
