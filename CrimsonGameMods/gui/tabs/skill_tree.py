@@ -1588,11 +1588,20 @@ class SkillTreeTab(QWidget):
                 'note': 'Format 3 -- structured + _buff_data_raw byte-replace intents',
             },
             'format': 3,
-            # Legacy single-target format so BOTH the typed (dmmv3_skill) and
-            # byte-replace (dmmski) dispatchers can read the file. The "targets"
-            # array format is only read by the typed path.
+            # Include BOTH the legacy root-level target/intents (for the dmmski
+            # byte-replace dispatcher which reads _buff_data_raw intents for
+            # buff_level_list changes — climbing, running, flying stamina) AND
+            # the standard targets array (for the typed dmmv3_skill dispatcher
+            # which handles use_resource_stat_list structured intents).
+            # Both dispatchers run independently on the same file.
             'target': 'skill.pabgb',
             'intents': all_intents,
+            'targets': [
+                {
+                    'file': 'skill.pabgb',
+                    'intents': all_intents,
+                }
+            ],
         }
 
         try:

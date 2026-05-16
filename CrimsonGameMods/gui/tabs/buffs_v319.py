@@ -783,16 +783,6 @@ class ItemBuffsTab(QWidget):
             export_field_btn.clicked.connect(self._buff_export_field_json_v3)
             bottom_bar.addWidget(export_field_btn)
 
-            export_mod_btn = QPushButton("Export as Mod Folder")
-            export_mod_btn.setStyleSheet(
-                "background-color: #7B1FA2; color: white; font-weight: bold;")
-            export_mod_btn.setToolTip(
-                "Export as a ready-to-use mod folder (NNNN/0.paz + 0.pamt + meta/0.papgt).\n"
-                "Drop the folder into your game directory or import into a mod manager.\n"
-                "Same as Apply to Game, but saves to a folder you choose instead.")
-            export_mod_btn.clicked.connect(self._buff_export_mod_folder)
-            bottom_bar.addWidget(export_mod_btn)
-
             self._dev_export_btns_buffs = []
 
             # Primary action 1: Create Item (green)
@@ -2853,6 +2843,37 @@ class ItemBuffsTab(QWidget):
         return True
 
 
+    def _buff_load_gimmick_names(self, game_path: str = '') -> None:
+        """Load gimmick key→name map from the game's gimmickinfo.pabgb.
+
+        Populates self._gimmick_names so the stats panel can resolve raw
+        gimmick_info integers to human-readable names immediately after
+        Extract, without needing to open the effect catalog first.
+        """
+        if getattr(self, '_gimmick_names', None):
+            return  # already loaded
+        gimmick_names: dict[int, str] = {}
+        try:
+            import crimson_rs
+            gp = game_path or self._config.get('game_install_path', '')
+            if not gp:
+                return
+            dp = 'gamedata/binary__/client/bin'
+            gi_body = bytes(crimson_rs.extract_file(gp, '0008', dp, 'gimmickinfo.pabgb'))
+            gi_gh   = bytes(crimson_rs.extract_file(gp, '0008', dp, 'gimmickinfo.pabgh'))
+            from gimmickinfo_parser import parse_all_gimmicks
+            full, partial, _ = parse_all_gimmicks(gi_body, gi_gh)
+            for e in full + partial:
+                k = e.get('key', 0)
+                n = e.get('name', '')
+                if k and n:
+                    display = n.replace('gimmick_equip_', '').replace('gimmick_', '')
+                    gimmick_names[k] = display
+            log.info("Loaded %d gimmick names", len(gimmick_names))
+        except Exception as e:
+            log.warning("Could not load gimmick names: %s", e)
+        self._gimmick_names = gimmick_names
+
     def _buff_extract_iteminfo_preferring_overlay(self) -> tuple[bytes, str]:
         """Return (iteminfo_bytes, source_label).
 
@@ -3130,6 +3151,10 @@ class ItemBuffsTab(QWidget):
                 log.warning('_build_effect_catalog failed: %s', _bec_err)
 
             self._armor_catalog = []  # rebuilt lazily on first Transmog open
+
+            # Load gimmick names so stats panel can resolve raw IDs immediately
+            # (without waiting for effect catalog to be opened)
+            self._buff_load_gimmick_names()
 
             self._buff_status_label.setText(f"Parsed {len(rust_items)} items in {t1-t0:.2f}s. Building offset map...")
             QApplication.processEvents()
@@ -6241,27 +6266,10 @@ class ItemBuffsTab(QWidget):
         self._effect_catalog_data = {}
         self._effect_catalog_all = []
 
-        gimmick_names = {}
-        try:
-            import crimson_rs
-            game_path = self._config.get("game_install_path", "")
-            if game_path:
-                dp = 'gamedata/binary__/client/bin'
-                gi_body = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'gimmickinfo.pabgb'))
-                gi_gh = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'gimmickinfo.pabgh'))
-                from gimmickinfo_parser import parse_all_gimmicks
-                full, partial, _ = parse_all_gimmicks(gi_body, gi_gh)
-                for e in full + partial:
-                    k = e.get('key', 0)
-                    n = e.get('name', '')
-                    if k and n:
-                        display = n.replace('gimmick_equip_', '').replace('gimmick_', '')
-                        gimmick_names[k] = display
-                log.info("Loaded %d gimmick names for effect catalog", len(gimmick_names))
-        except Exception as ge:
-            log.warning("Could not load gimmick names: %s", ge)
-
-        self._gimmick_names = gimmick_names  # persist for stats display
+        # Ensure gimmick names are loaded (may already be populated from Extract)
+        game_path = self._config.get("game_install_path", "")
+        self._buff_load_gimmick_names(game_path)
+        gimmick_names = getattr(self, '_gimmick_names', {})
 
         # Load string resolver so prefab_names (StringInfoKey u32s) can be
         # resolved to human-readable paths in the Gimmick Visuals stats rows.
@@ -9641,19 +9649,29 @@ class ItemBuffsTab(QWidget):
             if va == vb:
                 continue
             if isinstance(va, dict) and isinstance(vb, dict):
+                # Recurse into nested dicts — emit sub-field paths only
                 intents.extend(
                     ItemBuffsTab._field_diff(entry, key, va, vb, path))
             elif isinstance(va, list) and isinstance(vb, list):
                 if va == vb:
                     pass
                 elif (not prefix and va and vb
-                        and isinstance(va[0], dict) and isinstance(vb[0], dict)):
-                    # enchant_data_list: zip to avoid out-of-bounds on length mismatch
+                        and isinstance(va[0], dict) and isinstance(vb[0], dict)
+                        and len(va) == len(vb)
+                        and k not in ('equip_passive_skill_list',
+                                      'gimmick_state_list',
+                                      'prefab_data_list',
+                                      'gimmick_visual_prefab_data_list')):
+                    # Same-length list of dicts: diff element by element
+                    # (e.g. enchant_data_list slots that always have fixed count)
                     for _li, (_ea, _eb) in enumerate(zip(va, vb)):
                         intents.extend(
                             ItemBuffsTab._field_diff(
                                 entry, key, _ea, _eb, f'{path}[{_li}]'))
                 else:
+                    # Different lengths OR known additive lists (passive skills,
+                    # prefab data etc.) — always emit a full set so no entries
+                    # are silently dropped when items are added/removed.
                     intents.append({
                         'entry': entry, 'key': key,
                         'field': path, 'op': 'set', 'new': vb,
