@@ -183,6 +183,15 @@ class FieldEditTab(QWidget):
         mount_btn.clicked.connect(self._field_edit_enable_mounts)
         top_row.addWidget(mount_btn)
 
+        invincible_mounts_btn = QPushButton(tr("Invincible Mounts"))
+        invincible_mounts_btn.setStyleSheet("background-color: #4527A0; color: white; font-weight: bold;")
+        invincible_mounts_btn.setToolTip(
+            "Sets four_flags.flag_a (_invincibility=1) on all mount\n"
+            "characterinfo entries via dmm_parser (vehicle_info != 0\n"
+            "or Riding_* string key). Mounts cannot be killed in combat.")
+        invincible_mounts_btn.clicked.connect(self._field_edit_invincible_mounts)
+        top_row.addWidget(invincible_mounts_btn)
+
         killall_btn = QPushButton(tr("Make All NPCs Killable"))
         killall_btn.setStyleSheet("background-color: #B71C1C; color: white; font-weight: bold;")
         killall_btn.setToolTip(
@@ -2715,28 +2724,67 @@ class FieldEditTab(QWidget):
                f"({zeroed_hashes} hashes zeroed). Click Apply.")
 
     def _field_edit_invincible_mounts(self):
+        """Make all rideable mounts invincible (four_flags.flag_a = 1).
+
+        The old implementation used _find_bool_block heuristic which landed
+        4 bytes too early — in the alive_skill_info_list count field instead
+        of flag_a (_invincibility). This version mutates _charinfo_dmm_items
+        directly (same dict objects the export diff watches) so changes are
+        picked up by Export Field JSON v3 without needing a re-serialize.
+        """
         if not self._charinfo_data or not self._charinfo_schema:
-            QMessageBox.information(self, tr("Invincible Mounts"), tr("Load game data first (click Load FieldInfo)."))
+            QMessageBox.information(self, tr("Invincible Mounts"),
+                tr("Load game data first (click Load FieldInfo)."))
             return
-        from characterinfo_full_parser import parse_all_entries as ci_parse_all
-        all_ci = ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
+
+        dmm_items = getattr(self, '_charinfo_dmm_items', None)
+        if not dmm_items:
+            QMessageBox.warning(self, tr("Invincible Mounts"),
+                "characterinfo DMM items not loaded.\n"
+                "Click 'Load FieldInfo' first.")
+            return
+
         count = 0
-        for e in all_ci:
-            if e.get('_vehicleInfo', 0) == 0 and not e.get('name', '').startswith('Riding_'):
+        for it in dmm_items:
+            sk = it.get('string_key', '') or ''
+            vehicle = it.get('vehicle_info', 0) or 0
+            # Mount entries: have a vehicle_info reference OR start with Riding_
+            if vehicle == 0 and not sk.startswith('Riding_'):
                 continue
-            inv_off = e.get('_invincibility_offset', -1)
-            if inv_off >= 0 and e.get('_invincibility', 0) == 0:
-                self._charinfo_data[inv_off] = 1
+            # four_flags is a nested dict; flag_a = _invincibility
+            four_flags = it.get('four_flags')
+            if isinstance(four_flags, dict) and four_flags.get('flag_a', 0) == 0:
+                four_flags['flag_a'] = 1
                 count += 1
+
         if count == 0:
-            QMessageBox.information(self, tr("Invincible Mounts"), tr("All mounts are already invincible."))
+            QMessageBox.information(self, tr("Invincible Mounts"),
+                tr("All mounts are already invincible."))
             return
+
+        # Re-serialize _charinfo_data so Apply to Game also picks up the change
+        try:
+            from characterinfo_full_parser import serialize_all_dmm
+            new_bytes = serialize_all_dmm(dmm_items)
+            if new_bytes:
+                self._charinfo_data[:] = new_bytes
+        except Exception as e:
+            log.warning("invincible_mounts: re-serialize failed: %s", e)
+
         self._field_edit_modified = True
-        self._charinfo_mount_entries = [e for e in ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
-                                        if e.get('_vehicleInfo', 0) != 0
-                                        or e.get('name', '').startswith('Riding_')]
-        self._mount_populate()
-        log.info("invincible_mounts: patched=%d", count)
+
+        # Refresh mount table display
+        from characterinfo_full_parser import parse_all_entries as ci_parse_all
+        try:
+            self._charinfo_mount_entries = [
+                e for e in ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
+                if e.get('_vehicleInfo', 0) != 0 or (e.get('name', '') or '').startswith('Riding_')
+            ]
+            self._mount_populate()
+        except Exception:
+            pass
+
+        log.info("invincible_mounts: patched=%d via dmm_items", count)
         self._field_edit_status.setText(f"Made {count} mounts invincible")
 
     def _field_edit_enable_mounts(self):
@@ -4826,7 +4874,13 @@ class FieldEditTab(QWidget):
         import dmm_parser as _dmp_efj
 
         def _struct_diff(current_recs, vanilla_recs):
-            """Diff two dmm_parser record lists, return Format 3 intents."""
+            """Diff two dmm_parser record lists, return Format 3 intents.
+
+            For nested dict fields (e.g. four_flags), emits sub-field intents
+            using dot-path syntax (e.g. 'four_flags.flag_a') so DMM only sets
+            the specific sub-field that changed rather than replacing the whole
+            nested object.
+            """
             van_by_key = {r['key']: r for r in vanilla_recs}
             intents = []
             for rec in current_recs:
@@ -4838,13 +4892,29 @@ class FieldEditTab(QWidget):
                 for field in rec:
                     if field in ('key', 'string_key'):
                         continue
-                    if rec[field] != van.get(field):
+                    cur_val = rec[field]
+                    van_val = van.get(field)
+                    if cur_val == van_val:
+                        continue
+                    # For nested dicts, emit one intent per changed sub-field
+                    # using dot-path syntax (e.g. 'four_flags.flag_a')
+                    if isinstance(cur_val, dict) and isinstance(van_val, dict):
+                        for sub_field, sub_val in cur_val.items():
+                            if sub_val != van_val.get(sub_field):
+                                intents.append({
+                                    'entry': rskey,
+                                    'key':   rkey,
+                                    'field': f'{field}.{sub_field}',
+                                    'op':    'set',
+                                    'new':   sub_val,
+                                })
+                    else:
                         intents.append({
                             'entry': rskey,
                             'key':   rkey,
                             'field': field,
                             'op':    'set',
-                            'new':   rec[field],
+                            'new':   cur_val,
                         })
             return intents
 
