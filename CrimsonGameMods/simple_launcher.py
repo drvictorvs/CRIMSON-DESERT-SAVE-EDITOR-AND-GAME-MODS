@@ -144,6 +144,9 @@ MOD_DEFS = [
      "desc": "Character inventory=240, warehouse=700", "section": "Bag Space"},
     {"id": "bagspace_700", "title": "Bag Space 700 / 700",
      "desc": "Character inventory=700, warehouse=700", "section": "Bag Space"},
+    # ── NPC Trust ──
+    {"id": "trust_100x", "title": "NPC Trust x100",
+     "desc": "Max every NPC relationship in one session (trust, gifts, pet companionship)", "section": "Other"},
 ]
 
 
@@ -362,6 +365,10 @@ class ModWorker(QThread):
                 self._handle_quest()
             if is_all or mid in ("bagspace_240", "bagspace_700"):
                 self._handle_bagspace()
+            if is_all or mid == "infinite_stamina":
+                self._handle_stamina()
+            if is_all or mid == "trust_100x":
+                self._rebuild_drops()
             if mid == "reset_vanilla":
                 self._reset_vanilla()
             self.finished.emit(True, "")
@@ -602,23 +609,37 @@ class ModWorker(QThread):
             ("regioninfo.pabgb", new_pabgb),
             ("regioninfo.pabgh", pabgh)])
 
-    # ── Drop Rates (0042) ──
+    # ── Drop Rates + NPC Trust (0042, shared overlay) ──
     def _rebuild_drops(self):
         active_drops = self.active & {"drop_5x", "drop_max"}
-        if not active_drops:
+        has_trust = "trust_100x" in self.active
+        if not active_drops and not has_trust:
             _remove_overlay(self.gp, "0042")
             return
 
-        self.progress.emit("Patching drop rates...")
+        self.progress.emit("Patching drop rates / trust...")
         items, pabgh, serialize = _parse_table('drop_set_info', self.gp, 'dropsetinfo')
-        multiplier = 0 if "drop_max" in active_drops else 5
-        for d in items:
-            for item in d.get('list', []):
-                old = item.get('raw_16', 0)
-                if 100 <= old <= 100000 and old % 100 == 0:
-                    new_val = 10000 if multiplier == 0 else min(old * multiplier, 10000)
-                    if new_val != old:
-                        item['raw_16'] = new_val
+
+        if active_drops:
+            multiplier = 0 if "drop_max" in active_drops else 5
+            for d in items:
+                for item in d.get('list', []):
+                    old = item.get('raw_16', 0)
+                    if 100 <= old <= 100000 and old % 100 == 0:
+                        new_val = 10000 if multiplier == 0 else min(old * multiplier, 10000)
+                        if new_val != old:
+                            item['raw_16'] = new_val
+
+        if has_trust:
+            for d in items:
+                sk = d.get('string_key', '')
+                if sk in ('DropSet_Friendly_Talk', 'DropSet_Friendly_Donate') or sk.startswith('DropSet_AbyssGear_Equip_AddPetFriendly'):
+                    for entry in d.get('list', []):
+                        for field in ('raw_40', 'raw_48'):
+                            v = entry.get(field, 0)
+                            if isinstance(v, int) and 0 < v < 2**63:
+                                entry[field] = v * 100
+
         new_pabgb = bytes(serialize('drop_set_info', items))
         _deploy_overlay(self.gp, "0042", [
             ("dropsetinfo.pabgb", new_pabgb),
