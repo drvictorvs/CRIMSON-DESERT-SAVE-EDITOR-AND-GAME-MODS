@@ -4364,11 +4364,11 @@ class ItemBuffsTab(QWidget):
                     rust_info[gf] = val
 
             if 'cooltime' in new_data:
-                rust_info['unk_post_cooltime_a'] = new_data['cooltime']
-                rust_info['unk_post_cooltime_b'] = new_data['cooltime']
+                _v = new_data['cooltime']
+                rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
             if 'max_charged_useable_count' in new_data:
-                rust_info['unk_post_max_charged_a'] = new_data['max_charged_useable_count']
-                rust_info['unk_post_max_charged_b'] = new_data['max_charged_useable_count']
+                _v = new_data['max_charged_useable_count']
+                rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
 
             if 'drop_default_data' in new_data:
                 new_ddd = new_data['drop_default_data']
@@ -6479,11 +6479,11 @@ class ItemBuffsTab(QWidget):
                 rust_info[gf] = effect[gf]
 
         if 'cooltime' in effect:
-            rust_info['unk_post_cooltime_a'] = effect['cooltime']
-            rust_info['unk_post_cooltime_b'] = effect['cooltime']
+            _v = effect['cooltime']
+            rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
         if 'max_charged_useable_count' in effect:
-            rust_info['unk_post_max_charged_a'] = effect['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = effect['max_charged_useable_count']
+            _v = effect['max_charged_useable_count']
+            rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
 
         self._buff_modified = True
         self._buff_refresh_stats()
@@ -6916,13 +6916,12 @@ class ItemBuffsTab(QWidget):
                     existing[dd] = ddd[dd]
             # rust_info['drop_default_data'] = existing
 
-        # Sync mirrored fields — game expects these to match their parent values
         if 'cooltime' in preset:
-            rust_info['unk_post_cooltime_a'] = preset['cooltime']
-            rust_info['unk_post_cooltime_b'] = preset['cooltime']
+            _v = preset['cooltime']
+            rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
         if 'max_charged_useable_count' in preset:
-            rust_info['unk_post_max_charged_a'] = preset['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
+            _v = preset['max_charged_useable_count']
+            rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
 
         if preset.get('drop_default_data') is not None:
             ddd = preset['drop_default_data']
@@ -6933,13 +6932,12 @@ class ItemBuffsTab(QWidget):
                     if ddd.get(dd) is not None:
                         existing_ddd[dd] = ddd[dd]
 
-        # Sync mirrored fields — game expects these to match their parent values
         if 'cooltime' in preset:
-            rust_info['unk_post_cooltime_a'] = preset['cooltime']
-            rust_info['unk_post_cooltime_b'] = preset['cooltime']
+            _v = preset['cooltime']
+            rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
         if 'max_charged_useable_count' in preset:
-            rust_info['unk_post_max_charged_a'] = preset['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
+            _v = preset['max_charged_useable_count']
+            rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
 
         self._buff_modified = True
         self._buff_refresh_stats()
@@ -7371,11 +7369,11 @@ class ItemBuffsTab(QWidget):
                     val.setdefault('summon_tag_name_hash', [0, 0, 0, 0])
                 rust_info[gf] = val
         if sample.get('cooltime') is not None:
-            rust_info['unk_post_cooltime_a'] = sample['cooltime']
-            rust_info['unk_post_cooltime_b'] = sample['cooltime']
+            _v = sample['cooltime']
+            rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
         if sample.get('max_charged_useable_count') is not None:
-            rust_info['unk_post_max_charged_a'] = sample['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = sample['max_charged_useable_count']
+            _v = sample['max_charged_useable_count']
+            rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
         self._buff_modified = True
         self._buff_refresh_stats()
         self._buff_status_label.setText(
@@ -9561,11 +9559,11 @@ class ItemBuffsTab(QWidget):
                 rust_info[gf] = preset[gf]
 
         if 'cooltime' in preset:
-            rust_info['unk_post_cooltime_a'] = preset['cooltime']
-            rust_info['unk_post_cooltime_b'] = preset['cooltime']
+            _v = preset['cooltime']
+            rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
         if 'max_charged_useable_count' in preset:
-            rust_info['unk_post_max_charged_a'] = preset['max_charged_useable_count']
-            rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
+            _v = preset['max_charged_useable_count']
+            rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
 
         for ed in edl:
             sd = ed.setdefault('enchant_stat_data', {})
@@ -10632,11 +10630,11 @@ class ItemBuffsTab(QWidget):
                     _set_field(rust_info, gf, val)
 
             if 'cooltime' in changes:
-                _set_field(rust_info, 'unk_post_cooltime_a', changes['cooltime'])
-                _set_field(rust_info, 'unk_post_cooltime_b', changes['cooltime'])
+                _v = changes['cooltime']
+                rust_info['cooltime'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
             if 'max_charged_useable_count' in changes:
-                _set_field(rust_info, 'unk_post_max_charged_a', changes['max_charged_useable_count'])
-                _set_field(rust_info, 'unk_post_max_charged_b', changes['max_charged_useable_count'])
+                _v = changes['max_charged_useable_count']
+                rust_info['max_charged_useable_count'] = {'a': _v, 'b': _v, 'c': _v} if not isinstance(_v, dict) else _v
 
             if 'max_stack_count' in changes:
                 _set_field(rust_info, 'max_stack_count', changes['max_stack_count'])
@@ -10928,9 +10926,7 @@ class ItemBuffsTab(QWidget):
             # Max charges (only on active/charged items: item_charge_type == 0 means charged)
             cur_charge = _safe_iv(it.get('max_charged_useable_count', 0))
             if _safe_iv(it.get('item_charge_type', 0)) == 0 and cur_charge > 0 and cur_charge != CHARGES_TARGET:
-                it['max_charged_useable_count'] = CHARGES_TARGET
-                it['unk_post_max_charged_a'] = CHARGES_TARGET
-                it['unk_post_max_charged_b'] = CHARGES_TARGET
+                it['max_charged_useable_count'] = {'a': CHARGES_TARGET, 'b': CHARGES_TARGET, 'c': CHARGES_TARGET}
                 charges += 1
             # Infinity durability
             cur_dura = _safe_iv(it.get('max_endurance', 0))
@@ -10941,10 +10937,8 @@ class ItemBuffsTab(QWidget):
             # No cooldown
             cur_cd = _safe_iv(it.get('cooltime', 0))
             if cur_cd > 1000:  # > 1000ms (> 1s)
-                _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000  # KuKu packs need 8s to avoid in-game bug
-                it['cooltime'] = _cd_target
-                it['unk_post_cooltime_a'] = _cd_target
-                it['unk_post_cooltime_b'] = _cd_target
+                _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000
+                it['cooltime'] = {'a': _cd_target, 'b': _cd_target, 'c': _cd_target}
                 cd += 1
 
         if hasattr(self, '_stack_check'):
@@ -11241,9 +11235,7 @@ class ItemBuffsTab(QWidget):
             cur_charge = _safe_iv(it.get('max_charged_useable_count', 0))
             if (_safe_iv(it.get('item_charge_type', 0)) == 0 and cur_charge > 0
                     and cur_charge != CHARGES_TARGET):
-                it['max_charged_useable_count'] = CHARGES_TARGET
-                it['unk_post_max_charged_a'] = CHARGES_TARGET
-                it['unk_post_max_charged_b'] = CHARGES_TARGET
+                it['max_charged_useable_count'] = {'a': CHARGES_TARGET, 'b': CHARGES_TARGET, 'c': CHARGES_TARGET}
                 charges += 1
             cur_dura = _safe_iv(it.get('max_endurance', 0))
             if cur_dura > 0 and cur_dura != DURA_TARGET:
@@ -11252,10 +11244,8 @@ class ItemBuffsTab(QWidget):
                 dura += 1
             cur_cd = _safe_iv(it.get('cooltime', 0))
             if cur_cd > 1000:  # > 1000ms (> 1s)
-                _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000  # KuKu packs need 8s to avoid in-game bug
-                it['cooltime'] = _cd_target
-                it['unk_post_cooltime_a'] = _cd_target
-                it['unk_post_cooltime_b'] = _cd_target
+                _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000
+                it['cooltime'] = {'a': _cd_target, 'b': _cd_target, 'c': _cd_target}
                 cd += 1
 
         # Tick the export checkboxes so Apply to Game's byte-level paths also
@@ -11454,9 +11444,7 @@ class ItemBuffsTab(QWidget):
                 continue
             if cur == 0:
                 continue
-            it['max_charged_useable_count'] = target
-            it['unk_post_max_charged_a'] = target
-            it['unk_post_max_charged_b'] = target
+            it['max_charged_useable_count'] = {'a': target, 'b': target, 'c': target}
             patched += 1
 
         self._buff_modified = True
@@ -11484,9 +11472,7 @@ class ItemBuffsTab(QWidget):
                 if cur_cd == _cd_target:
                     already += 1
                 continue
-            it['cooltime'] = _cd_target
-            it['unk_post_cooltime_a'] = _cd_target
-            it['unk_post_cooltime_b'] = _cd_target
+            it['cooltime'] = {'a': _cd_target, 'b': _cd_target, 'c': _cd_target}
             patched += 1
 
         self._buff_modified = True

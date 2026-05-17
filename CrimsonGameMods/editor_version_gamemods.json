@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
-  "url": "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases/tag/gamemods-v2.0.0",
-  "notes": "Quest Mods, Load Manager, NPC Swap, massive FieldEdit/Stacker/World/ItemBuffs upgrades, 55+ pabgb parsers"
+  "version": "2.0.1",
+  "url": "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases/tag/gamemods-v2.0.1",
+  "notes": "Fix cooltime struct serialization, fix infinite stamina for all buff types, add spirit support"
 }

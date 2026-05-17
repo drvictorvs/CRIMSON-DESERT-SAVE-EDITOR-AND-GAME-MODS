@@ -1518,6 +1518,7 @@ class SkillTreeTab(QWidget):
             "")
 
     _STAMINA_HASH = 1000026
+    _SPIRIT_HASH = 1000027
 
     def _on_regen_boost(self) -> None:
         """Multiply only stamina/spirit REGENERATION (positive d values) by the
@@ -1622,22 +1623,31 @@ class SkillTreeTab(QWidget):
             for level in (it.get('buff_level_list') or []):
                 for buff in level:
                     var = buff.get('variant', {})
+                    vtype = var.get('type', '')
                     body = var.get('body', {})
-                    if body.get('f00') != self._STAMINA_HASH:
+                    if body.get('f00') not in (self._STAMINA_HASH, self._SPIRIT_HASH):
                         continue
-                    for fk in ('f01', 'f02'):
-                        val = body.get(fk, 0)
-                        if isinstance(val, int) and val > 2**63:
-                            val = val - 2**64
-                        # Only scale negative values (costs). Positive values
-                        # are regen — leave them for the Regen Boost button.
-                        if isinstance(val, (int, float)) and val < 0:
-                            scaled_fk = int(val * factor)
-                            if scaled_fk < 0:
-                                scaled_fk = scaled_fk + 2**64
-                            body[fk] = scaled_fk
-                            buff_count += 1
-                            hit = True
+
+                    if vtype == 'VaryDataDefinedStatBuffData':
+                        for fk in ('f01', 'f02'):
+                            val = body.get(fk, 0)
+                            if isinstance(val, int) and val > 2**63:
+                                val = val - 2**64
+                            if isinstance(val, (int, float)) and val < 0:
+                                scaled_fk = int(val * factor)
+                                if scaled_fk < 0:
+                                    scaled_fk = scaled_fk + 2**64
+                                body[fk] = scaled_fk
+                                buff_count += 1
+                                hit = True
+                    elif vtype == 'BlockRegenerateStatBuffData':
+                        body['f00'] = 0
+                        buff_count += 1
+                        hit = True
+                    elif vtype == 'ChangeBuffLevelBuffData':
+                        body['f01'] = 0
+                        buff_count += 1
+                        hit = True
 
             if hit:
                 dirty_keys.add(it.get('key', 0))
