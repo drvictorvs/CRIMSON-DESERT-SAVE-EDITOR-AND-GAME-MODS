@@ -58,19 +58,29 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 │   ├── main.py + 35 parser/helper modules
 │   ├── gui/                          (PySide6 package, 6 tab modules)
 │   ├── data/, locale/, knowledge_packs/, dropset_packs/
-│   └── CrimsonGameMods.spec
+│   ├── CrimsonGameMods.spec
+│   └── build.py / build.sh / build.cmd
 └── (release assets, icons, localization)
 ```
 
-Save Editor Standalone source lives in a private repo. Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
+ Save Editor Standalone source lives in the sibling [`CrimsonSaveEditor/README.md`](./CrimsonSaveEditor/README.md). Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
 
-## Build from source (Game Mods)
+## Build from source
 
 ```bash
-cd CrimsonGameMods
-pip install PySide6 lz4 cryptography Pillow pyinstaller crimson-rs
-python -m PyInstaller CrimsonGameMods.spec --noconfirm
-# → dist/CrimsonGameMods.exe
+./build.sh --project=gamemods --target=full --backend=nuitka
+./build.sh --project=gamemods --target=cli --backend=pyinstaller
+./build.sh --project=saveeditor --backend=nuitka
+
+# or call the shared build driver directly:
+python3 build.py --project=gamemods --target=lite --backend=nuitka
+```
+
+Windows uses the same driver via the root batch launcher:
+
+```bat
+build.cmd --project=gamemods --target=full --backend=nuitka
+build.cmd --project=saveeditor --backend=pyinstaller
 ```
 
 ## Credits

@@ -1,4 +1,5 @@
 crimson-rs/
+__pycache__/
 CrimsonSaveEditor/__pycache__/equipment_sets.cpython-313.pyc
 CrimsonSaveEditor/__pycache__/gui.cpython-313.pyc
 CrimsonSaveEditor/__pycache__/icon_cache.cpython-313.pyc
@@ -73,17 +74,4 @@ CrimsonSaveEditor/__pycache__/parc_serializer.cpython-313.pyc
 CrimsonSaveEditor/__pycache__/paz_patcher.cpython-313.pyc
 CrimsonSaveEditor/__pycache__/save_crypto.cpython-313.pyc
 CrimsonSaveEditor/__pycache__/updater.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/equipment_sets.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/gui.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/icon_cache.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/item_db.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/item_packs.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/item_scanner.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/item_template_db.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/localization.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/models.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/parc_inserter3.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/parc_serializer.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/paz_patcher.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/save_crypto.cpython-313.pyc
-CrimsonSaveEditor/__pycache__/updater.cpython-313.pyc
+__pycache__/
