@@ -64,7 +64,7 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 └── (release assets, icons, localization)
 ```
 
-Save Editor Standalone source lives in a private repo. Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
+ Save Editor Standalone source lives in the sibling [`CrimsonSaveEditor/README.md`](./CrimsonSaveEditor/README.md). Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
 
 ## Build from source
 
