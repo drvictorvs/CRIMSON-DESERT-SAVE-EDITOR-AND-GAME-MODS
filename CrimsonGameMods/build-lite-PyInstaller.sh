@@ -12,4 +12,4 @@ echo "Building with PyInstaller..."
 python -m PyInstaller CrimsonGameModsSimple.spec --noconfirm
 
 echo
-echo "Done. Output: dist/CrimsonGameModsLite"
+echo "Done. Output: dist/CrimsonGameModsSimple"
