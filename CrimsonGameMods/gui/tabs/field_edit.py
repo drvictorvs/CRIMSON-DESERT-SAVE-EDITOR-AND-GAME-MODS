@@ -3711,28 +3711,7 @@ class FieldEditTab(QWidget):
                     skipped.append(tgt_e.get("string_key", str(tgt_ck)))
                     continue
                 if tgt_app == src_app:
-                    # Same appearance_name — try characterinfo_full_parser
-                    # which uses a different (byte-level) key mapping
-                    try:
-                        from characterinfo_full_parser import parse_all_entries as _pae
-                        _full = _pae(_pabgb_efj, _pabgh_efj)
-                        _full_by_name = {
-                            e.get("name", ""): e for e in _full if e.get("name")
-                        }
-                        _full_tgt = _full_by_name.get(tgt_name)
-                        _full_src = _full_by_name.get(src_name)
-                        if _full_tgt and _full_src:
-                            _fv_tgt = _full_tgt.get("_appearanceName_key")
-                            _fv_src = _full_src.get("_appearanceName_key")
-                            if _fv_src is not None and _fv_tgt != _fv_src:
-                                src_app = _fv_src
-                                tgt_app = _fv_tgt
-                            else:
-                                continue  # genuinely same appearance
-                        else:
-                            continue
-                    except Exception:
-                        continue
+                    continue  # same appearance_name — no-op swap, skip
 
                 intents.append({
                     "entry": tgt_e.get("string_key", tgt_name),

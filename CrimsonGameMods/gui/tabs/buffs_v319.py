@@ -5131,7 +5131,7 @@ class ItemBuffsTab(QWidget):
             # Primary: build catalog from Rust-parsed items with display names
             if rust_items:
                 try:
-                    from armor_catalog import ArmorItem, get_category
+                    from armor_catalog import ArmorItem, get_category, SKIP_PREFIXES, SKIP_SUBSTRINGS
                     _ndb = getattr(self, '_name_db', None)
                     catalog = []
                     for it in rust_items:
@@ -5149,6 +5149,10 @@ class ItemBuffsTab(QWidget):
                             continue
                         _k = it.get('key', 0)
                         _sk = it.get('string_key', '')
+                        if _sk.startswith(SKIP_PREFIXES):
+                            continue
+                        if any(t in _sk for t in SKIP_SUBSTRINGS):
+                            continue
                         _dn = _ndb.get_name(_k) if _ndb else ''
                         if not _dn or _dn.startswith('Unknown'):
                             _dn = _sk
@@ -5656,12 +5660,65 @@ class ItemBuffsTab(QWidget):
                     except Exception:
                         if src_val == tgt_val:
                             continue
+                    # For prefab_data_list: copy prefab_names from source but remap
+                    # tribe-exclusive hashes so the item stays equippable on the
+                    # target item's tribe.  Problem: src_val contains the SOURCE
+                    # item's tribe hash (e.g. Ashen/Tarandus 4268845538) in every
+                    # tribe_gender_list entry.  Copying it verbatim makes the item
+                    # unequippable for the TARGET tribe (e.g. Kairos/Kliff 4234598676)
+                    # because the engine checks tribe_gender_list for equip eligibility.
+                    #
+                    # Fix: compute the symmetric difference between source and target
+                    # tribe_gender_list hashes, then substitute source-exclusive hashes
+                    # with target-exclusive hashes inside each entry.  Hashes shared by
+                    # both items (gender variants etc.) pass through unchanged.
+                    # equip_slot_list and is_craft_material are also taken from the
+                    # corresponding target entry since they are target-specific metadata.
+                    if (field == 'prefab_data_list' and not is_invisible
+                            and isinstance(src_val, list) and isinstance(tgt_val, list)
+                            and tgt_val):
+                        src_pdl = src_val
+                        tgt_pdl = tgt_val
+                        # Collect all tribe hashes across every entry for each item.
+                        src_all_tribes: set = set()
+                        for _e in src_pdl:
+                            if isinstance(_e, dict):
+                                src_all_tribes.update(_e.get('tribe_gender_list') or [])
+                        tgt_all_tribes: set = set()
+                        for _e in tgt_pdl:
+                            if isinstance(_e, dict):
+                                tgt_all_tribes.update(_e.get('tribe_gender_list') or [])
+                        # src-only hashes → tgt-only hashes (sorted for stable mapping)
+                        _tribe_map = dict(zip(
+                            sorted(src_all_tribes - tgt_all_tribes),
+                            sorted(tgt_all_tribes - src_all_tribes),
+                        ))
+                        merged_pdl = []
+                        for _i, _se in enumerate(src_pdl):
+                            if not isinstance(_se, dict):
+                                merged_pdl.append(_se)
+                                continue
+                            _new_e = dict(_se)
+                            # Remap tribe hashes
+                            _new_e['tribe_gender_list'] = [
+                                _tribe_map.get(_h, _h)
+                                for _h in (_se.get('tribe_gender_list') or [])
+                            ]
+                            # Preserve target's equip_slot_list / is_craft_material
+                            _te = (tgt_pdl[_i] if _i < len(tgt_pdl) else tgt_pdl[0])
+                            if isinstance(_te, dict):
+                                _new_e['equip_slot_list'] = _te.get('equip_slot_list', [])
+                                _new_e['is_craft_material'] = _te.get('is_craft_material', 0)
+                            merged_pdl.append(_new_e)
+                        new_val = merged_pdl
+                    else:
+                        new_val = src_val
                     intents.append({
                         'entry': tgt.internal_name,
                         'key': tgt_key,
                         'field': field,
                         'op': 'set',
-                        'new': src_val,
+                        'new': new_val,
                         '_comment': f'transmog: visual from {src.internal_name}',
                     })
                     swap_had_diff = True
@@ -11124,7 +11181,7 @@ class ItemBuffsTab(QWidget):
             f"{row('QoL Infinity Durability', dura_hit, dura_expected)}\n"
             f"{row('QoL No Cooldown (==1)', cd_hit, cd_expected)}\n"
             f"{row('Make Dyeable', dye_hit, dye_expected)}\n"
-            f"{row('Sockets (all \u2192 5)', sock_hit, sock_expected)}\n"
+            f"{row('Sockets (all → 5)', sock_hit, sock_expected)}\n"
             f"{row('UP v2 tribe_gender PDs', up_hit, up_expected)}\n\n"
             f"Companion files bundled in overlay:\n"
             f"  equipslotinfo.pabgb:  {'yes' if has_equipslot_pabgb else 'NO'}\n"
