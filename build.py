@@ -57,7 +57,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", choices=PROJECTS.keys(), required=True)
     parser.add_argument("--target", default="full")
-    parser.add_argument("--backend", choices=["nuitka", "pyinstaller"], default="nuitka")
+    parser.add_argument("--backend", choices=["nuitka", "pyinstaller"], default="pyinstaller")
     args = parser.parse_args()
 
     project = PROJECTS[args.project]
