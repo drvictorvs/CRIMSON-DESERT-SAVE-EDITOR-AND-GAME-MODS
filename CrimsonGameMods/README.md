@@ -22,17 +22,12 @@ A PySide6 desktop tool for modifying **Crimson Desert** game data via PAZ archiv
 ## Build from source
 
 ```bash
-./build-cli-Nuitka.sh
-./build-full-Nuitka.sh
-./build-lite-Nuitka.sh
-
-# or run the matching PyInstaller variants:
-./build-cli-PyInstaller.sh
-./build-full-PyInstaller.sh
-./build-lite-PyInstaller.sh
+./build.sh --target=full --backend=nuitka
+./build.sh --target=cli --backend=pyinstaller
+./build.sh --target=lite --backend=nuitka
 ```
 
-Windows-native batch wrappers are provided with matching names under `*-windows-*`.
+Windows-native batch wrappers are provided with matching names under `*-windows-*`, but `build.sh` is the preferred entry point for shell-based builds.
 
 ## Save File Integration
 

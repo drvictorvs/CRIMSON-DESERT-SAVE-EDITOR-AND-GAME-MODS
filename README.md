@@ -70,9 +70,9 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 
 ```bash
 cd CrimsonGameMods
-./CrimsonGameMods/build-cli-Nuitka.sh
-./CrimsonGameMods/build-full-Nuitka.sh
-./CrimsonGameMods/build-lite-Nuitka.sh
+./build.sh --target=full --backend=nuitka
+./build.sh --target=cli --backend=pyinstaller
+./build.sh --target=lite --backend=nuitka
 
 # or use the repo-root wrappers:
 ./build-all-Nuitka.sh
