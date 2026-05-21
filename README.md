@@ -59,8 +59,7 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 │   ├── gui/                          (PySide6 package, 6 tab modules)
 │   ├── data/, locale/, knowledge_packs/, dropset_packs/
 │   ├── CrimsonGameMods.spec
-│   ├── build-*.sh / build-*.cmd
-│   └── build-all-*.sh / build-all-*.cmd
+│   └── build.py / build.sh / build.cmd
 └── (release assets, icons, localization)
 ```
 
@@ -69,23 +68,19 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 ## Build from source
 
 ```bash
-cd CrimsonGameMods
-./build.sh --target=full --backend=nuitka
-./build.sh --target=cli --backend=pyinstaller
-./build.sh --target=lite --backend=nuitka
+./build.sh --project=gamemods --target=full --backend=nuitka
+./build.sh --project=gamemods --target=cli --backend=pyinstaller
+./build.sh --project=saveeditor --backend=nuitka
 
-# or use the repo-root wrappers:
-./build-all-Nuitka.sh
+# or call the shared build driver directly:
+python3 build.py --project=gamemods --target=lite --backend=nuitka
 ```
 
-Windows-native batch wrappers are also provided alongside the Linux scripts:
+Windows uses the same driver via the root batch launcher:
 
 ```bat
-build-all-windows-nuitka.cmd
-build-all-windows-pyinstaller.cmd
-CrimsonGameMods\build-cli-windows-nuitka.cmd
-CrimsonGameMods\build-full-windows-nuitka.cmd
-CrimsonGameMods\build-lite-windows-nuitka.cmd
+build.cmd --project=gamemods --target=full --backend=nuitka
+build.cmd --project=saveeditor --backend=pyinstaller
 ```
 
 ## Credits

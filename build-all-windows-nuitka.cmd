@@ -1,4 +1,0 @@
-@echo off
-setlocal
-cd /d %~dp0
-py -3 -m nuitka --standalone --assume-yes-for-downloads --enable-plugin=pyside6 --include-package=crimson_rs --output-dir=build-windows-cli --output-filename=CrimsonCLI --include-data-dir=data=data --include-data-dir=locale=locale --include-data-dir=knowledge_packs=knowledge_packs --include-data-dir=%~dp0quest_packs=quest_packs --include-data-dir=dropset_packs=dropset_packs --include-data-file=crimson_data.db.gz=crimson_data.db.gz --include-data-file=vfx_equip_attachments.json=vfx_equip_attachments.json --include-data-file=localizationstring_eng_items.tsv=localizationstring_eng_items.tsv --include-data-file=CrimsonGameMods\crimson_rs\crimson_rs.pyd=crimson_rs\crimson_rs.pyd --include-data-file=CrimsonGameMods\dmm_parser\dmm_parser.pyd=dmm_parser\dmm_parser.pyd CrimsonGameMods\cli.py

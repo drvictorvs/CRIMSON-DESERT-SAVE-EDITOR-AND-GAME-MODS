@@ -13,23 +13,15 @@ A PySide6 desktop tool for editing **Crimson Desert** save files. It handles inv
 Linux:
 
 ```bash
-./build-Nuitka.sh
-./build-PyInstaller.sh
-./build-linux.sh
+../../build.sh --project=saveeditor --backend=nuitka
+../../build.sh --project=saveeditor --backend=pyinstaller
 ```
 
 Windows-native batch wrappers:
 
 ```bat
-build-windows-nuitka.cmd
-build-windows-pyinstaller.cmd
-```
-
-Linux-venv wrappers are also available for environments that launch the shell scripts through a virtualenv entry point:
-
-```bat
-build-linux-venv-nuitka.cmd
-build-linux-venv-pyinstaller.cmd
+..\..\build.cmd --project=saveeditor --backend=nuitka
+..\..\build.cmd --project=saveeditor --backend=pyinstaller
 ```
 
 ## Notes
