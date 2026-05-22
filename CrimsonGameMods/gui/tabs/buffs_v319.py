@@ -3030,6 +3030,18 @@ class ItemBuffsTab(QWidget):
                 "crimson_rs.pyd not found. This requires Potter's Rust parser module.")
             return
 
+        # Diagnostic: log what's actually in the namespaces at call time.
+        try:
+            import dmm_parser as _chk
+            _dmp_fns = [x for x in dir(_chk) if 'parse' in x.lower() or 'extract' in x.lower()]
+            _crs_fns = [x for x in dir(crimson_rs) if 'parse' in x.lower() or 'extract' in x.lower()]
+            log.info('[DIAG] dmm_parser funcs: %s', _dmp_fns)
+            log.info('[DIAG] crimson_rs funcs: %s', _crs_fns)
+            import sys as _sys_chk
+            log.info('[DIAG] frozen=%s _MEIPASS=%s', getattr(_sys_chk, 'frozen', False), getattr(_sys_chk, '_MEIPASS', 'N/A'))
+        except Exception as _de:
+            log.warning('[DIAG] namespace check failed: %s', _de)
+
         try:
             import time
             raw, _buff_source = self._buff_extract_iteminfo_preferring_overlay()
@@ -5624,6 +5636,8 @@ class ItemBuffsTab(QWidget):
                     "Click Extract first, then try again.")
                 return
             import json as _jstf, copy as _cptf
+
+
             intents = []
             skipped = []
             same_visual = []
@@ -5679,36 +5693,40 @@ class ItemBuffsTab(QWidget):
                             and tgt_val):
                         src_pdl = src_val
                         tgt_pdl = tgt_val
-                        # Collect all tribe hashes across every entry for each item.
-                        src_all_tribes: set = set()
-                        for _e in src_pdl:
-                            if isinstance(_e, dict):
-                                src_all_tribes.update(_e.get('tribe_gender_list') or [])
-                        tgt_all_tribes: set = set()
-                        for _e in tgt_pdl:
-                            if isinstance(_e, dict):
-                                tgt_all_tribes.update(_e.get('tribe_gender_list') or [])
-                        # src-only hashes → tgt-only hashes (sorted for stable mapping)
-                        _tribe_map = dict(zip(
-                            sorted(src_all_tribes - tgt_all_tribes),
-                            sorted(tgt_all_tribes - src_all_tribes),
-                        ))
+                        # Collect source tribe coverage and prefab hashes.
+                        _seen_pn: set = set()
+                        src_all_prefabs: list = []
+                        src_covered_tribes: set = set()
+                        for _se in src_pdl:
+                            if isinstance(_se, dict):
+                                for _pn in (_se.get('prefab_names') or []):
+                                    if _pn not in _seen_pn:
+                                        _seen_pn.add(_pn)
+                                        src_all_prefabs.append(_pn)
+                                src_covered_tribes.update(
+                                    _se.get('tribe_gender_list') or [])
+                        # Iterate over TARGET entries. For each entry:
+                        #   - If the source mesh covers ANY of this entry's tribes
+                        #     → replace prefab_names with source mesh.
+                        #   - If the source has NO coverage for this entry's tribes
+                        #     (e.g. a new character type added in a later patch that
+                        #     the NPC item predates) → keep the target's original
+                        #     prefab so those characters see the untransmogged look
+                        #     instead of crashing.
+                        # tribe_gender_list, equip_slot_list, and is_craft_material
+                        # are always kept from the target entry unchanged.
                         merged_pdl = []
-                        for _i, _se in enumerate(src_pdl):
-                            if not isinstance(_se, dict):
-                                merged_pdl.append(_se)
+                        for _te in tgt_pdl:
+                            if not isinstance(_te, dict):
+                                merged_pdl.append(_te)
                                 continue
-                            _new_e = dict(_se)
-                            # Remap tribe hashes
-                            _new_e['tribe_gender_list'] = [
-                                _tribe_map.get(_h, _h)
-                                for _h in (_se.get('tribe_gender_list') or [])
-                            ]
-                            # Preserve target's equip_slot_list / is_craft_material
-                            _te = (tgt_pdl[_i] if _i < len(tgt_pdl) else tgt_pdl[0])
-                            if isinstance(_te, dict):
-                                _new_e['equip_slot_list'] = _te.get('equip_slot_list', [])
-                                _new_e['is_craft_material'] = _te.get('is_craft_material', 0)
+                            _new_e = dict(_te)
+                            _te_tribes = set(_te.get('tribe_gender_list') or [])
+                            if not src_covered_tribes or _te_tribes & src_covered_tribes:
+                                # Source covers at least one tribe in this entry
+                                # (empty src_covered_tribes = universal mesh)
+                                _new_e['prefab_names'] = src_all_prefabs
+                            # else: keep original prefab_names for unsupported tribes
                             merged_pdl.append(_new_e)
                         new_val = merged_pdl
                     else:

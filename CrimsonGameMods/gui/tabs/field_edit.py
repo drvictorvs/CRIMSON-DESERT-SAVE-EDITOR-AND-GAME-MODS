@@ -3682,6 +3682,65 @@ class FieldEditTab(QWidget):
                 int(e.get("key", 0)): e for e in _entries_efj
             }
 
+            # ── Compatibility pre-check ──────────────────────────────────────
+            # Check all swaps for skeleton mismatches and cross-type issues
+            # before building intents. Collect warnings so user can abort.
+            _compat_warnings: list[str] = []
+            for _sw in queue:
+                try:
+                    _tc = int(_sw["tgt"]); _sc = int(_sw["src"])
+                except Exception:
+                    continue
+                if _tc == _sc:
+                    continue
+                _tn = _ck_to_name.get(_tc, "")
+                _sn = _ck_to_name.get(_sc, "")
+                _te = _by_skey_efj.get(_tn) or _by_nkey_efj.get(_tc)
+                _se = _by_skey_efj.get(_sn) or _by_nkey_efj.get(_sc)
+                if not _te or not _se:
+                    continue
+                # Skeleton mismatch — animations will be broken / T-pose
+                _t_skel = _te.get("skeleton_name")
+                _s_skel = _se.get("skeleton_name")
+                if _t_skel and _s_skel and _t_skel != _s_skel:
+                    _compat_warnings.append(
+                        f"⚠ Skeleton mismatch: '{_tn or _tc}' → '{_sn or _sc}'\n"
+                        f"   Target skeleton: {_t_skel}\n"
+                        f"   Source skeleton: {_s_skel}\n"
+                        f"   Animations may be broken or T-pose in-game."
+                    )
+                # Cross-type check via flag_c (1=male human, 2=female human,
+                # other values = mount/animal/NPC).  Warn if neither or only
+                # one side is a human-playable type.
+                _t_fc = _te.get("flag_c")
+                _s_fc = _se.get("flag_c")
+                _human_flags = {1, 2}
+                if (_t_fc is not None and _s_fc is not None
+                        and bool(_t_fc in _human_flags) != bool(_s_fc in _human_flags)):
+                    _type_tgt = "human/NPC" if _t_fc in _human_flags else "mount/animal/other"
+                    _type_src = "human/NPC" if _s_fc in _human_flags else "mount/animal/other"
+                    _compat_warnings.append(
+                        f"⚠ Cross-type swap: '{_tn or _tc}' ({_type_tgt}) → '{_sn or _sc}' ({_type_src})\n"
+                        f"   Swapping a {_type_tgt} with a {_type_src} is likely incompatible.\n"
+                        f"   The result may crash, be invisible, or behave incorrectly."
+                    )
+
+            if _compat_warnings:
+                _warn_text = "\n\n".join(_compat_warnings)
+                _warn_text += (
+                    "\n\n─────────────────────────────────────\n"
+                    "Export anyway? (Not recommended unless you know the skeletons are compatible)"
+                )
+                _ans = QMessageBox.warning(
+                    dlg, tr("Compatibility Warning — Mesh Swap"),
+                    _warn_text,
+                    QMessageBox.Ok | QMessageBox.Cancel,
+                    QMessageBox.Cancel,
+                )
+                if _ans != QMessageBox.Ok:
+                    return
+
+            # ── Build intents ────────────────────────────────────────────────
             intents = []
             skipped = []
             for sw in queue:
@@ -3706,29 +3765,37 @@ class FieldEditTab(QWidget):
                     skipped.append(tgt_name or f"key {tgt_ck}")
                     continue
 
-                src_app = src_e.get("appearance_name")
-                tgt_app = tgt_e.get("appearance_name")
-                src_vis = src_e.get("lookup_22")   # _appearanceName — the actual visual mesh
-                tgt_vis = tgt_e.get("lookup_22")
+                src_vis   = src_e.get("lookup_22")        # _appearanceName — visual mesh
+                tgt_vis   = tgt_e.get("lookup_22")
+                src_app   = src_e.get("appearance_name")  # _upperActionChartPackageGroupName — anim chart
+                tgt_app   = tgt_e.get("appearance_name")
+                src_skel  = src_e.get("skeleton_name")    # _skeletonName — skeleton rig
+                tgt_skel  = tgt_e.get("skeleton_name")
+                src_mdl   = src_e.get("lookup_24")        # model path .pab
+                tgt_mdl   = tgt_e.get("lookup_24")
+                src_skelv = src_e.get("lookup_25")        # skeleton variation .pabc — bone variation data
+                tgt_skelv = tgt_e.get("lookup_25")
 
-                # A swap is a no-op if both visual mesh AND animation chart already match.
-                # If either differs there is something to emit.
-                anim_differs = src_app is not None and tgt_app != src_app
-                vis_differs  = src_vis is not None and tgt_vis != src_vis
+                vis_differs   = src_vis   is not None and tgt_vis   != src_vis
+                anim_differs  = src_app   is not None and tgt_app   != src_app
+                skel_differs  = src_skel  is not None and tgt_skel  != src_skel
+                mdl_differs   = src_mdl   is not None and tgt_mdl   != src_mdl
+                skelv_differs = src_skelv is not None and tgt_skelv != src_skelv
 
-                if not anim_differs and not vis_differs:
-                    continue  # nothing to change for this pair
+                # Nothing to change for this pair
+                if not any([vis_differs, anim_differs, skel_differs,
+                            mdl_differs, skelv_differs]):
+                    continue
 
-                if src_app is None and src_vis is None:
+                if all(v is None for v in [src_vis, src_app, src_skel,
+                                           src_mdl, src_skelv]):
                     skipped.append(tgt_e.get("string_key", str(tgt_ck)))
                     continue
 
                 entry_name = tgt_e.get("string_key", tgt_name)
                 entry_key  = int(tgt_e.get("key", tgt_ck))
 
-                # Intent 1: visual mesh (_appearanceName = lookup_22).
-                # This is what controls which mesh/skin the engine loads for the character.
-                # Previously missing — explains "animations worked but mesh didn't swap".
+                # Intent 1: visual mesh (_appearanceName = lookup_22)
                 if vis_differs:
                     intents.append({
                         "entry": entry_name,
@@ -3739,8 +3806,7 @@ class FieldEditTab(QWidget):
                         "_comment": f"mesh swap: visual mesh (_appearanceName) from {src_name or src_ck}",
                     })
 
-                # Intent 2: animation chart (_upperActionChartPackageGroupName = appearance_name).
-                # Controls which animation package the character uses (movement, attacks, etc.).
+                # Intent 2: animation chart (_upperActionChartPackageGroupName = appearance_name)
                 if anim_differs:
                     intents.append({
                         "entry": entry_name,
@@ -3749,6 +3815,40 @@ class FieldEditTab(QWidget):
                         "op": "set",
                         "new": src_app,
                         "_comment": f"mesh swap: anim chart (_upperActionChartPackageGroupName) from {src_name or src_ck}",
+                    })
+
+                # Intent 3: skeleton rig (_skeletonName = skeleton_name)
+                if skel_differs:
+                    intents.append({
+                        "entry": entry_name,
+                        "key": entry_key,
+                        "field": "skeleton_name",
+                        "op": "set",
+                        "new": src_skel,
+                        "_comment": f"mesh swap: skeleton (_skeletonName) from {src_name or src_ck}",
+                    })
+
+                # Intent 4: model path .pab (lookup_24)
+                if mdl_differs:
+                    intents.append({
+                        "entry": entry_name,
+                        "key": entry_key,
+                        "field": "lookup_24",
+                        "op": "set",
+                        "new": src_mdl,
+                        "_comment": f"mesh swap: model path from {src_name or src_ck}",
+                    })
+
+                # Intent 5: skeleton variation .pabc (lookup_25)
+                # Bone variation data — must match skeleton for animations to play correctly.
+                if skelv_differs:
+                    intents.append({
+                        "entry": entry_name,
+                        "key": entry_key,
+                        "field": "lookup_25",
+                        "op": "set",
+                        "new": src_skelv,
+                        "_comment": f"mesh swap: skeleton variation (_skeletonVariationName) from {src_name or src_ck}",
                     })
 
             if not intents:
@@ -3773,8 +3873,12 @@ class FieldEditTab(QWidget):
                         f"{len(queue)} swap(s), {len(intents)} intent(s)"
                     ),
                     "note": (
-                        "Format 3 — sets lookup_22 (_appearanceName / visual mesh) "
-                        "and appearance_name (_upperActionChartPackageGroupName / anim chart). "
+                        "Format 3 — full visual+animation swap: "
+                        "lookup_22 (_appearanceName / mesh), "
+                        "appearance_name (_upperActionChartPackageGroupName / anim chart), "
+                        "skeleton_name (_skeletonName / rig), "
+                        "lookup_24 (model path), "
+                        "lookup_25 (_skeletonVariationName / bone variation). "
                         "Targets characterinfo.pabgb."
                     ),
                 },
