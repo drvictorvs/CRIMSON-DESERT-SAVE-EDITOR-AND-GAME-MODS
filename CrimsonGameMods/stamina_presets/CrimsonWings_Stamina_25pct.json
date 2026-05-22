@@ -14,3688 +14,3664 @@
       "changes": [
         {
           "entry": "Skill_10004",
-          "rel_offset": 116,
-          "offset": 326909,
+          "rel_offset": 135,
+          "offset": 135,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [10004] Skill_10004 | -10.0 -> -2.5"
         },
         {
           "entry": "Active_AllRecoveryStatrate",
-          "rel_offset": 409,
-          "offset": 47970,
+          "rel_offset": 309,
+          "offset": 309,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [Active] Active_AllRecoveryStatrate | 100.0 -> 400.0"
         },
         {
           "entry": "Active_HitRecover",
-          "rel_offset": 277,
-          "offset": 322149,
+          "rel_offset": 304,
+          "offset": 304,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [STAMINA] [Active] Active_HitRecover | 10.0 -> 40.0"
         },
         {
           "entry": "Active_RecoverOnHit",
-          "rel_offset": 277,
-          "offset": 326403,
+          "rel_offset": 306,
+          "offset": 306,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [STAMINA] [Active] Active_RecoverOnHit | 5.0 -> 20.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 133,
-          "offset": 44614,
+          "rel_offset": 160,
+          "offset": 160,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV01 | 5.0 -> 20.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 281,
-          "offset": 44762,
+          "rel_offset": 309,
+          "offset": 309,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV02 | 10.0 -> 40.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 429,
-          "offset": 44910,
+          "rel_offset": 458,
+          "offset": 458,
           "original": "204e0000",
           "patched": "80380100",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV03 | 20.0 -> 80.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 577,
-          "offset": 45058,
+          "rel_offset": 607,
+          "offset": 607,
           "original": "50c30000",
           "patched": "400d0300",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV04 | 50.0 -> 200.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 725,
-          "offset": 45206,
+          "rel_offset": 756,
+          "offset": 756,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV05 | 100.0 -> 400.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 873,
-          "offset": 45354,
+          "rel_offset": 905,
+          "offset": 905,
           "original": "400d0300",
           "patched": "00350c00",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV06 | 200.0 -> 800.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 1021,
-          "offset": 45502,
+          "rel_offset": 1054,
+          "offset": 1054,
           "original": "e0930400",
           "patched": "804f1200",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV07 | 300.0 -> 1200.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 1169,
-          "offset": 45650,
+          "rel_offset": 1203,
+          "offset": 1203,
           "original": "801a0600",
           "patched": "006a1800",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV08 | 400.0 -> 1600.0"
         },
         {
           "entry": "Active_Recovery_SP",
-          "rel_offset": 1317,
-          "offset": 45798,
+          "rel_offset": 1352,
+          "offset": 1352,
           "original": "20a10700",
           "patched": "80841e00",
           "label": "[25%] [STAMINA] [Active] Active_Recovery_SP_LV09 | 500.0 -> 2000.0"
         },
         {
           "entry": "Active_StaminaUp",
-          "rel_offset": 148,
-          "offset": 887232,
+          "rel_offset": 173,
+          "offset": 173,
           "original": "30750000",
           "patched": "c0d40100",
           "label": "[25%] [STAMINA] [Active] Active_StaminaUp | 30.0 -> 120.0"
         },
         {
           "entry": "Attack_Big_Stamina_Decrease",
-          "rel_offset": 144,
-          "offset": 33345,
+          "rel_offset": 180,
+          "offset": 180,
           "original": "c0f2fcff",
           "patched": "b03cffff",
           "label": "[25%] [STAMINA] [Attack] Attack_Big_Stamina_Decrease | -200.0 -> -50.0"
         },
         {
           "entry": "Skill_AuxWeapon_01",
-          "rel_offset": 116,
-          "offset": 470070,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_01 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_AuxWeapon_03",
-          "rel_offset": 116,
-          "offset": 470575,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_03 | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_AuxWeapon_04",
-          "rel_offset": 116,
-          "offset": 470836,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_04 | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_AuxWeapon_05",
-          "rel_offset": 116,
-          "offset": 471097,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_05 | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_AuxWeapon_06",
-          "rel_offset": 116,
-          "offset": 471619,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_06 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_AuxWeapon_07",
-          "rel_offset": 116,
-          "offset": 471880,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_07 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_AuxWeapon_08",
-          "rel_offset": 116,
-          "offset": 471358,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "80c7feff",
           "patched": "e0b1ffff",
           "label": "[25%] [STAMINA] [AuxWeapon] Skill_AuxWeapon_08 | -80.0 -> -20.0"
         },
         {
           "entry": "Skill_BasicMoveLv2",
-          "rel_offset": 116,
-          "offset": 329891,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "80380100",
           "patched": "00e20400",
           "label": "[25%] [STAMINA] [BasicMoveLv2] Skill_BasicMoveLv2 | 80.0 -> 320.0"
         },
         {
           "entry": "Skill_BasicMoveLv3",
-          "rel_offset": 116,
-          "offset": 330145,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [BasicMoveLv3] Skill_BasicMoveLv3 | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_BasicMoveLv4",
-          "rel_offset": 116,
-          "offset": 330405,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "c0e0ffff",
           "patched": "30f8ffff",
           "label": "[25%] [STAMINA] [BasicMoveLv4] Skill_BasicMoveLv4 | -8.0 -> -2.0"
         },
         {
           "entry": "Skill_BasicMoveLv4_100",
-          "rel_offset": 116,
-          "offset": 330659,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [BasicMoveLv4] Skill_BasicMoveLv4_100 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_BattleAxeDash_30",
-          "rel_offset": 116,
-          "offset": 339313,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [BattleAxeDash] Skill_BattleAxeDash_30 | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_BlackWolf_Swing",
-          "rel_offset": 120,
-          "offset": 506407,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "b817feff",
           "patched": "ee85ffff",
           "label": "[25%] [STAMINA] [BlackWolf] Skill_BlackWolf_Swing | -125.0 -> -31.25"
         },
         {
           "entry": "Skill_BossWeapon_Common",
-          "rel_offset": 498,
-          "offset": 543777,
+          "rel_offset": 532,
+          "offset": 532,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [BossWeapon] Skill_BossWeapon_Common | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_BossWeapon_FlameKnight",
-          "rel_offset": 507,
-          "offset": 544938,
+          "rel_offset": 546,
+          "offset": 546,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [BossWeapon] Skill_BossWeapon_FlameKnight | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_BossWeapon_HamondBindel",
-          "rel_offset": 636,
-          "offset": 542838,
+          "rel_offset": 677,
+          "offset": 677,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [BossWeapon] Skill_BossWeapon_HamondBindel | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_BossWeapon_SkillCommon",
-          "rel_offset": 116,
-          "offset": 543109,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [BossWeapon] Skill_BossWeapon_SkillCommon | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_BossWeapon_SplitHorn",
-          "rel_offset": 504,
-          "offset": 546256,
+          "rel_offset": 541,
+          "offset": 541,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [BossWeapon] Skill_BossWeapon_SplitHorn | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Bow_RollShot",
-          "rel_offset": 120,
-          "offset": 479838,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Bow] Skill_Bow_RollShot | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_CatchHostage",
-          "rel_offset": 116,
-          "offset": 404340,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [CatchHostage] Skill_CatchHostage | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_CharacterClimb",
-          "rel_offset": 116,
-          "offset": 338261,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [CharacterClimb] Skill_CharacterClimb | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Climb_DaggerAttack",
-          "rel_offset": 370,
-          "offset": 449581,
+          "rel_offset": 404,
+          "offset": 404,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [Climb] Skill_Climb_DaggerAttack | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_Climb_DaggerChargeAttack",
-          "rel_offset": 370,
-          "offset": 450088,
+          "rel_offset": 410,
+          "offset": 410,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [Climb] Skill_Climb_DaggerChargeAttack | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_ClimbBearStruggle",
-          "rel_offset": 345,
-          "offset": 336966,
+          "rel_offset": 378,
+          "offset": 378,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [ClimbBearStruggle] Skill_ClimbBearStruggle | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_ClimbBearStruggleCounterSuccess",
-          "rel_offset": 133,
-          "offset": 337536,
+          "rel_offset": 179,
+          "offset": 179,
           "original": "60ea0000",
           "patched": "80a90300",
           "label": "[25%] [STAMINA] [ClimbBearStruggleCounterSuccess] Skill_ClimbBearStruggleCounterSuccess | 60.0 -> 240.0"
         },
         {
           "entry": "Skill_ClimbDragonStruggle",
-          "rel_offset": 116,
-          "offset": 337984,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "68c5ffff",
           "patched": "5af1ffff",
           "label": "[25%] [STAMINA] [ClimbDragonStruggle] Skill_ClimbDragonStruggle | -15.0 -> -3.75"
         },
         {
           "entry": "Skill_ClimbSlide",
-          "rel_offset": 116,
-          "offset": 341281,
+          "rel_offset": 140,
+          "offset": 140,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [ClimbSlide] Skill_ClimbSlide | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_ClimbStruggle",
-          "rel_offset": 116,
-          "offset": 336486,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [ClimbStruggle] Skill_ClimbStruggle | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_ComboShot",
-          "rel_offset": 510,
-          "offset": 491296,
+          "rel_offset": 536,
+          "offset": 536,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [ComboShot] Skill_ComboShot | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_ContinuousAttack_10",
-          "rel_offset": 116,
-          "offset": 332395,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [ContinuousAttack] Skill_ContinuousAttack_10 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_ContinuousAttack_20",
-          "rel_offset": 116,
-          "offset": 332688,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [ContinuousAttack] Skill_ContinuousAttack_20 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ContinuousAttack_30",
-          "rel_offset": 116,
-          "offset": 332981,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [ContinuousAttack] Skill_ContinuousAttack_30 | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Counter",
-          "rel_offset": 116,
-          "offset": 379994,
+          "rel_offset": 137,
+          "offset": 137,
           "original": "80c7feff",
           "patched": "e0b1ffff",
           "label": "[25%] [STAMINA] [Counter] Skill_Counter | -80.0 -> -20.0"
         },
         {
           "entry": "Skill_CrouchMoveLv2",
-          "rel_offset": 116,
-          "offset": 329403,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "80380100",
           "patched": "00e20400",
           "label": "[25%] [STAMINA] [CrouchMoveLv2] Skill_CrouchMoveLv2 | 80.0 -> 320.0"
         },
         {
           "entry": "Skill_CrouchMoveLv3",
-          "rel_offset": 116,
-          "offset": 329644,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "80380100",
           "patched": "00e20400",
           "label": "[25%] [STAMINA] [CrouchMoveLv3] Skill_CrouchMoveLv3 | 80.0 -> 320.0"
         },
         {
           "entry": "Skill_CrowWing",
-          "rel_offset": 116,
-          "offset": 497031,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [CrowWing] Skill_CrowWing | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_CrowWing_Dash",
-          "rel_offset": 120,
-          "offset": 501121,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [CrowWing] Skill_CrowWing_Dash | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_CrowWing_Move",
-          "rel_offset": 116,
-          "offset": 497737,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [CrowWing] Skill_CrowWing_Move | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_CrowWing_MoveFast",
-          "rel_offset": 116,
-          "offset": 498034,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [CrowWing] Skill_CrowWing_MoveFast | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_AirGrab",
-          "rel_offset": 116,
-          "offset": 458866,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_AirGrab | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Damian_BasicMoveLv4_100",
-          "rel_offset": 116,
-          "offset": 330986,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_BasicMoveLv4_100 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_Bow_RollShot",
-          "rel_offset": 120,
-          "offset": 480253,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Bow_RollShot | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_CharacterClimb",
-          "rel_offset": 116,
-          "offset": 338607,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_CharacterClimb | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_EvadeAttack",
-          "rel_offset": 480,
-          "offset": 375150,
+          "rel_offset": 515,
+          "offset": 515,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_EvadeAttack | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_EvadeShot",
-          "rel_offset": 116,
-          "offset": 488605,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_EvadeShot | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Damian_EvadeShot_I",
-          "rel_offset": 116,
-          "offset": 488982,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_EvadeShot_I | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Damian_EvadeShot_II",
-          "rel_offset": 116,
-          "offset": 489324,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_EvadeShot_II | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Damian_FastAvoid",
-          "rel_offset": 116,
-          "offset": 416703,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_FastAvoid | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_HeavenSpear",
-          "rel_offset": 116,
-          "offset": 372641,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_HeavenSpear | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_HeavenSpear_I",
-          "rel_offset": 116,
-          "offset": 372972,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_HeavenSpear_I | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_HeavenSpear_II",
-          "rel_offset": 116,
-          "offset": 373334,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_HeavenSpear_II | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_JumpStep",
-          "rel_offset": 116,
-          "offset": 420670,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_JumpStep | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_Lift",
-          "rel_offset": 116,
-          "offset": 524161,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Lift | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_Lunge",
-          "rel_offset": 116,
-          "offset": 382173,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Lunge | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_LungeAir",
-          "rel_offset": 116,
-          "offset": 383310,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_LungeAir | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Damian_LungeCatch",
-          "rel_offset": 116,
-          "offset": 382928,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_LungeCatch | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_Damian_LungeCombination",
-          "rel_offset": 116,
-          "offset": 382494,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_LungeCombination | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_Damian_Rope_AirPull",
-          "rel_offset": 116,
-          "offset": 511041,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Rope_AirPull | -100.0 -> -25.0"
         },
         {
-          "entry": "Skill_Damian_ShieldDash",
-          "rel_offset": 116,
-          "offset": 357328,
-          "original": "d08affff",
-          "patched": "b4e2ffff",
-          "label": "[25%] [STAMINA] [Damian] Skill_Damian_ShieldDash | -30.0 -> -7.5"
-        },
-        {
           "entry": "Skill_Damian_ShieldGlider",
-          "rel_offset": 116,
-          "offset": 498435,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_ShieldGlider | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_ShieldGlider_MoveFast",
-          "rel_offset": 116,
-          "offset": 499172,
+          "rel_offset": 158,
+          "offset": 158,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_ShieldGlider_MoveFast | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_TurnBash_I",
-          "rel_offset": 116,
-          "offset": 353949,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_TurnBash_I | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Damian_TurnBash_II",
-          "rel_offset": 116,
-          "offset": 354269,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_TurnBash_II | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Damian_Wrestle_Hostage",
-          "rel_offset": 116,
-          "offset": 363399,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Wrestle_Hostage | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_Wrestle_ScrewDrive",
-          "rel_offset": 116,
-          "offset": 459911,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Wrestle_ScrewDrive | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Damian_Wrestle_Takedown",
-          "rel_offset": 116,
-          "offset": 453817,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Wrestle_Takedown | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Damian_Wrestle_Throw",
-          "rel_offset": 116,
-          "offset": 454772,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Damian] Skill_Damian_Wrestle_Throw | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_DeepThrust",
-          "rel_offset": 502,
-          "offset": 443191,
+          "rel_offset": 529,
+          "offset": 529,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [DeepThrust] Skill_DeepThrust | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Demian_RapierHardAttack",
-          "rel_offset": 478,
-          "offset": 531293,
+          "rel_offset": 518,
+          "offset": 518,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Demian] Skill_Demian_RapierHardAttack | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Demian_RapierParry",
-          "rel_offset": 116,
-          "offset": 535886,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [Demian] Skill_Demian_RapierParry | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_DragonClimbHold",
-          "rel_offset": 116,
-          "offset": 340781,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "30f8ffff",
           "patched": "0cfeffff",
           "label": "[25%] [STAMINA] [DragonClimbHold] Skill_DragonClimbHold | -2.0 -> -0.5"
         },
         {
           "entry": "Skill_EvadeAttack",
-          "rel_offset": 480,
-          "offset": 374469,
+          "rel_offset": 508,
+          "offset": 508,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [EvadeAttack] Skill_EvadeAttack | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_EvadeChargeShot",
-          "rel_offset": 346,
-          "offset": 490530,
+          "rel_offset": 377,
+          "offset": 377,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [EvadeChargeShot] Skill_EvadeChargeShot | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_EvadeExplosionShot",
-          "rel_offset": 346,
-          "offset": 487121,
+          "rel_offset": 380,
+          "offset": 380,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [EvadeExplosionShot] Skill_EvadeExplosionShot | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_EvadeMultiShot",
-          "rel_offset": 346,
-          "offset": 489930,
+          "rel_offset": 376,
+          "offset": 376,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [EvadeMultiShot] Skill_EvadeMultiShot | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_EvadeShot",
-          "rel_offset": 346,
-          "offset": 485357,
+          "rel_offset": 371,
+          "offset": 371,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [EvadeShot] Skill_EvadeShot | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_EvadeShot_I",
-          "rel_offset": 346,
-          "offset": 485957,
+          "rel_offset": 373,
+          "offset": 373,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [EvadeShot] Skill_EvadeShot_I | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_EvadeShot_II",
-          "rel_offset": 346,
-          "offset": 486522,
+          "rel_offset": 374,
+          "offset": 374,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [EvadeShot] Skill_EvadeShot_II | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Fall",
-          "rel_offset": 116,
-          "offset": 328420,
+          "rel_offset": 134,
+          "offset": 134,
           "original": "204e0000",
           "patched": "80380100",
           "label": "[25%] [STAMINA] [Fall] Skill_Fall | 20.0 -> 80.0"
         },
         {
           "entry": "Skill_FastAvoid",
-          "rel_offset": 116,
-          "offset": 416369,
+          "rel_offset": 139,
+          "offset": 139,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [FastAvoid] Skill_FastAvoid | -20.0 -> -5.0"
         },
         {
           "entry": "Gimmick_Active_WindGround",
-          "rel_offset": 172,
-          "offset": 692083,
+          "rel_offset": 206,
+          "offset": 206,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [Gimmick] Gimmick_Active_WindGround | 100.0 -> 400.0"
         },
         {
           "entry": "Gimmick_Active_Wisp",
-          "rel_offset": 151,
-          "offset": 691600,
+          "rel_offset": 179,
+          "offset": 179,
           "original": "204e0000",
           "patched": "80380100",
           "label": "[25%] [STAMINA] [Gimmick] Gimmick_Active_Wisp | 20.0 -> 80.0"
         },
         {
           "entry": "Skill_Grab_Ing",
-          "rel_offset": 116,
-          "offset": 456179,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "c0f2fcff",
           "patched": "b03cffff",
           "label": "[25%] [STAMINA] [Grab] Skill_Grab_Ing | -200.0 -> -50.0"
         },
         {
           "entry": "Skill_GuardCounterSuccessRecovery",
-          "rel_offset": 133,
-          "offset": 333291,
+          "rel_offset": 175,
+          "offset": 175,
           "original": "80380100",
           "patched": "00e20400",
           "label": "[25%] [STAMINA] [GuardCounterSuccessRecovery] Skill_GuardCounterSuccessRecovery | 80.0 -> 320.0"
         },
         {
           "entry": "Skill_GuardStride",
-          "rel_offset": 116,
-          "offset": 331885,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [GuardStride] Skill_GuardStride | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_GuardSuccessRecovery",
-          "rel_offset": 869,
-          "offset": 325467,
+          "rel_offset": 909,
+          "offset": 909,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [GuardSuccessRecovery] Skill_GuardSuccessRecovery | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_GuardWait",
-          "rel_offset": 116,
-          "offset": 331654,
+          "rel_offset": 139,
+          "offset": 139,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [GuardWait] Skill_GuardWait | 40.0 -> 160.0"
         },
         {
           "entry": "SKill_HorseDoubleJump",
-          "rel_offset": 120,
-          "offset": 1041830,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [HorseDoubleJump] SKill_HorseDoubleJump | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_HorseDrift",
-          "rel_offset": 120,
-          "offset": 1040357,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [HorseDrift] Skill_HorseDrift | -20.0 -> -5.0"
         },
         {
           "entry": "SKill_HorseFastStart",
-          "rel_offset": 120,
-          "offset": 1045754,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [HorseFastStart] SKill_HorseFastStart | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_HorseInstantAcc",
-          "rel_offset": 120,
-          "offset": 1045130,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [HorseInstantAcc] Skill_HorseInstantAcc | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_HorseInstantAcc_Combo",
-          "rel_offset": 120,
-          "offset": 1045455,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [HorseInstantAcc] Skill_HorseInstantAcc_Combo | -20.0 -> -5.0"
         },
         {
           "entry": "SKill_HorseJump",
-          "rel_offset": 120,
-          "offset": 1041593,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [STAMINA] [HorseJump] SKill_HorseJump | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_HorseKick",
-          "rel_offset": 116,
-          "offset": 1042911,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [HorseKick] Skill_HorseKick | -25.0 -> -6.25"
         },
         {
           "entry": "SKill_HorseLateralMove",
-          "rel_offset": 120,
-          "offset": 1042371,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "18fcffff",
           "patched": "06ffffff",
           "label": "[25%] [STAMINA] [HorseLateralMove] SKill_HorseLateralMove | -1.0 -> -0.25"
         },
         {
           "entry": "Skill_HorseMoveLv1",
-          "rel_offset": 120,
-          "offset": 1038913,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [HorseMoveLv1] Skill_HorseMoveLv1 | 100.0 -> 400.0"
         },
         {
           "entry": "Skill_HorseMoveLv2",
-          "rel_offset": 120,
-          "offset": 1039142,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [HorseMoveLv2] Skill_HorseMoveLv2 | 100.0 -> 400.0"
         },
         {
           "entry": "Skill_HorseMoveLv3",
-          "rel_offset": 120,
-          "offset": 1039371,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "50c30000",
           "patched": "400d0300",
           "label": "[25%] [STAMINA] [HorseMoveLv3] Skill_HorseMoveLv3 | 50.0 -> 200.0"
         },
         {
           "entry": "Skill_HorseMoveLv4",
-          "rel_offset": 120,
-          "offset": 1039600,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [HorseMoveLv4] Skill_HorseMoveLv4 | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_HorseMoveLv5",
-          "rel_offset": 120,
-          "offset": 1040085,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "50460000",
           "patched": "40190100",
           "label": "[25%] [STAMINA] [HorseMoveLv5] Skill_HorseMoveLv5 | 18.0 -> 72.0"
         },
         {
           "entry": "Skill_HorseMoveLv5_100",
-          "rel_offset": 120,
-          "offset": 1040690,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "28230000",
           "patched": "a08c0000",
           "label": "[25%] [STAMINA] [HorseMoveLv5] Skill_HorseMoveLv5_100 | 9.0 -> 36.0"
         },
         {
           "entry": "Skill_HorsePawStamp",
-          "rel_offset": 501,
-          "offset": 1046411,
+          "rel_offset": 531,
+          "offset": 531,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [HorsePawStamp] Skill_HorsePawStamp | -10.0 -> -2.5"
         },
         {
           "entry": "SKill_HorsePowerJump",
-          "rel_offset": 120,
-          "offset": 1042106,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "c0e0ffff",
           "patched": "30f8ffff",
           "label": "[25%] [STAMINA] [HorsePowerJump] SKill_HorsePowerJump | -8.0 -> -2.0"
         },
         {
           "entry": "Skill_HorseRushAttack",
-          "rel_offset": 120,
-          "offset": 1041260,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [HorseRushAttack] Skill_HorseRushAttack | -20.0 -> -5.0"
         },
         {
           "entry": "SKill_HorseSit",
-          "rel_offset": 120,
-          "offset": 1042676,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "50c30000",
           "patched": "400d0300",
           "label": "[25%] [STAMINA] [HorseSit] SKill_HorseSit | 50.0 -> 200.0"
         },
         {
           "entry": "Skill_HorseStamina",
-          "rel_offset": 116,
-          "offset": 1040987,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [HorseStamina] Skill_HorseStamina | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_HorseSwimLv1",
-          "rel_offset": 116,
-          "offset": 1044319,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "b4e2ffff",
           "patched": "adf8ffff",
           "label": "[25%] [STAMINA] [HorseSwimLv1] Skill_HorseSwimLv1 | -7.5 -> -1.875"
         },
         {
           "entry": "Skill_HorseSwimLv2",
-          "rel_offset": 116,
-          "offset": 1044567,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [HorseSwimLv2] Skill_HorseSwimLv2 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_HorseSwimWait",
-          "rel_offset": 116,
-          "offset": 1044069,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [STAMINA] [HorseSwimWait] Skill_HorseSwimWait | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_HorseWait",
-          "rel_offset": 120,
-          "offset": 1038670,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [HorseWait] Skill_HorseWait | 100.0 -> 400.0"
         },
         {
           "entry": "Skill_HorseWaterSprint",
-          "rel_offset": 116,
-          "offset": 1044837,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [HorseWaterSprint] Skill_HorseWaterSprint | 40.0 -> 160.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 133,
-          "offset": 910254,
+          "rel_offset": 175,
+          "offset": 175,
           "original": "e8030000",
           "patched": "a00f0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV01 | 1.0 -> 4.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 281,
-          "offset": 910402,
+          "rel_offset": 324,
+          "offset": 324,
           "original": "d0070000",
           "patched": "401f0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV02 | 2.0 -> 8.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 429,
-          "offset": 910550,
+          "rel_offset": 473,
+          "offset": 473,
           "original": "b80b0000",
           "patched": "e02e0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV03 | 3.0 -> 12.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 577,
-          "offset": 910698,
+          "rel_offset": 622,
+          "offset": 622,
           "original": "a00f0000",
           "patched": "803e0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV04 | 4.0 -> 16.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 725,
-          "offset": 910846,
+          "rel_offset": 771,
+          "offset": 771,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV05 | 5.0 -> 20.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 873,
-          "offset": 910994,
+          "rel_offset": 920,
+          "offset": 920,
           "original": "70170000",
           "patched": "c05d0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV06 | 6.0 -> 24.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1021,
-          "offset": 911142,
+          "rel_offset": 1069,
+          "offset": 1069,
           "original": "581b0000",
           "patched": "606d0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV07 | 7.0 -> 28.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1169,
-          "offset": 911290,
+          "rel_offset": 1218,
+          "offset": 1218,
           "original": "401f0000",
           "patched": "007d0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV08 | 8.0 -> 32.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1317,
-          "offset": 911438,
+          "rel_offset": 1367,
+          "offset": 1367,
           "original": "28230000",
           "patched": "a08c0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV09 | 9.0 -> 36.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1465,
-          "offset": 911586,
+          "rel_offset": 1516,
+          "offset": 1516,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV10 | 10.0 -> 40.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1613,
-          "offset": 911734,
+          "rel_offset": 1665,
+          "offset": 1665,
           "original": "f82a0000",
           "patched": "e0ab0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV11 | 11.0 -> 44.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1761,
-          "offset": 911882,
+          "rel_offset": 1814,
+          "offset": 1814,
           "original": "e02e0000",
           "patched": "80bb0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV12 | 12.0 -> 48.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 1909,
-          "offset": 912030,
+          "rel_offset": 1963,
+          "offset": 1963,
           "original": "c8320000",
           "patched": "20cb0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV13 | 13.0 -> 52.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 2057,
-          "offset": 912178,
+          "rel_offset": 2112,
+          "offset": 2112,
           "original": "b0360000",
           "patched": "c0da0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV14 | 14.0 -> 56.0"
         },
         {
           "entry": "Item_Active_AbyssGear_Recovery_SP",
-          "rel_offset": 2205,
-          "offset": 912326,
+          "rel_offset": 2261,
+          "offset": 2261,
           "original": "983a0000",
           "patched": "60ea0000",
           "label": "[25%] [STAMINA] [Item] Item_Active_AbyssGear_Recovery_SP_LV15 | 15.0 -> 60.0"
         },
         {
           "entry": "Skill_JumpStep",
-          "rel_offset": 233,
-          "offset": 420358,
+          "rel_offset": 256,
+          "offset": 256,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [JumpStep] Skill_JumpStep | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Lift",
-          "rel_offset": 116,
-          "offset": 523188,
+          "rel_offset": 134,
+          "offset": 134,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Lift] Skill_Lift | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Lift_Ing",
-          "rel_offset": 116,
-          "offset": 524651,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Lift] Skill_Lift_Ing | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Lift_Smash",
-          "rel_offset": 116,
-          "offset": 524879,
+          "rel_offset": 140,
+          "offset": 140,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [Lift] Skill_Lift_Smash | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_Lunge_Catch",
-          "rel_offset": 116,
-          "offset": 379378,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Lunge] Skill_Lunge_Catch | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Lunge_Charge",
-          "rel_offset": 116,
-          "offset": 379746,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Lunge] Skill_Lunge_Charge | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Lunge_I",
-          "rel_offset": 462,
-          "offset": 376049,
+          "rel_offset": 486,
+          "offset": 486,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Lunge] Skill_Lunge_I | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_LungeAir",
-          "rel_offset": 480,
-          "offset": 377481,
+          "rel_offset": 505,
+          "offset": 505,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [LungeAir] Skill_LungeAir | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_LungeAir_Combo",
-          "rel_offset": 116,
-          "offset": 377814,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [LungeAir] Skill_LungeAir_Combo | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_LungeAir_Combo_II",
-          "rel_offset": 116,
-          "offset": 378041,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "80c7feff",
           "patched": "e0b1ffff",
           "label": "[25%] [STAMINA] [LungeAir] Skill_LungeAir_Combo_II | -80.0 -> -20.0"
         },
         {
           "entry": "Skill_LungeCombination",
-          "rel_offset": 480,
-          "offset": 378635,
+          "rel_offset": 513,
+          "offset": 513,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [LungeCombination] Skill_LungeCombination | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_Mount_Attack_Lv1",
-          "rel_offset": 116,
-          "offset": 334729,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "68c5ffff",
           "patched": "5af1ffff",
           "label": "[25%] [STAMINA] [Mount] Skill_Mount_Attack_Lv1 | -15.0 -> -3.75"
         },
         {
           "entry": "Skill_Mount_Attack_Lv2",
-          "rel_offset": 116,
-          "offset": 334981,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Mount] Skill_Mount_Attack_Lv2 | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Mount_Attack_Lv3",
-          "rel_offset": 116,
-          "offset": 335233,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Mount] Skill_Mount_Attack_Lv3 | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Mount_Ing",
-          "rel_offset": 116,
-          "offset": 334470,
+          "rel_offset": 139,
+          "offset": 139,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Mount] Skill_Mount_Ing | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_MoveCutting_Hold",
-          "rel_offset": 116,
-          "offset": 370744,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [MoveCutting] Skill_MoveCutting_Hold | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_MoveCutting_I",
-          "rel_offset": 480,
-          "offset": 368483,
+          "rel_offset": 510,
+          "offset": 510,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [MoveCutting] Skill_MoveCutting_I | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_MoveCutting_II",
-          "rel_offset": 480,
-          "offset": 369237,
+          "rel_offset": 511,
+          "offset": 511,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [MoveCutting] Skill_MoveCutting_II | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_MoveCutting_III",
-          "rel_offset": 480,
-          "offset": 369973,
+          "rel_offset": 512,
+          "offset": 512,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [MoveCutting] Skill_MoveCutting_III | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_MoveLv4Jump",
-          "rel_offset": 116,
-          "offset": 332136,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [MoveLv4Jump] Skill_MoveLv4Jump | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_NoLimit_Cutting_I",
-          "rel_offset": 508,
-          "offset": 554318,
+          "rel_offset": 542,
+          "offset": 542,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [NoLimit] Skill_NoLimit_Cutting_I | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_BasicMoveLv4_100",
-          "rel_offset": 116,
-          "offset": 331320,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_BasicMoveLv4_100 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_Bow_RollShot",
-          "rel_offset": 120,
-          "offset": 480675,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Bow_RollShot | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_CharacterClimb",
-          "rel_offset": 116,
-          "offset": 338960,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_CharacterClimb | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_Dash",
-          "rel_offset": 116,
-          "offset": 357672,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Dash | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Oongka_DoubleKick_I",
-          "rel_offset": 496,
-          "offset": 554997,
+          "rel_offset": 533,
+          "offset": 533,
           "original": "983a0000",
           "patched": "60ea0000",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_DoubleKick_I | 15.0 -> 60.0"
         },
         {
           "entry": "Skill_Oongka_EvadeShot",
-          "rel_offset": 116,
-          "offset": 487504,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_EvadeShot | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Oongka_EvadeShot_I",
-          "rel_offset": 116,
-          "offset": 487887,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_EvadeShot_I | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Oongka_EvadeShot_II",
-          "rel_offset": 116,
-          "offset": 488229,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "3850ffff",
           "patched": "0ed4ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_EvadeShot_II | -45.0 -> -11.25"
         },
         {
           "entry": "Skill_Oongka_FastAvoid",
-          "rel_offset": 116,
-          "offset": 417044,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_FastAvoid | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_GroundSmash_I",
-          "rel_offset": 116,
-          "offset": 371087,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_GroundSmash_I | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Oongka_GroundSmash_II",
-          "rel_offset": 116,
-          "offset": 371441,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_GroundSmash_II | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Oongka_GroundSmash_III",
-          "rel_offset": 116,
-          "offset": 371798,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_GroundSmash_III | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Oongka_JumpSmash",
-          "rel_offset": 116,
-          "offset": 375474,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_JumpSmash | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_JumpStep",
-          "rel_offset": 116,
-          "offset": 420989,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_JumpStep | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_Lift",
-          "rel_offset": 116,
-          "offset": 523671,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Lift | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_Lunge",
-          "rel_offset": 116,
-          "offset": 380229,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Lunge | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_LungeAir",
-          "rel_offset": 116,
-          "offset": 381434,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_LungeAir | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_LungeCatch",
-          "rel_offset": 116,
-          "offset": 380998,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_LungeCatch | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_Oongka_LungeCombination",
-          "rel_offset": 116,
-          "offset": 380577,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_LungeCombination | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_Oongka_RocketPack",
-          "rel_offset": 116,
-          "offset": 499584,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_RocketPack | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_RocketPack_MoveFast",
-          "rel_offset": 120,
-          "offset": 500318,
+          "rel_offset": 160,
+          "offset": 160,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_RocketPack_MoveFast | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_RocketPack_VerticalBoost",
-          "rel_offset": 120,
-          "offset": 500732,
+          "rel_offset": 165,
+          "offset": 165,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_RocketPack_VerticalBoost | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_Rope_AirPull",
-          "rel_offset": 116,
-          "offset": 511269,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Rope_AirPull | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_Oongka_ShieldJustGuard_Wrestle",
-          "rel_offset": 116,
-          "offset": 359990,
+          "rel_offset": 160,
+          "offset": 160,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_ShieldJustGuard_Wrestle | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_TurnBash_I",
-          "rel_offset": 116,
-          "offset": 352914,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_TurnBash_I | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Oongka_TurnBash_II",
-          "rel_offset": 116,
-          "offset": 353263,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_TurnBash_II | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Oongka_Wrestle_AirBodySlam",
-          "rel_offset": 116,
-          "offset": 458519,
+          "rel_offset": 156,
+          "offset": 156,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_AirBodySlam | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Oongka_Wrestle_Combo",
-          "rel_offset": 116,
-          "offset": 464437,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_Combo | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Oongka_Wrestle_GiantSwing",
-          "rel_offset": 116,
-          "offset": 460262,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_GiantSwing | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_Wrestle_Hostage",
-          "rel_offset": 116,
-          "offset": 363726,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_Hostage | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_Wrestle_Lariat",
-          "rel_offset": 116,
-          "offset": 457099,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_Lariat | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Oongka_Wrestle_Takedown",
-          "rel_offset": 116,
-          "offset": 454140,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_Takedown | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Oongka_Wrestle_Throw",
-          "rel_offset": 116,
-          "offset": 455088,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Oongka] Skill_Oongka_Wrestle_Throw | -40.0 -> -10.0"
         },
         {
           "entry": "Passive_Climb_Shelter",
-          "rel_offset": 587,
-          "offset": 730083,
+          "rel_offset": 620,
+          "offset": 620,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [Passive] Passive_Climb_Shelter | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_PointClimbHold",
-          "rel_offset": 116,
-          "offset": 340531,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "68c5ffff",
           "patched": "5af1ffff",
           "label": "[25%] [STAMINA] [PointClimbHold] Skill_PointClimbHold | -15.0 -> -3.75"
         },
         {
           "entry": "Skill_PointClimbLv0",
-          "rel_offset": 116,
-          "offset": 335485,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [PointClimbLv0] Skill_PointClimbLv0 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_PointClimbLv1",
-          "rel_offset": 116,
-          "offset": 335736,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [PointClimbLv1] Skill_PointClimbLv1 | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_PointClimbLv2",
-          "rel_offset": 116,
-          "offset": 335987,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [PointClimbLv2] Skill_PointClimbLv2 | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_QuickDraw",
-          "rel_offset": 507,
-          "offset": 445155,
+          "rel_offset": 533,
+          "offset": 533,
           "original": "402bfeff",
           "patched": "d08affff",
           "label": "[25%] [STAMINA] [QuickDraw] Skill_QuickDraw | -120.0 -> -30.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 137,
-          "offset": 57134,
+          "rel_offset": 163,
+          "offset": 163,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV01 | 10.0 -> 40.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 289,
-          "offset": 57286,
+          "rel_offset": 316,
+          "offset": 316,
           "original": "204e0000",
           "patched": "80380100",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV02 | 20.0 -> 80.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 441,
-          "offset": 57438,
+          "rel_offset": 469,
+          "offset": 469,
           "original": "30750000",
           "patched": "c0d40100",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV03 | 30.0 -> 120.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 593,
-          "offset": 57590,
+          "rel_offset": 622,
+          "offset": 622,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV04 | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 745,
-          "offset": 57742,
+          "rel_offset": 775,
+          "offset": 775,
           "original": "50c30000",
           "patched": "400d0300",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV05 | 50.0 -> 200.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 897,
-          "offset": 57894,
+          "rel_offset": 928,
+          "offset": 928,
           "original": "60ea0000",
           "patched": "80a90300",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV06 | 60.0 -> 240.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 1049,
-          "offset": 58046,
+          "rel_offset": 1081,
+          "offset": 1081,
           "original": "70110100",
           "patched": "c0450400",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV07 | 70.0 -> 280.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 1201,
-          "offset": 58198,
+          "rel_offset": 1234,
+          "offset": 1234,
           "original": "80380100",
           "patched": "00e20400",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV08 | 80.0 -> 320.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 1353,
-          "offset": 58350,
+          "rel_offset": 1387,
+          "offset": 1387,
           "original": "905f0100",
           "patched": "407e0500",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV09 | 90.0 -> 360.0"
         },
         {
           "entry": "Skill_Recovery_SP",
-          "rel_offset": 1506,
-          "offset": 58503,
+          "rel_offset": 1541,
+          "offset": 1541,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [Recovery] Skill_Recovery_SP_LV10 | 100.0 -> 400.0"
         },
         {
           "entry": "Skill_RemoteCatch_Character",
-          "rel_offset": 116,
-          "offset": 507239,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [RemoteCatch] Skill_RemoteCatch_Character | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_RidingDash",
-          "rel_offset": 120,
-          "offset": 1048647,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [RidingDash] Skill_RidingDash | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_RidingHardAttack",
-          "rel_offset": 116,
-          "offset": 1048376,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [RidingHardAttack] Skill_RidingHardAttack | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_RidingNorAttack",
-          "rel_offset": 116,
-          "offset": 1048107,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [RidingNorAttack] Skill_RidingNorAttack | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_Roll",
-          "rel_offset": 116,
-          "offset": 328642,
+          "rel_offset": 134,
+          "offset": 134,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Roll] Skill_Roll | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_RollCancelRecovery",
-          "rel_offset": 133,
-          "offset": 328877,
+          "rel_offset": 166,
+          "offset": 166,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [RollCancelRecovery] Skill_RollCancelRecovery | 100.0 -> 400.0"
         },
         {
           "entry": "Skill_RoofClimbHold",
-          "rel_offset": 116,
-          "offset": 341034,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [RoofClimbHold] Skill_RoofClimbHold | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_RoofClimbLv0",
-          "rel_offset": 116,
-          "offset": 336238,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [RoofClimbLv0] Skill_RoofClimbLv0 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Rope_AirPull",
-          "rel_offset": 116,
-          "offset": 510820,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [Rope] Skill_Rope_AirPull | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_Rope_AirSwing",
-          "rel_offset": 116,
-          "offset": 511497,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [Rope] Skill_Rope_AirSwing | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_ScrewShot",
-          "rel_offset": 510,
-          "offset": 475735,
+          "rel_offset": 536,
+          "offset": 536,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [ScrewShot] Skill_ScrewShot | -60.0 -> -15.0"
         },
         {
-          "entry": "Skill_ShieldDash",
-          "rel_offset": 461,
-          "offset": 356991,
-          "original": "d08affff",
-          "patched": "b4e2ffff",
-          "label": "[25%] [STAMINA] [ShieldDash] Skill_ShieldDash | -30.0 -> -7.5"
-        },
-        {
           "entry": "Skill_ShieldParryingDash",
-          "rel_offset": 461,
-          "offset": 358355,
+          "rel_offset": 496,
+          "offset": 496,
           "original": "90eefeff",
           "patched": "a4bbffff",
           "label": "[25%] [STAMINA] [ShieldParryingDash] Skill_ShieldParryingDash | -70.0 -> -17.5"
         },
         {
           "entry": "Skill_SpecialRidingMoveLv4",
-          "rel_offset": 120,
-          "offset": 1039829,
+          "rel_offset": 154,
+          "offset": 154,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [SpecialRidingMoveLv4] Skill_SpecialRidingMoveLv4 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_SpinAttack",
-          "rel_offset": 341,
-          "offset": 469822,
+          "rel_offset": 367,
+          "offset": 367,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [SpinAttack] Skill_SpinAttack | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_Swimming",
-          "rel_offset": 116,
-          "offset": 496037,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [STAMINA] [Swimming] Skill_Swimming | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Swimming_Dash",
-          "rel_offset": 116,
-          "offset": 496284,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Swimming] Skill_Swimming_Dash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_SwingLv0",
-          "rel_offset": 116,
-          "offset": 339589,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [STAMINA] [SwingLv0] Skill_SwingLv0 | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_SwingLv1",
-          "rel_offset": 116,
-          "offset": 339825,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [SwingLv1] Skill_SwingLv1 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_SwingLv2",
-          "rel_offset": 116,
-          "offset": 340061,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [SwingLv2] Skill_SwingLv2 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_SwingPull",
-          "rel_offset": 116,
-          "offset": 340297,
+          "rel_offset": 139,
+          "offset": 139,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [SwingPull] Skill_SwingPull | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_TriStar_Attack",
-          "rel_offset": 116,
-          "offset": 1051727,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Attack | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_TriStar_Attack_Fire",
-          "rel_offset": 120,
-          "offset": 1052782,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Attack_Fire | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_TriStar_Attack_Ice",
-          "rel_offset": 120,
-          "offset": 1053390,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Attack_Ice | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_TriStar_Attack_Lightning",
-          "rel_offset": 120,
-          "offset": 1053996,
+          "rel_offset": 158,
+          "offset": 158,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Attack_Lightning | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_TriStar_Breath",
-          "rel_offset": 116,
-          "offset": 1052245,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "08dbfeff",
           "patched": "c2b6ffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Breath | -75.0 -> -18.75"
         },
         {
           "entry": "Skill_TriStar_Breath_Fire",
-          "rel_offset": 120,
-          "offset": 1053083,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Breath_Fire | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_TriStar_Breath_Ice",
-          "rel_offset": 120,
-          "offset": 1053690,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Breath_Ice | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_TriStar_Breath_Lightning",
-          "rel_offset": 120,
-          "offset": 1054305,
+          "rel_offset": 158,
+          "offset": 158,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Breath_Lightning | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_TriStar_Evade",
-          "rel_offset": 116,
-          "offset": 1051996,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_Evade | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_TriStar_MultiAttack",
-          "rel_offset": 116,
-          "offset": 1054613,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "8056fcff",
           "patched": "a015ffff",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_MultiAttack | -240.0 -> -60.0"
         },
         {
           "entry": "Skill_TriStar_StaminaRegen",
-          "rel_offset": 116,
-          "offset": 1052510,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "30750000",
           "patched": "c0d40100",
           "label": "[25%] [STAMINA] [TriStar] Skill_TriStar_StaminaRegen | 30.0 -> 120.0"
         },
         {
           "entry": "Skill_TurnBash_I",
-          "rel_offset": 461,
-          "offset": 351859,
+          "rel_offset": 488,
+          "offset": 488,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [TurnBash] Skill_TurnBash_I | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_TurnBash_II",
-          "rel_offset": 116,
-          "offset": 352182,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [TurnBash] Skill_TurnBash_II | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_UnArmedCombination_I",
-          "rel_offset": 116,
-          "offset": 398526,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [UnArmedCombination] Skill_UnArmedCombination_I | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_UnArmedMastery_EvadeAttack",
-          "rel_offset": 116,
-          "offset": 400099,
+          "rel_offset": 156,
+          "offset": 156,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [UnArmedMastery] Skill_UnArmedMastery_EvadeAttack | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_UnArmedMastery_Lunge",
-          "rel_offset": 116,
-          "offset": 399553,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [UnArmedMastery] Skill_UnArmedMastery_Lunge | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_UnArmedMastery_LungeCombination",
-          "rel_offset": 116,
-          "offset": 399817,
+          "rel_offset": 161,
+          "offset": 161,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [UnArmedMastery] Skill_UnArmedMastery_LungeCombination | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_UnArmedMastery_TurnAttack",
-          "rel_offset": 116,
-          "offset": 400377,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [UnArmedMastery] Skill_UnArmedMastery_TurnAttack | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_UseResourceSP_20",
-          "rel_offset": 116,
-          "offset": 470331,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [UseResourceSP] Skill_UseResourceSP_20 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Wait",
-          "rel_offset": 116,
-          "offset": 328198,
+          "rel_offset": 134,
+          "offset": 134,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [STAMINA] [Wait] Skill_Wait | 100.0 -> 400.0"
         },
         {
           "entry": "Skill_WarMachine_Cannon",
-          "rel_offset": 116,
-          "offset": 1049449,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "b03cffff",
           "patched": "2ccfffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_Cannon | -50.0 -> -12.5"
         },
         {
           "entry": "Skill_WarMachine_Dash",
-          "rel_offset": 116,
-          "offset": 1048885,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "10b6fdff",
           "patched": "846dffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_Dash | -150.0 -> -37.5"
         },
         {
           "entry": "Skill_WarMachine_EMP",
-          "rel_offset": 116,
-          "offset": 1050017,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "6079feff",
           "patched": "589effff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_EMP | -100.0 -> -25.0"
         },
         {
           "entry": "Skill_WarMachine_FlameThrower",
-          "rel_offset": 116,
-          "offset": 1050588,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_FlameThrower | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_WarMachine_Gatling",
-          "rel_offset": 116,
-          "offset": 1049165,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_Gatling | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_WarMachine_Laser",
-          "rel_offset": 116,
-          "offset": 1050884,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_Laser | -40.0 -> -10.0"
         },
         {
           "entry": "Skill_WarMachine_MultiShot",
-          "rel_offset": 116,
-          "offset": 1049730,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_MultiShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_WarMachine_OverHeating",
-          "rel_offset": 116,
-          "offset": 1050302,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "80c7feff",
           "patched": "e0b1ffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_OverHeating | -80.0 -> -20.0"
         },
         {
           "entry": "Skill_WarMachine_Tongs",
-          "rel_offset": 116,
-          "offset": 1051166,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_Tongs | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_WarMachine_welding",
-          "rel_offset": 116,
-          "offset": 1051446,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [STAMINA] [WarMachine] Skill_WarMachine_welding | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_WeaponMoveLv2",
-          "rel_offset": 116,
-          "offset": 327154,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "80380100",
           "patched": "00e20400",
           "label": "[25%] [STAMINA] [WeaponMoveLv2] Skill_WeaponMoveLv2 | 80.0 -> 320.0"
         },
         {
           "entry": "Skill_WeaponMoveLv3",
-          "rel_offset": 116,
-          "offset": 327409,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "409c0000",
           "patched": "00710200",
           "label": "[25%] [STAMINA] [WeaponMoveLv3] Skill_WeaponMoveLv3 | 40.0 -> 160.0"
         },
         {
           "entry": "Skill_WeaponMoveLv4",
-          "rel_offset": 116,
-          "offset": 327670,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "c0e0ffff",
           "patched": "30f8ffff",
           "label": "[25%] [STAMINA] [WeaponMoveLv4] Skill_WeaponMoveLv4 | -8.0 -> -2.0"
         },
         {
           "entry": "Skill_WeaponMoveLv4_100",
-          "rel_offset": 116,
-          "offset": 327925,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [STAMINA] [WeaponMoveLv4] Skill_WeaponMoveLv4_100 | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Wrestle_AirBodySlam",
-          "rel_offset": 480,
-          "offset": 458155,
+          "rel_offset": 516,
+          "offset": 516,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_AirBodySlam | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Wrestle_Combo",
-          "rel_offset": 116,
-          "offset": 464085,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_Combo | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Wrestle_GiantSwing",
-          "rel_offset": 461,
-          "offset": 459580,
+          "rel_offset": 496,
+          "offset": 496,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_GiantSwing | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Wrestle_GrabSpinThrow",
-          "rel_offset": 116,
-          "offset": 457435,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_GrabSpinThrow | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Wrestle_Hostage",
-          "rel_offset": 116,
-          "offset": 363079,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_Hostage | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Wrestle_Lariat",
-          "rel_offset": 480,
-          "offset": 456770,
+          "rel_offset": 511,
+          "offset": 511,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_Lariat | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Wrestle_Takedown",
-          "rel_offset": 116,
-          "offset": 453501,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "a015ffff",
           "patched": "68c5ffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_Takedown | -60.0 -> -15.0"
         },
         {
           "entry": "Skill_Wrestle_Throw",
-          "rel_offset": 116,
-          "offset": 454463,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "c063ffff",
           "patched": "f0d8ffff",
           "label": "[25%] [STAMINA] [Wrestle] Skill_Wrestle_Throw | -40.0 -> -10.0"
         },
         {
           "entry": "Active_AllRecoveryStatrate",
-          "rel_offset": 273,
-          "offset": 47834,
+          "rel_offset": 309,
+          "offset": 309,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [SPIRIT] [Active] Active_AllRecoveryStatrate | 100.0 -> 400.0"
         },
         {
           "entry": "Active_CourageUp",
-          "rel_offset": 148,
-          "offset": 886833,
+          "rel_offset": 173,
+          "offset": 173,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [SPIRIT] [Active] Active_CourageUp | 10.0 -> 40.0"
         },
         {
           "entry": "Active_HitRecover",
-          "rel_offset": 133,
-          "offset": 322005,
+          "rel_offset": 159,
+          "offset": 159,
           "original": "e8030000",
           "patched": "a00f0000",
           "label": "[25%] [SPIRIT] [Active] Active_HitRecover | 1.0 -> 4.0"
         },
         {
           "entry": "Active_RecoverOnHit",
-          "rel_offset": 133,
-          "offset": 326259,
+          "rel_offset": 161,
+          "offset": 161,
           "original": "f4010000",
           "patched": "d0070000",
           "label": "[25%] [SPIRIT] [Active] Active_RecoverOnHit | 0.5 -> 2.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 133,
-          "offset": 46154,
+          "rel_offset": 160,
+          "offset": 160,
           "original": "e8030000",
           "patched": "a00f0000",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV01 | 1.0 -> 4.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 281,
-          "offset": 46302,
+          "rel_offset": 309,
+          "offset": 309,
           "original": "d0070000",
           "patched": "401f0000",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV02 | 2.0 -> 8.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 429,
-          "offset": 46450,
+          "rel_offset": 458,
+          "offset": 458,
           "original": "b80b0000",
           "patched": "e02e0000",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV03 | 3.0 -> 12.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 577,
-          "offset": 46598,
+          "rel_offset": 607,
+          "offset": 607,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV04 | 5.0 -> 20.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 725,
-          "offset": 46746,
+          "rel_offset": 756,
+          "offset": 756,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV05 | 10.0 -> 40.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 873,
-          "offset": 46894,
+          "rel_offset": 905,
+          "offset": 905,
           "original": "204e0000",
           "patched": "80380100",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV06 | 20.0 -> 80.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 1021,
-          "offset": 47042,
+          "rel_offset": 1054,
+          "offset": 1054,
           "original": "50c30000",
           "patched": "400d0300",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV07 | 50.0 -> 200.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 1169,
-          "offset": 47190,
+          "rel_offset": 1203,
+          "offset": 1203,
           "original": "a0860100",
           "patched": "801a0600",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV08 | 100.0 -> 400.0"
         },
         {
           "entry": "Active_Recovery_MP",
-          "rel_offset": 1317,
-          "offset": 47338,
+          "rel_offset": 1352,
+          "offset": 1352,
           "original": "20a10700",
           "patched": "80841e00",
           "label": "[25%] [SPIRIT] [Active] Active_Recovery_MP_LV09 | 500.0 -> 2000.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 133,
-          "offset": 49102,
+          "rel_offset": 163,
+          "offset": 163,
           "original": "18fcffff",
           "patched": "06ffffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV01 | -1.0 -> -0.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 281,
-          "offset": 49250,
+          "rel_offset": 312,
+          "offset": 312,
           "original": "30f8ffff",
           "patched": "0cfeffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV02 | -2.0 -> -0.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 429,
-          "offset": 49398,
+          "rel_offset": 461,
+          "offset": 461,
           "original": "48f4ffff",
           "patched": "12fdffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV03 | -3.0 -> -0.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 577,
-          "offset": 49546,
+          "rel_offset": 610,
+          "offset": 610,
           "original": "60f0ffff",
           "patched": "18fcffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV04 | -4.0 -> -1.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 725,
-          "offset": 49694,
+          "rel_offset": 759,
+          "offset": 759,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV05 | -5.0 -> -1.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 873,
-          "offset": 49842,
+          "rel_offset": 908,
+          "offset": 908,
           "original": "90e8ffff",
           "patched": "24faffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV06 | -6.0 -> -1.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1021,
-          "offset": 49990,
+          "rel_offset": 1057,
+          "offset": 1057,
           "original": "a8e4ffff",
           "patched": "2af9ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV07 | -7.0 -> -1.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1169,
-          "offset": 50138,
+          "rel_offset": 1206,
+          "offset": 1206,
           "original": "c0e0ffff",
           "patched": "30f8ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV08 | -8.0 -> -2.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1317,
-          "offset": 50286,
+          "rel_offset": 1355,
+          "offset": 1355,
           "original": "d8dcffff",
           "patched": "36f7ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV09 | -9.0 -> -2.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1465,
-          "offset": 50434,
+          "rel_offset": 1504,
+          "offset": 1504,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV10 | -10.0 -> -2.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1613,
-          "offset": 50582,
+          "rel_offset": 1653,
+          "offset": 1653,
           "original": "08d5ffff",
           "patched": "42f5ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV11 | -11.0 -> -2.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1761,
-          "offset": 50730,
+          "rel_offset": 1802,
+          "offset": 1802,
           "original": "20d1ffff",
           "patched": "48f4ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV12 | -12.0 -> -3.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 1909,
-          "offset": 50878,
+          "rel_offset": 1951,
+          "offset": 1951,
           "original": "38cdffff",
           "patched": "4ef3ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV13 | -13.0 -> -3.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2057,
-          "offset": 51026,
+          "rel_offset": 2100,
+          "offset": 2100,
           "original": "50c9ffff",
           "patched": "54f2ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV14 | -14.0 -> -3.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2205,
-          "offset": 51174,
+          "rel_offset": 2249,
+          "offset": 2249,
           "original": "68c5ffff",
           "patched": "5af1ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV15 | -15.0 -> -3.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2353,
-          "offset": 51322,
+          "rel_offset": 2398,
+          "offset": 2398,
           "original": "80c1ffff",
           "patched": "60f0ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV16 | -16.0 -> -4.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2501,
-          "offset": 51470,
+          "rel_offset": 2547,
+          "offset": 2547,
           "original": "98bdffff",
           "patched": "66efffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV17 | -17.0 -> -4.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2649,
-          "offset": 51618,
+          "rel_offset": 2696,
+          "offset": 2696,
           "original": "b0b9ffff",
           "patched": "6ceeffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV18 | -18.0 -> -4.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2797,
-          "offset": 51766,
+          "rel_offset": 2845,
+          "offset": 2845,
           "original": "c8b5ffff",
           "patched": "72edffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV19 | -19.0 -> -4.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 2945,
-          "offset": 51914,
+          "rel_offset": 2994,
+          "offset": 2994,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV20 | -20.0 -> -5.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3093,
-          "offset": 52062,
+          "rel_offset": 3143,
+          "offset": 3143,
           "original": "f8adffff",
           "patched": "7eebffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV21 | -21.0 -> -5.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3241,
-          "offset": 52210,
+          "rel_offset": 3292,
+          "offset": 3292,
           "original": "10aaffff",
           "patched": "84eaffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV22 | -22.0 -> -5.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3389,
-          "offset": 52358,
+          "rel_offset": 3441,
+          "offset": 3441,
           "original": "28a6ffff",
           "patched": "8ae9ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV23 | -23.0 -> -5.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3537,
-          "offset": 52506,
+          "rel_offset": 3590,
+          "offset": 3590,
           "original": "40a2ffff",
           "patched": "90e8ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV24 | -24.0 -> -6.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3685,
-          "offset": 52654,
+          "rel_offset": 3739,
+          "offset": 3739,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV25 | -25.0 -> -6.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3833,
-          "offset": 52802,
+          "rel_offset": 3888,
+          "offset": 3888,
           "original": "709affff",
           "patched": "9ce6ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV26 | -26.0 -> -6.5"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 3981,
-          "offset": 52950,
+          "rel_offset": 4037,
+          "offset": 4037,
           "original": "8896ffff",
           "patched": "a2e5ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV27 | -27.0 -> -6.75"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 4129,
-          "offset": 53098,
+          "rel_offset": 4186,
+          "offset": 4186,
           "original": "a092ffff",
           "patched": "a8e4ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV28 | -28.0 -> -7.0"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 4277,
-          "offset": 53246,
+          "rel_offset": 4335,
+          "offset": 4335,
           "original": "b88effff",
           "patched": "aee3ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV29 | -29.0 -> -7.25"
         },
         {
           "entry": "Active_UseResource_Mp",
-          "rel_offset": 4425,
-          "offset": 53394,
+          "rel_offset": 4484,
+          "offset": 4484,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [Active] Active_UseResource_Mp_LV30 | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 133,
-          "offset": 114065,
+          "rel_offset": 161,
+          "offset": 161,
           "original": "e8030000",
           "patched": "a00f0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV01 | 1.0 -> 4.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 398,
-          "offset": 114330,
+          "rel_offset": 428,
+          "offset": 428,
           "original": "d0070000",
           "patched": "401f0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV02 | 2.0 -> 8.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 663,
-          "offset": 114595,
+          "rel_offset": 695,
+          "offset": 695,
           "original": "b80b0000",
           "patched": "e02e0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV03 | 3.0 -> 12.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 928,
-          "offset": 114860,
+          "rel_offset": 962,
+          "offset": 962,
           "original": "a00f0000",
           "patched": "803e0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV04 | 4.0 -> 16.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 1193,
-          "offset": 115125,
+          "rel_offset": 1229,
+          "offset": 1229,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV05 | 5.0 -> 20.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 1458,
-          "offset": 115390,
+          "rel_offset": 1496,
+          "offset": 1496,
           "original": "70170000",
           "patched": "c05d0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV06 | 6.0 -> 24.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 1723,
-          "offset": 115655,
+          "rel_offset": 1763,
+          "offset": 1763,
           "original": "581b0000",
           "patched": "606d0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV07 | 7.0 -> 28.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 1988,
-          "offset": 115920,
+          "rel_offset": 2030,
+          "offset": 2030,
           "original": "401f0000",
           "patched": "007d0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV08 | 8.0 -> 32.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 2253,
-          "offset": 116185,
+          "rel_offset": 2297,
+          "offset": 2297,
           "original": "28230000",
           "patched": "a08c0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV09 | 9.0 -> 36.0"
         },
         {
           "entry": "Skill_Active_Killer",
-          "rel_offset": 2518,
-          "offset": 116450,
+          "rel_offset": 197,
+          "offset": 197,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [SPIRIT] [Active] Skill_Active_Killer_LV10 | 10.0 -> 40.0"
         },
         {
           "entry": "Skill_BlackWolf_Pull",
-          "rel_offset": 120,
-          "offset": 505262,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [BlackWolf] Skill_BlackWolf_Pull | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_BlackWolf_SpecialMove",
-          "rel_offset": 116,
-          "offset": 431564,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [BlackWolf] Skill_BlackWolf_SpecialMove | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_BlackWolf_Teleport",
-          "rel_offset": 120,
-          "offset": 505984,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [BlackWolf] Skill_BlackWolf_Teleport | -10.0 -> -2.5"
         },
         {
           "entry": "Buff_BossWeapon_FlameKnight",
-          "rel_offset": 246,
-          "offset": 544174,
+          "rel_offset": 282,
+          "offset": 282,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Buff] Buff_BossWeapon_FlameKnight | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_ChargeShot",
-          "rel_offset": 504,
-          "offset": 482827,
+          "rel_offset": 531,
+          "offset": 531,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [ChargeShot] Skill_ChargeShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_ClimbBearStruggleCounter",
-          "rel_offset": 116,
-          "offset": 337229,
+          "rel_offset": 154,
+          "offset": 154,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [ClimbBearStruggleCounter] Skill_ClimbBearStruggleCounter | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_CrowSuperDash",
-          "rel_offset": 120,
-          "offset": 501581,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [CrowSuperDash] Skill_CrowSuperDash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_AirJump",
-          "rel_offset": 116,
-          "offset": 506749,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_AirJump | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_BlackWolf_Pull",
-          "rel_offset": 120,
-          "offset": 505498,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_BlackWolf_Pull | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_ChargeShot",
-          "rel_offset": 116,
-          "offset": 484773,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ChargeShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_DeadEyeShot",
-          "rel_offset": 448,
-          "offset": 478632,
+          "rel_offset": 482,
+          "offset": 482,
           "original": "48f4ffff",
           "patched": "12fdffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_DeadEyeShot | -3.0 -> -0.75"
         },
         {
           "entry": "Skill_Damian_DeadEye_ChargeShot",
-          "rel_offset": 116,
-          "offset": 481553,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_DeadEye_ChargeShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_DoubleJump",
-          "rel_offset": 116,
-          "offset": 419545,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_DoubleJump | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Damian_ElementalReinforce_ChargeShot",
-          "rel_offset": 116,
-          "offset": 516414,
+          "rel_offset": 166,
+          "offset": 166,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ElementalReinforce_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Damian_ElementalReinforce_RotationBash",
-          "rel_offset": 116,
-          "offset": 515991,
+          "rel_offset": 168,
+          "offset": 168,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ElementalReinforce_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_ElementalReinforce_ShieldThrow",
-          "rel_offset": 116,
-          "offset": 515560,
+          "rel_offset": 167,
+          "offset": 167,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ElementalReinforce_ShieldThrow | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_ElementalReinforce_SkyKick",
-          "rel_offset": 116,
-          "offset": 516823,
+          "rel_offset": 163,
+          "offset": 163,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ElementalReinforce_SkyKick | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_HaDongTa",
-          "rel_offset": 116,
-          "offset": 437541,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_HaDongTa | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Damian_Mabongpa",
-          "rel_offset": 116,
-          "offset": 525326,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "30f8ffff",
           "patched": "0cfeffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_Mabongpa | -2.0 -> -0.5"
         },
         {
           "entry": "Skill_Damian_MpFire",
-          "rel_offset": 116,
-          "offset": 365374,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_MpFire | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_MpIce",
-          "rel_offset": 116,
-          "offset": 365735,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_MpIce | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_MpLightning",
-          "rel_offset": 116,
-          "offset": 366062,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_MpLightning | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_MpWind",
-          "rel_offset": 116,
-          "offset": 366415,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_MpWind | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_NoDelayRotationBash",
-          "rel_offset": 116,
-          "offset": 409794,
+          "rel_offset": 156,
+          "offset": 156,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_NoDelayRotationBash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_RollCancel",
-          "rel_offset": 116,
-          "offset": 417688,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_RollCancel | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_RotationBash_I",
-          "rel_offset": 116,
-          "offset": 409449,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_RotationBash_I | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_ShieldThrow",
-          "rel_offset": 116,
-          "offset": 355660,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ShieldThrow | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Damian_ShieldThrow_I",
-          "rel_offset": 116,
-          "offset": 356027,
+          "rel_offset": 150,
+          "offset": 150,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ShieldThrow_I | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Damian_ShieldThrow_II",
-          "rel_offset": 116,
-          "offset": 356336,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_ShieldThrow_II | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Damian_SkyKick",
-          "rel_offset": 116,
-          "offset": 391541,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_SkyKick | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_Summon_Drone",
-          "rel_offset": 116,
-          "offset": 433650,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_Summon_Drone | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_Summon_DroneAssault",
-          "rel_offset": 116,
-          "offset": 434014,
+          "rel_offset": 156,
+          "offset": 156,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_Summon_DroneAssault | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Damian_Taeguk_Unleash",
-          "rel_offset": 116,
-          "offset": 526003,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Damian] Skill_Damian_Taeguk_Unleash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_DeadEye_ChargeShot",
-          "rel_offset": 116,
-          "offset": 481099,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [DeadEye] Skill_DeadEye_ChargeShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_DeadEyeShot",
-          "rel_offset": 448,
-          "offset": 477875,
+          "rel_offset": 475,
+          "offset": 475,
           "original": "48f4ffff",
           "patched": "12fdffff",
           "label": "[25%] [SPIRIT] [DeadEyeShot] Skill_DeadEyeShot | -3.0 -> -0.75"
         },
         {
           "entry": "Skill_Decrease_MpFireStat",
-          "rel_offset": 116,
-          "offset": 483188,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Decrease] Skill_Decrease_MpFireStat | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Decrease_MpIceStat",
-          "rel_offset": 116,
-          "offset": 483430,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Decrease] Skill_Decrease_MpIceStat | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Decrease_MpLightningStat",
-          "rel_offset": 116,
-          "offset": 483674,
+          "rel_offset": 154,
+          "offset": 154,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Decrease] Skill_Decrease_MpLightningStat | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Decrease_MpWindStat",
-          "rel_offset": 116,
-          "offset": 483924,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Decrease] Skill_Decrease_MpWindStat | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_DoubleJump",
-          "rel_offset": 116,
-          "offset": 419204,
+          "rel_offset": 140,
+          "offset": 140,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [DoubleJump] Skill_DoubleJump | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_ElementalCharge",
-          "rel_offset": 116,
-          "offset": 484169,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [ElementalCharge] Skill_ElementalCharge | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_ElementalReinforce_ChargeShot",
-          "rel_offset": 116,
-          "offset": 514412,
+          "rel_offset": 159,
+          "offset": 159,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_ElementalReinforce_Fire",
-          "rel_offset": 116,
-          "offset": 519633,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Fire | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Fire_ChargeShot",
-          "rel_offset": 116,
-          "offset": 520176,
+          "rel_offset": 164,
+          "offset": 164,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Fire_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_ElementalReinforce_Fire_RotationBash",
-          "rel_offset": 116,
-          "offset": 519898,
+          "rel_offset": 166,
+          "offset": 166,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Fire_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Ice",
-          "rel_offset": 116,
-          "offset": 520454,
+          "rel_offset": 152,
+          "offset": 152,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Ice | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Ice_ChargeShot",
-          "rel_offset": 116,
-          "offset": 520995,
+          "rel_offset": 163,
+          "offset": 163,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Ice_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_ElementalReinforce_Ice_RotationBash",
-          "rel_offset": 116,
-          "offset": 520718,
+          "rel_offset": 165,
+          "offset": 165,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Ice_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_JiJeongTa",
-          "rel_offset": 116,
-          "offset": 513586,
+          "rel_offset": 158,
+          "offset": 158,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_JiJeongTa | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Lightning",
-          "rel_offset": 116,
-          "offset": 521272,
+          "rel_offset": 158,
+          "offset": 158,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Lightning | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Lightning_ChargeShot",
-          "rel_offset": 116,
-          "offset": 521825,
+          "rel_offset": 169,
+          "offset": 169,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Lightning_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_ElementalReinforce_Lightning_RotationBash",
-          "rel_offset": 116,
-          "offset": 521542,
+          "rel_offset": 171,
+          "offset": 171,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Lightning_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_RotationBash",
-          "rel_offset": 116,
-          "offset": 513987,
+          "rel_offset": 161,
+          "offset": 161,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_SkyKick",
-          "rel_offset": 116,
-          "offset": 514832,
+          "rel_offset": 156,
+          "offset": 156,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_SkyKick | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_UseMp",
-          "rel_offset": 143,
-          "offset": 519240,
+          "rel_offset": 182,
+          "offset": 182,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_UseMp_LV01 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_UseMp",
-          "rel_offset": 270,
-          "offset": 519367,
+          "rel_offset": 182,
+          "offset": 182,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_UseMp_LV02 | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Wind",
-          "rel_offset": 116,
-          "offset": 522108,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Wind | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_ElementalReinforce_Wind_ChargeShot",
-          "rel_offset": 116,
-          "offset": 522651,
+          "rel_offset": 164,
+          "offset": 164,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Wind_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_ElementalReinforce_Wind_RotationBash",
-          "rel_offset": 116,
-          "offset": 522373,
+          "rel_offset": 166,
+          "offset": 166,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [ElementalReinforce] Skill_ElementalReinforce_Wind_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Gimmick_Active_Laser",
-          "rel_offset": 468,
-          "offset": 685155,
+          "rel_offset": 499,
+          "offset": 499,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [SPIRIT] [Gimmick] Gimmick_Active_Laser_LV01 | 5.0 -> 20.0"
         },
         {
           "entry": "Gimmick_Active_Laser",
-          "rel_offset": 1045,
-          "offset": 685732,
+          "rel_offset": 499,
+          "offset": 499,
           "original": "88130000",
           "patched": "204e0000",
           "label": "[25%] [SPIRIT] [Gimmick] Gimmick_Active_Laser_LV02 | 5.0 -> 20.0"
         },
         {
           "entry": "Skill_Greywolf_Detect_Ing",
-          "rel_offset": 116,
-          "offset": 503157,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "18fcffff",
           "patched": "06ffffff",
           "label": "[25%] [SPIRIT] [Greywolf] Skill_Greywolf_Detect_Ing | -1.0 -> -0.25"
         },
         {
-          "entry": "Skill_Greywolf_Detect_SuperFocus",
-          "rel_offset": 116,
-          "offset": 503846,
-          "original": "18fcffff",
-          "patched": "06ffffff",
-          "label": "[25%] [SPIRIT] [Greywolf] Skill_Greywolf_Detect_SuperFocus | -1.0 -> -0.25"
-        },
-        {
           "entry": "Skill_Greywolf_Detect_Unleash",
-          "rel_offset": 116,
-          "offset": 503385,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Greywolf] Skill_Greywolf_Detect_Unleash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_GuardSuccessRecovery",
-          "rel_offset": 133,
-          "offset": 324731,
+          "rel_offset": 168,
+          "offset": 168,
           "original": "f4010000",
           "patched": "d0070000",
           "label": "[25%] [SPIRIT] [GuardSuccessRecovery] Skill_GuardSuccessRecovery_LV01 | 0.5 -> 2.0"
         },
         {
           "entry": "Skill_GuardSuccessRecovery",
-          "rel_offset": 281,
-          "offset": 324879,
+          "rel_offset": 317,
+          "offset": 317,
           "original": "e8030000",
           "patched": "a00f0000",
           "label": "[25%] [SPIRIT] [GuardSuccessRecovery] Skill_GuardSuccessRecovery_LV02 | 1.0 -> 4.0"
         },
         {
           "entry": "Skill_GuardSuccessRecovery",
-          "rel_offset": 429,
-          "offset": 325027,
+          "rel_offset": 466,
+          "offset": 466,
           "original": "dc050000",
           "patched": "70170000",
           "label": "[25%] [SPIRIT] [GuardSuccessRecovery] Skill_GuardSuccessRecovery_LV03 | 1.5 -> 6.0"
         },
         {
           "entry": "Skill_GuardSuccessRecovery",
-          "rel_offset": 577,
-          "offset": 325175,
+          "rel_offset": 615,
+          "offset": 615,
           "original": "d0070000",
           "patched": "401f0000",
           "label": "[25%] [SPIRIT] [GuardSuccessRecovery] Skill_GuardSuccessRecovery_LV04 | 2.0 -> 8.0"
         },
         {
           "entry": "Skill_GuardSuccessRecovery",
-          "rel_offset": 725,
-          "offset": 325323,
+          "rel_offset": 764,
+          "offset": 764,
           "original": "10270000",
           "patched": "409c0000",
           "label": "[25%] [SPIRIT] [GuardSuccessRecovery] Skill_GuardSuccessRecovery_LV05 | 10.0 -> 40.0"
         },
         {
           "entry": "Skill_HaDongTa",
-          "rel_offset": 2173,
-          "offset": 436453,
+          "rel_offset": 1058,
+          "offset": 1058,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [HaDongTa] Skill_HaDongTa | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_HaDongTa_Charge",
-          "rel_offset": 116,
-          "offset": 436817,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [HaDongTa] Skill_HaDongTa_Charge | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_JiJeongTa_Air",
-          "rel_offset": 1100,
-          "offset": 426629,
+          "rel_offset": 1135,
+          "offset": 1135,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_Air | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_JiJeongTa_Cure",
-          "rel_offset": 715,
-          "offset": 430212,
+          "rel_offset": 905,
+          "offset": 905,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_Cure | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_JiJeongTa_Deep",
-          "rel_offset": 116,
-          "offset": 424408,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_Deep | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_JiJeongTa_Far",
-          "rel_offset": 116,
-          "offset": 424799,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_Far | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_JiJeongTa_I",
-          "rel_offset": 475,
-          "offset": 423324,
+          "rel_offset": 503,
+          "offset": 503,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_I | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_JiJeongTa_II",
-          "rel_offset": 116,
-          "offset": 423671,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_II | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_JiJeongTa_II_Finish",
-          "rel_offset": 116,
-          "offset": 424031,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "589effff",
           "patched": "96e7ffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_II_Finish | -25.0 -> -6.25"
         },
         {
           "entry": "Skill_JiJeongTa_LightningStrike",
-          "rel_offset": 764,
-          "offset": 431252,
+          "rel_offset": 808,
+          "offset": 808,
           "original": "68c5ffff",
           "patched": "5af1ffff",
           "label": "[25%] [SPIRIT] [JiJeongTa] Skill_JiJeongTa_LightningStrike | -15.0 -> -3.75"
         },
         {
           "entry": "Skill_Kliff_MpFire",
-          "rel_offset": 116,
-          "offset": 364053,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Kliff] Skill_Kliff_MpFire | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Kliff_MpIce",
-          "rel_offset": 116,
-          "offset": 364383,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Kliff] Skill_Kliff_MpIce | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Kliff_MpLightning",
-          "rel_offset": 116,
-          "offset": 364709,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Kliff] Skill_Kliff_MpLightning | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Kliff_MpWind",
-          "rel_offset": 116,
-          "offset": 365038,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Kliff] Skill_Kliff_MpWind | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Mabongpa",
-          "rel_offset": 116,
-          "offset": 525102,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "30f8ffff",
           "patched": "0cfeffff",
           "label": "[25%] [SPIRIT] [Mabongpa] Skill_Mabongpa | -2.0 -> -0.5"
         },
         {
           "entry": "Meditation_MpRegen",
-          "rel_offset": 145,
-          "offset": 556778,
+          "rel_offset": 172,
+          "offset": 172,
           "original": "d0070000",
           "patched": "401f0000",
           "label": "[25%] [SPIRIT] [Meditation] Meditation_MpRegen | 2.0 -> 8.0"
         },
         {
           "entry": "Skill_MultiShot",
-          "rel_offset": 510,
-          "offset": 476449,
+          "rel_offset": 536,
+          "offset": 536,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [MultiShot] Skill_MultiShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_MultiShot_I",
-          "rel_offset": 116,
-          "offset": 476807,
+          "rel_offset": 141,
+          "offset": 141,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [MultiShot] Skill_MultiShot_I | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_MultiShot_II",
-          "rel_offset": 116,
-          "offset": 477174,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [MultiShot] Skill_MultiShot_II | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_NoDelayRotationBash",
-          "rel_offset": 116,
-          "offset": 406366,
+          "rel_offset": 149,
+          "offset": 149,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [NoDelayRotationBash] Skill_NoDelayRotationBash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_AimExplosionShot",
-          "rel_offset": 116,
-          "offset": 432878,
+          "rel_offset": 153,
+          "offset": 153,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_AimExplosionShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_BlackWolf_Pull",
-          "rel_offset": 120,
-          "offset": 505741,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_BlackWolf_Pull | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_ChargeShot",
-          "rel_offset": 116,
-          "offset": 484412,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_ChargeShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_CloseShot",
-          "rel_offset": 116,
-          "offset": 431897,
+          "rel_offset": 146,
+          "offset": 146,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_CloseShot | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Oongka_DeadEyeShot",
-          "rel_offset": 448,
-          "offset": 479396,
+          "rel_offset": 482,
+          "offset": 482,
           "original": "48f4ffff",
           "patched": "12fdffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_DeadEyeShot | -3.0 -> -0.75"
         },
         {
           "entry": "Skill_Oongka_DeadEye_ChargeShot",
-          "rel_offset": 116,
-          "offset": 481998,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_DeadEye_ChargeShot | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_DoubleJump",
-          "rel_offset": 116,
-          "offset": 419893,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_DoubleJump | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Oongka_ElementalReinforce_ChargeShot",
-          "rel_offset": 116,
-          "offset": 518398,
+          "rel_offset": 166,
+          "offset": 166,
           "original": "d08affff",
           "patched": "b4e2ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_ElementalReinforce_ChargeShot | -30.0 -> -7.5"
         },
         {
           "entry": "Skill_Oongka_ElementalReinforce_CloseShot",
-          "rel_offset": 116,
-          "offset": 517558,
+          "rel_offset": 165,
+          "offset": 165,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_ElementalReinforce_CloseShot | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_ElementalReinforce_RotationBash",
-          "rel_offset": 116,
-          "offset": 517966,
+          "rel_offset": 168,
+          "offset": 168,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_ElementalReinforce_RotationBash | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_ElementalReinforce_SkyKick",
-          "rel_offset": 116,
-          "offset": 518795,
+          "rel_offset": 163,
+          "offset": 163,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_ElementalReinforce_SkyKick | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_EvadeExplosionShot",
-          "rel_offset": 116,
-          "offset": 433260,
+          "rel_offset": 155,
+          "offset": 155,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_EvadeExplosionShot | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Oongka_HaDongTa",
-          "rel_offset": 116,
-          "offset": 437191,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_HaDongTa | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_Oongka_Mabongpa",
-          "rel_offset": 116,
-          "offset": 525553,
+          "rel_offset": 145,
+          "offset": 145,
           "original": "30f8ffff",
           "patched": "0cfeffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_Mabongpa | -2.0 -> -0.5"
         },
         {
           "entry": "Skill_Oongka_MpFire",
-          "rel_offset": 116,
-          "offset": 366766,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_MpFire | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_MpIce",
-          "rel_offset": 116,
-          "offset": 367101,
+          "rel_offset": 142,
+          "offset": 142,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_MpIce | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_MpLightning",
-          "rel_offset": 116,
-          "offset": 367428,
+          "rel_offset": 148,
+          "offset": 148,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_MpLightning | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_MpWind",
-          "rel_offset": 116,
-          "offset": 367791,
+          "rel_offset": 143,
+          "offset": 143,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_MpWind | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_NoDelayRotationBash",
-          "rel_offset": 116,
-          "offset": 408242,
+          "rel_offset": 156,
+          "offset": 156,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_NoDelayRotationBash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_Roar",
-          "rel_offset": 378,
-          "offset": 432483,
+          "rel_offset": 404,
+          "offset": 404,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_Roar | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_RollCancel",
-          "rel_offset": 116,
-          "offset": 417998,
+          "rel_offset": 147,
+          "offset": 147,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_RollCancel | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_RotationBash_I",
-          "rel_offset": 116,
-          "offset": 407874,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_RotationBash_I | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_SkyKick",
-          "rel_offset": 116,
-          "offset": 391136,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_SkyKick | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Oongka_Taeguk_Unleash",
-          "rel_offset": 116,
-          "offset": 526233,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Oongka] Skill_Oongka_Taeguk_Unleash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_RollCancel",
-          "rel_offset": 116,
-          "offset": 417385,
+          "rel_offset": 140,
+          "offset": 140,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [RollCancel] Skill_RollCancel | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_RotationBash_Fire",
-          "rel_offset": 614,
-          "offset": 413103,
+          "rel_offset": 649,
+          "offset": 649,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [RotationBash] Skill_RotationBash_Fire | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_RotationBash_I",
-          "rel_offset": 461,
-          "offset": 406013,
+          "rel_offset": 492,
+          "offset": 492,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [RotationBash] Skill_RotationBash_I | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_RotationBash_Ice",
-          "rel_offset": 614,
-          "offset": 413939,
+          "rel_offset": 648,
+          "offset": 648,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [RotationBash] Skill_RotationBash_Ice | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_RotationBash_Lightning",
-          "rel_offset": 614,
-          "offset": 414781,
+          "rel_offset": 654,
+          "offset": 654,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [RotationBash] Skill_RotationBash_Lightning | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_RotationBash_Wind",
-          "rel_offset": 461,
-          "offset": 415465,
+          "rel_offset": 495,
+          "offset": 495,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [RotationBash] Skill_RotationBash_Wind | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_RushAttackBuff",
-          "rel_offset": 263,
-          "offset": 334220,
+          "rel_offset": 292,
+          "offset": 292,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [RushAttackBuff] Skill_RushAttackBuff | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_SkyKick",
-          "rel_offset": 461,
-          "offset": 390732,
+          "rel_offset": 485,
+          "offset": 485,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [SkyKick] Skill_SkyKick | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_SmokeBomb",
-          "rel_offset": 116,
-          "offset": 528088,
+          "rel_offset": 139,
+          "offset": 139,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [SmokeBomb] Skill_SmokeBomb | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_SwordRush",
-          "rel_offset": 480,
-          "offset": 421974,
+          "rel_offset": 506,
+          "offset": 506,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [SwordRush] Skill_SwordRush | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Taeguk_Unleash",
-          "rel_offset": 116,
-          "offset": 525780,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Taeguk] Skill_Taeguk_Unleash | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Tathagata_mini",
-          "rel_offset": 116,
-          "offset": 425196,
+          "rel_offset": 144,
+          "offset": 144,
           "original": "78ecffff",
           "patched": "1efbffff",
           "label": "[25%] [SPIRIT] [Tathagata] Skill_Tathagata_mini | -5.0 -> -1.25"
         },
         {
           "entry": "Skill_Throw_Lightning",
-          "rel_offset": 479,
-          "offset": 495786,
+          "rel_offset": 511,
+          "offset": 511,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Throw] Skill_Throw_Lightning | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_TriStar_Attack_Fire",
-          "rel_offset": 150,
-          "offset": 1052812,
+          "rel_offset": 183,
+          "offset": 183,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [TriStar] Skill_TriStar_Attack_Fire | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_TriStar_Attack_Ice",
-          "rel_offset": 150,
-          "offset": 1053420,
+          "rel_offset": 182,
+          "offset": 182,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [TriStar] Skill_TriStar_Attack_Ice | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_TriStar_Attack_Lightning",
-          "rel_offset": 150,
-          "offset": 1054026,
+          "rel_offset": 188,
+          "offset": 188,
           "original": "e0b1ffff",
           "patched": "78ecffff",
           "label": "[25%] [SPIRIT] [TriStar] Skill_TriStar_Attack_Lightning | -20.0 -> -5.0"
         },
         {
           "entry": "Skill_TriStar_Breath_Fire",
-          "rel_offset": 150,
-          "offset": 1053113,
+          "rel_offset": 183,
+          "offset": 183,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [TriStar] Skill_TriStar_Breath_Fire | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_TriStar_Breath_Ice",
-          "rel_offset": 150,
-          "offset": 1053720,
+          "rel_offset": 182,
+          "offset": 182,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [TriStar] Skill_TriStar_Breath_Ice | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_TriStar_Breath_Lightning",
-          "rel_offset": 150,
-          "offset": 1054335,
+          "rel_offset": 188,
+          "offset": 188,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [TriStar] Skill_TriStar_Breath_Lightning | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_UnArmedCombination_II",
-          "rel_offset": 116,
-          "offset": 398845,
+          "rel_offset": 151,
+          "offset": 151,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [UnArmedCombination] Skill_UnArmedCombination_II | -10.0 -> -2.5"
         },
         {
           "entry": "Skill_Wind",
-          "rel_offset": 120,
-          "offset": 528401,
+          "rel_offset": 138,
+          "offset": 138,
           "original": "f0d8ffff",
           "patched": "3cf6ffff",
           "label": "[25%] [SPIRIT] [Wind] Skill_Wind | -10.0 -> -2.5"

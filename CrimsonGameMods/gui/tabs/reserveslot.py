@@ -373,11 +373,11 @@ class ReserveSlotTab(QWidget):
                 continue
             if entry.enable_vehicle_list != van.enable_vehicle_list:
                 intents.append({
-                    "key": entry.key,
-                    "name": entry.name,
-                    "field": "_enableVehicleList",
-                    "value": entry.enable_vehicle_list,
-                    "vanilla": van.enable_vehicle_list,
+                    "entry": entry.name,
+                    "key":   entry.key,
+                    "field": "enable_vehicle_list",
+                    "op":    "set",
+                    "new":   entry.enable_vehicle_list,
                 })
 
         if not intents:
@@ -386,15 +386,22 @@ class ReserveSlotTab(QWidget):
 
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON", "reserveslot_mod.json",
-            "JSON Files (*.json)")
+            self, "Export Field JSON", "reserveslot_mod.field.json",
+            "Field JSON (*.field.json *.json)")
         if not path:
             return
 
         doc = {
-            "format": 3,
-            "table": "reserveslot",
-            "tool": "CrimsonGameMods ReserveSlot Editor",
+            "modinfo": {
+                "title":   "ReserveSlot Mod",
+                "version": "1.0",
+                "author":  "CrimsonGameMods ReserveSlot Editor",
+                "description": f"{len(intents)} field-level intent(s)",
+                "note": "Format 3 — uses field names, survives game updates",
+            },
+            "format":  3,
+            "format_minor": 1,
+            "target":  "reserveslot.pabgb",
             "intents": intents,
         }
         with open(path, "w", encoding="utf-8") as f:

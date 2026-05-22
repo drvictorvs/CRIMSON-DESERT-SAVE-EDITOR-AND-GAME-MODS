@@ -183,25 +183,24 @@ class FieldEditTab(QWidget):
         mount_btn.clicked.connect(self._field_edit_enable_mounts)
         top_row.addWidget(mount_btn)
 
+        invincible_mounts_btn = QPushButton(tr("Invincible Mounts"))
+        invincible_mounts_btn.setStyleSheet("background-color: #4527A0; color: white; font-weight: bold;")
+        invincible_mounts_btn.setToolTip(
+            "Sets four_flags.flag_a (_invincibility=1) on all mount\n"
+            "characterinfo entries via dmm_parser (vehicle_info != 0\n"
+            "or Riding_* string key). Mounts cannot be killed in combat.")
+        invincible_mounts_btn.clicked.connect(self._field_edit_invincible_mounts)
+        top_row.addWidget(invincible_mounts_btn)
+
         killall_btn = QPushButton(tr("Make All NPCs Killable"))
         killall_btn.setStyleSheet("background-color: #B71C1C; color: white; font-weight: bold;")
         killall_btn.setToolTip(
-            "Sets _isAttackable=1 and _invincibility=0 on all NPCs.\n\n"
+            "Sets _isAttackable=1 and _invincibility=0 on all non-mount NPCs\n"
+            "via dmm_parser field-level edits (four_flags.flag_a/flag_b).\n\n"
             "Killing quest-essential NPCs may affect quest progression.\n"
-            "Fully reversible via Restore.\n\n"
-            "IMPORTANT: After a game update, click Restore first to remove\n"
-            "the old overlay, then Load FieldInfo + re-apply.")
+            "Fully reversible via Restore.")
         killall_btn.clicked.connect(self._field_edit_make_killable)
         top_row.addWidget(killall_btn)
-
-        mount_inv_btn = QPushButton(tr("Invincible Mounts"))
-        mount_inv_btn.setStyleSheet("background-color: #1565C0; color: white; font-weight: bold;")
-        mount_inv_btn.setToolTip(
-            "Sets _invincibility=1 on all mounts/vehicles.\n"
-            "Mounts can no longer be killed by enemies.\n"
-            "Fully reversible via Restore.")
-        mount_inv_btn.clicked.connect(self._field_edit_invincible_mounts)
-        top_row.addWidget(mount_inv_btn)
 
         apply_btn = QPushButton(tr("Apply to Game"))
         apply_btn.setObjectName("accentBtn")
@@ -425,20 +424,6 @@ class FieldEditTab(QWidget):
         layout.addWidget(wlabel)
 
         wpreset_row = QHBoxLayout()
-        self._weapon_kliff_gun_btn = QPushButton(tr("Apply Kliff Gun Fix"))
-        self._weapon_kliff_gun_btn.setToolTip(tr(
-            "ONE-CLICK PRESET — make Kliff hold and fire muskets/pistols.\n\n"
-            "Patches two fields:\n"
-            "  • Kliff._upperActionChartPackageGroupName ← Damian's value\n"
-            "      (gives Kliff Damian's combat package — has gun fire animations)\n"
-            "  • Kliff._characterGamePlayDataName ← Oongka's value\n"
-            "      (gives Kliff Oongka's input map — fixes sheath/stow position so\n"
-            "       muskets attach to back instead of dropping at his feet)\n\n"
-            "After clicking, hit 'Apply to Game' (top button row) to deploy."
-        ))
-        self._weapon_kliff_gun_btn.clicked.connect(self._weapon_apply_kliff_gun_preset)
-        wpreset_row.addWidget(self._weapon_kliff_gun_btn)
-
         self._weapon_reset_btn = QPushButton(tr("Reset to Vanilla"))
         self._weapon_reset_btn.setToolTip(tr(
             "Restores all 6 runtime-package fields on Kliff/Damian/Oongka to their\n"
@@ -704,16 +689,31 @@ class FieldEditTab(QWidget):
                 self._vehicle_original = bytes(vbody)
                 self._vehicle_schema = bytes(vschema)
 
-                from vehicleinfo_parser import parse_pabgh_index_u16, parse_entry as vparse
-                vidx = parse_pabgh_index_u16(self._vehicle_schema)
-                vsorted = sorted(set(vidx.values()))
+                # Field-level parse via dmm_parser
+                import dmm_parser as _dmp
+                import copy as _copy
+                self._vehicleinfo_dmm_items = _dmp.parse_table(
+                    'vehicle_info', bytes(vbody), bytes(vschema))
+                self._vehicleinfo_dmm_vanilla = _copy.deepcopy(self._vehicleinfo_dmm_items)
+                self._vehicleinfo_dmm_dirty = False
+                log.info("dmm_parser: loaded %d vehicleinfo entries (field-level)",
+                         len(self._vehicleinfo_dmm_items))
+
+                import ctypes as _ct_v
                 ventries = []
-                for vk, vo in sorted(vidx.items()):
-                    vbi = vsorted.index(vo)
-                    vend = vsorted[vbi + 1] if vbi + 1 < len(vsorted) else len(self._vehicle_data)
-                    ve = vparse(bytes(self._vehicle_data), vo, vend)
-                    if ve:
-                        ventries.append(ve)
+                for vd in self._vehicleinfo_dmm_items:
+                    mah = vd.get('max_allowable_height', 0)
+                    ventries.append({
+                        'key': vd['key'],
+                        'name': vd.get('string_key', ''),
+                        'vehicle_type': vd.get('call_vehicle_voxel_type', 0),
+                        'voxel_type': vd.get('call_vehicle_voxel_type', 0),
+                        'mount_call_type': (vd.get('rider_detect_info', 0) >> 8) & 0xFF,
+                        'can_call_safe_zone': vd.get('send_damage_to', 0),
+                        'altitude_cap': _ct_v.c_float.from_buffer_copy(
+                            _ct_v.c_uint32(mah & 0xFFFFFFFF)).value,
+                        'dmm_ref': vd,
+                    })
                 self._vehicle_entries = ventries
                 self._vehicle_populate()
             except Exception as _ve:
@@ -775,19 +775,46 @@ class FieldEditTab(QWidget):
                 self._regioninfo_original = bytes(ri_body)
                 self._regioninfo_schema = bytes(ri_gh)
 
-                from regioninfo_parser import parse_pabgh_index as ri_idx, parse_region_entry
-                idx_ri = ri_idx(self._regioninfo_schema)
-                sorted_ri = sorted(idx_ri.items(), key=lambda x: x[1])
-                ri_entries = []
-                for i_ri, (rk, ro) in enumerate(sorted_ri):
-                    rend = sorted_ri[i_ri + 1][1] if i_ri + 1 < len(sorted_ri) else len(self._regioninfo_data)
-                    re_ = parse_region_entry(bytes(self._regioninfo_data), ro, rend)
-                    if re_ and '_error' not in re_:
-                        re_['_abs_offset'] = ro
-                        ri_entries.append(re_)
+                import dmm_parser as _dmp_ri
+                import copy as _copy_ri
+                dmm_items = _dmp_ri.parse_table('region_info', bytes(ri_body), bytes(ri_gh))
+                self._regioninfo_dmm_dirty = False
+                if dmm_items:
+                    self._regioninfo_dmm_items = dmm_items
+                    self._regioninfo_dmm_vanilla = [dict(it) for it in dmm_items]
+                    log.info("dmm_parser: loaded %d regioninfo entries (field-level)",
+                             len(dmm_items))
+                    ri_entries = []
+                    for it in dmm_items:
+                        ri_entries.append({
+                            '_key': it.get('key', 0),
+                            '_stringKey': it.get('string_key', ''),
+                            '_isBlocked': it.get('is_blocked', 0),
+                            '_isTown': it.get('is_town', 0),
+                            '_limitVehicleRun': it.get('limit_vehicle_run', 0),
+                            '_isWild': it.get('is_wild', 0),
+                            '_vehicleMercenaryAllowType': it.get('vehicle_mercenary_allow_type', 0),
+                            '_regionType': it.get('region_type', 0),
+                            '_isNonePlayZone': it.get('is_none_play_zone', 0),
+                            '_isUIMapDisable': it.get('is_ui_map_disable', 0),
+                            '_dmm_ref': it,
+                        })
+                    log.info("Loaded %d regioninfo entries via dmm_parser", len(ri_entries))
+                else:
+                    self._regioninfo_dmm_items = None
+                    from regioninfo_parser import parse_pabgh_index as ri_idx, parse_region_entry
+                    idx_ri = ri_idx(self._regioninfo_schema)
+                    sorted_ri = sorted(idx_ri.items(), key=lambda x: x[1])
+                    ri_entries = []
+                    for i_ri, (rk, ro) in enumerate(sorted_ri):
+                        rend = sorted_ri[i_ri + 1][1] if i_ri + 1 < len(sorted_ri) else len(self._regioninfo_data)
+                        re_ = parse_region_entry(bytes(self._regioninfo_data), ro, rend)
+                        if re_ and '_error' not in re_:
+                            re_['_abs_offset'] = ro
+                            ri_entries.append(re_)
+                    log.info("Loaded %d regioninfo entries via offset parser", len(ri_entries))
                 self._regioninfo_entries = ri_entries
                 self._regioninfo_populate()
-                log.info("Loaded %d regioninfo entries", len(ri_entries))
             except Exception:
                 log.exception("Could not load regioninfo")
                 self._regioninfo_entries = []
@@ -799,19 +826,54 @@ class FieldEditTab(QWidget):
                 self._charinfo_original = bytes(ci_body)
                 self._charinfo_schema = bytes(ci_gh)
 
-                from characterinfo_full_parser import parse_all_entries as ci_parse_all
-                all_ci = ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
-                mount_entries = [e for e in all_ci
-                                 if e.get('_vehicleInfo', 0) != 0
-                                 or e.get('name', '').startswith('Riding_')]
+                # Field-level parse via dmm_parser (primary for Enable Mounts + new features)
+                import dmm_parser as _dmp
+                import copy as _copy
+                self._charinfo_dmm_items = _dmp.parse_table(
+                    'character_info', bytes(ci_body), bytes(ci_gh))
+                self._charinfo_dmm_vanilla = _copy.deepcopy(self._charinfo_dmm_items)
+                self._charinfo_dmm_dirty = False
+                log.info("dmm_parser: loaded %d characterinfo entries (field-level)",
+                         len(self._charinfo_dmm_items))
+
+                _WEAPON_DMM = {
+                    '_upperActionChartPackageGroupName': 'appearance_name',
+                    '_lowerActionChartPackageGroupName': 'character_prefab_path',
+                    '_characterGamePlayDataName': 'skeleton_name',
+                    '_appearanceName': 'lookup_22',
+                    '_skeletonName': 'lookup_24',
+                }
+                self._weapon_dmm_map = _WEAPON_DMM
+
+                import ctypes as _ct_ci
+                mount_entries = []
+                for cd in self._charinfo_dmm_items:
+                    vi = cd.get('vehicle_info', 0)
+                    sk = cd.get('string_key', '')
+                    if vi != 0 or sk.startswith('Riding_'):
+                        mount_entries.append({
+                            'name': sk,
+                            '_key': cd['key'],
+                            '_stringKey': sk,
+                            '_vehicleInfo': vi,
+                            '_callMercenarySpawnDuration': cd.get('call_mercenary_spawn_duration', 0),
+                            '_callMercenaryCoolTime': cd.get('call_mercenary_cool_time', 0),
+                            '_mercenaryCoolTimeType': cd.get('mercenary_cool_time_type', 0),
+                            'dmm_ref': cd,
+                        })
                 self._charinfo_mount_entries = mount_entries
                 self._mount_populate()
-                log.info("Loaded %d mount entries from characterinfo", len(mount_entries))
+                log.info("Loaded %d mount entries from dmm_parser", len(mount_entries))
 
-                player_names = ('Kliff', 'Damian', 'Oongka')
-                self._charinfo_player_entries = [
-                    e for e in all_ci if e.get('name') in player_names
-                ]
+                player_names = ('Kliff', 'Damiane', 'Oongka')
+                self._charinfo_player_entries = []
+                for cd in self._charinfo_dmm_items:
+                    sk = cd.get('string_key', '')
+                    if sk in player_names:
+                        pe = {'name': sk, '_stringKey': sk, '_key': cd['key'], 'dmm_ref': cd}
+                        for legacy_name, dmm_name in _WEAPON_DMM.items():
+                            pe[legacy_name] = cd.get(dmm_name, 0)
+                        self._charinfo_player_entries.append(pe)
                 # Lazy-load name resolver so weapon-table cells show readable names
                 try:
                     from stringinfo_resolver import StringResolver
@@ -937,14 +999,15 @@ class FieldEditTab(QWidget):
             self._vehicle_table.setItem(row, 3, item)
             mct = e['mount_call_type']
             item = QTableWidgetItem(str(mct))
-            orig_mct = self._vehicle_original[e['mount_call_type_offset']]
+            van = next((v for v in self._vehicleinfo_dmm_vanilla if v['key'] == e['key']), None)
+            orig_mct = ((van or {}).get('rider_detect_info', 0) >> 8) & 0xFF if van else mct
             if mct != orig_mct:
                 item.setBackground(QColor(60, 40, 20))
             item.setToolTip("0=siege/util, 1=rideable, 2=flying")
             self._vehicle_table.setItem(row, 4, item)
             ccsz = e['can_call_safe_zone']
             item = QTableWidgetItem(str(ccsz))
-            orig_ccsz = self._vehicle_original[e['can_call_safe_zone_offset']]
+            orig_ccsz = (van or {}).get('send_damage_to', ccsz) if van else ccsz
             if ccsz != orig_ccsz:
                 item.setBackground(QColor(80, 20, 60))
             if ccsz:
@@ -956,7 +1019,9 @@ class FieldEditTab(QWidget):
                 item = QTableWidgetItem("999999")
             else:
                 item = QTableWidgetItem(f"{alt:.0f}")
-            orig_alt = struct.unpack_from('<f', self._vehicle_original, e['altitude_cap_offset'])[0]
+            import ctypes as _ct_vp
+            orig_mah = (van or {}).get('max_allowable_height', 0) if van else 0
+            orig_alt = _ct_vp.c_float.from_buffer_copy(_ct_vp.c_uint32(orig_mah & 0xFFFFFFFF)).value
             if abs(alt - orig_alt) > 0.1:
                 item.setBackground(QColor(60, 40, 20))
             item.setToolTip("Max flight altitude. Dragon=1350, rest=999999 (no cap)")
@@ -975,15 +1040,20 @@ class FieldEditTab(QWidget):
         if not cell:
             return
         e = self._vehicle_entries[row]
+        vd = e.get('dmm_ref')
         if col == 6:
             try:
                 new_val = float(cell.text())
             except ValueError:
                 return
             new_val = max(0, new_val)
-            struct.pack_into('<f', self._vehicle_data, e['altitude_cap_offset'], new_val)
+            if vd is not None:
+                import ctypes as _ct_vc
+                vd['max_allowable_height'] = _ct_vc.c_uint32.from_buffer_copy(
+                    _ct_vc.c_float(new_val)).value
             e['altitude_cap'] = new_val
             self._field_edit_modified = True
+            self._vehicleinfo_dmm_dirty = True
             self._field_edit_status.setText(f"Set {e['name']} altitude cap to {new_val:.0f}")
             return
         try:
@@ -992,10 +1062,13 @@ class FieldEditTab(QWidget):
             return
         new_val = max(0, min(new_val, 255))
         if col == 4:
-            self._vehicle_data[e['mount_call_type_offset']] = new_val
+            if vd is not None:
+                rdi = vd.get('rider_detect_info', 0)
+                vd['rider_detect_info'] = (rdi & 0xFF) | (new_val << 8)
             e['mount_call_type'] = new_val
         elif col == 5:
-            self._vehicle_data[e['can_call_safe_zone_offset']] = new_val
+            if vd is not None:
+                vd['send_damage_to'] = new_val
             e['can_call_safe_zone'] = new_val
         self._field_edit_modified = True
         self._field_edit_status.setText(f"Modified vehicle {e['name']}")
@@ -1006,10 +1079,11 @@ class FieldEditTab(QWidget):
         entries = self._gptrigger_entries
         filtered = entries if show_all else [e for e in entries if e['safe_zone_type'] != 0]
         self._gt_table.setRowCount(len(filtered))
+        self._gt_filtered = filtered
         for row, e in enumerate(filtered):
             item = QTableWidgetItem(str(e['key']))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            item.setData(Qt.UserRole, e)
+            item.setData(Qt.UserRole, row)
             self._gt_table.setItem(row, 0, item)
             name = e['name'].replace('GamePlayTrigger_SafeZone_', '').replace('GamePlayTrigger_', '')
             item = QTableWidgetItem(name)
@@ -1035,11 +1109,12 @@ class FieldEditTab(QWidget):
         entries = self._regioninfo_entries
         filtered = entries if show_all else [e for e in entries if e.get('_isTown', 0) or e.get('_limitVehicleRun', 0)]
         region_types = {3: 'World', 4: 'Continent', 5: 'Territory', 6: 'Area', 7: 'Node', 8: 'SubNode'}
+        self._ri_filtered = filtered
         self._ri_table.setRowCount(len(filtered))
         for row, e in enumerate(filtered):
             item = QTableWidgetItem(str(e.get('_key', '?')))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            item.setData(Qt.UserRole, e)
+            item.setData(Qt.UserRole, row)
             self._ri_table.setItem(row, 0, item)
             name = e.get('_stringKey', f"Region_{e.get('_key', '?')}")
             item = QTableWidgetItem(name)
@@ -1075,8 +1150,10 @@ class FieldEditTab(QWidget):
             return
         item0 = self._ri_table.item(row, 0)
         if not item0: return
-        e = item0.data(Qt.UserRole)
-        if not e: return
+        ridx = item0.data(Qt.UserRole)
+        if ridx is None or not hasattr(self, '_ri_filtered') or ridx >= len(self._ri_filtered):
+            return
+        e = self._ri_filtered[ridx]
         cell = self._ri_table.item(row, col)
         if not cell: return
         try:
@@ -1084,31 +1161,19 @@ class FieldEditTab(QWidget):
         except ValueError:
             return
         new_val = max(0, min(new_val, 255))
-        from regioninfo_parser import parse_pabgh_index as ri_idx_fn
-        idx_ri = ri_idx_fn(self._regioninfo_schema)
-        entry_offset = idx_ri.get(e['_key'])
-        if entry_offset is None:
-            return
-        p = entry_offset
-        p += 2
-        slen = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + slen
-        p += 1
-        p += 1; p += 8
-        dslen = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + dslen
-        p += 4
-        rk_count = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + rk_count * 8
-        p += 2
-        cr_count = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + cr_count * 2
-        p += 1; p += 1; p += 4; p += 1; p += 4
-        off_limitVehicleRun = p; p += 1
-        off_isTown = p; p += 1
-        p += 1; p += 1; p += 1; p += 1
-        off_vehicleMercAllowType = p
-        offsets = {3: off_isTown, 4: off_limitVehicleRun, 6: off_vehicleMercAllowType}
         field_map = {3: '_isTown', 4: '_limitVehicleRun', 6: '_vehicleMercenaryAllowType'}
-        abs_off = offsets[col]
-        self._regioninfo_data[abs_off] = new_val
-        e[field_map[col]] = new_val
+        dmm_field_map = {3: 'is_town', 4: 'limit_vehicle_run', 6: 'vehicle_mercenary_allow_type'}
+
+        dmm_ref = e.get('_dmm_ref')
+        if dmm_ref:
+            dmm_ref[dmm_field_map[col]] = new_val
+            e[field_map[col]] = new_val
+            from regioninfo_parser import serialize_all_dmm as ri_ser
+            new_data = ri_ser(self._regioninfo_dmm_items)
+            if new_data:
+                self._regioninfo_data = bytearray(new_data)
+        else:
+            e[field_map[col]] = new_val
         self._field_edit_modified = True
         self._field_edit_status.setText(
             f"Modified region {e.get('_stringKey', '?')} {field_map[col]}={new_val}")
@@ -1121,7 +1186,7 @@ class FieldEditTab(QWidget):
         for row, e in enumerate(entries):
             item = QTableWidgetItem(e.get('name', '?'))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            item.setData(Qt.UserRole, e)
+            item.setData(Qt.UserRole, row)
             self._mount_table.setItem(row, 0, item)
             vtype = e.get('_vehicleInfo', 0)
             vname = MOUNT_VEHICLE_TYPES.get(vtype, str(vtype))
@@ -1130,7 +1195,8 @@ class FieldEditTab(QWidget):
             self._mount_table.setItem(row, 1, item)
             dur = e.get('_callMercenarySpawnDuration', 0)
             item = QTableWidgetItem(str(dur))
-            orig_dur = struct.unpack_from('<Q', self._charinfo_original, e['_callMercenarySpawnDuration_offset'])[0]
+            van_m = next((v for v in self._charinfo_dmm_vanilla if v['key'] == e.get('_key')), None)
+            orig_dur = (van_m or {}).get('call_mercenary_spawn_duration', dur)
             if dur != orig_dur:
                 item.setBackground(QColor(60, 40, 20))
             if dur > 0:
@@ -1138,7 +1204,7 @@ class FieldEditTab(QWidget):
             self._mount_table.setItem(row, 2, item)
             cool = e.get('_callMercenaryCoolTime', 0)
             item = QTableWidgetItem(str(cool))
-            orig_cool = struct.unpack_from('<Q', self._charinfo_original, e['_callMercenaryCoolTime_offset'])[0]
+            orig_cool = (van_m or {}).get('call_mercenary_cool_time', cool)
             if cool != orig_cool:
                 item.setBackground(QColor(60, 40, 20))
             if cool > 0:
@@ -1157,8 +1223,10 @@ class FieldEditTab(QWidget):
             return
         item0 = self._mount_table.item(row, 0)
         if not item0: return
-        e = item0.data(Qt.UserRole)
-        if not e: return
+        ridx = item0.data(Qt.UserRole)
+        if ridx is None or ridx >= len(self._charinfo_mount_entries):
+            return
+        e = self._charinfo_mount_entries[ridx]
         cell = self._mount_table.item(row, col)
         if not cell: return
         try:
@@ -1166,16 +1234,18 @@ class FieldEditTab(QWidget):
         except ValueError:
             return
         new_val = max(0, new_val)
+        cd = e.get('dmm_ref')
         if col == 2:
-            off = e['_callMercenarySpawnDuration_offset']
-            struct.pack_into('<Q', self._charinfo_data, off, new_val)
+            if cd is not None:
+                cd['call_mercenary_spawn_duration'] = new_val
             e['_callMercenarySpawnDuration'] = new_val
             label = f"duration={new_val}s"
         else:
-            off = e['_callMercenaryCoolTime_offset']
-            struct.pack_into('<Q', self._charinfo_data, off, new_val)
+            if cd is not None:
+                cd['call_mercenary_cool_time'] = new_val
             e['_callMercenaryCoolTime'] = new_val
             label = f"cooldown={new_val}s"
+        self._charinfo_dmm_dirty = True
         self._field_edit_modified = True
         self._field_edit_status.setText(f"Modified {e.get('name', '?')} {label}")
 
@@ -1193,10 +1263,11 @@ class FieldEditTab(QWidget):
             entries = self._weapon_player_order()
             self._weapon_pkg_table.setRowCount(len(entries))
 
+            self._weapon_pkg_entries = entries
             for row, e in enumerate(entries):
                 name_item = QTableWidgetItem(e.get('name', '?'))
                 name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
-                name_item.setData(Qt.UserRole, e)
+                name_item.setData(Qt.UserRole, row)
                 self._weapon_pkg_table.setItem(row, 0, name_item)
                 for col_idx, col in enumerate(self._WEAPON_COLS, start=1):
                     self._weapon_refresh_cell(row, col_idx, e, col[0])
@@ -1205,9 +1276,11 @@ class FieldEditTab(QWidget):
             self._weapon_pkg_editing = False
 
     def _weapon_refresh_cell(self, row: int, col: int, entry: dict, field: str) -> None:
-        off = entry[field + '_offset']
-        cur = struct.unpack_from('<I', self._charinfo_data, off)[0]
-        orig = struct.unpack_from('<I', self._charinfo_original, off)[0]
+        dmm_field = getattr(self, '_weapon_dmm_map', {}).get(field, field)
+        cd = entry.get('dmm_ref', {})
+        cur = cd.get(dmm_field, 0) if cd else 0
+        van = next((v for v in self._charinfo_dmm_vanilla if v['key'] == entry.get('_key')), None)
+        orig = (van or {}).get(dmm_field, cur)
         cur_name = self._weapon_resolve_hash(cur)
         orig_name = self._weapon_resolve_hash(orig)
         text = cur_name if cur_name else f'0x{cur:08x}'
@@ -1243,10 +1316,13 @@ class FieldEditTab(QWidget):
         cell_item = self._weapon_pkg_table.item(row, col)
         if not name_item or not cell_item:
             return
-        target = name_item.data(Qt.UserRole)
+        tidx = name_item.data(Qt.UserRole)
         field = cell_item.data(Qt.UserRole)
-        if not target or not field:
+        if tidx is None or not field or not hasattr(self, '_weapon_pkg_entries'):
             return
+        if tidx >= len(self._weapon_pkg_entries):
+            return
+        target = self._weapon_pkg_entries[tidx]
 
         from PySide6.QtWidgets import QListWidget, QListWidgetItem, QLineEdit, QComboBox
 
@@ -1319,17 +1395,20 @@ class FieldEditTab(QWidget):
                 nm = e.get('name', '')
                 if q and q not in nm.lower() and q not in disp.lower():
                     continue
-                off = e.get(field + '_offset')
-                if off is None:
+                _wdm = getattr(self, '_weapon_dmm_map', {})
+                dmm_f = _wdm.get(field, field)
+                cd_van = next((v for v in self._charinfo_dmm_vanilla if v['key'] == e.get('_key', e.get('key', 0))), None)
+                if cd_van is None:
                     continue
-                val = struct.unpack_from('<I', self._charinfo_original, off)[0]
+                val = cd_van.get(dmm_f, 0)
                 resolved = self._weapon_resolve_hash(val)
                 val_display = resolved if resolved else f'0x{val:08x}'
                 label = f"[{ec:<10}] {nm}  →  {val_display}"
                 if disp:
                     label += f"   ({disp})"
                 item = QListWidgetItem(label)
-                item.setData(Qt.UserRole, (e, val))
+                item.setData(Qt.UserRole, val)
+                item.setData(Qt.UserRole + 1, e.get('_key', e.get('key', 0)))
                 list_widget.addItem(item)
                 shown += 1
                 if shown >= 800:
@@ -1369,18 +1448,22 @@ class FieldEditTab(QWidget):
         it = list_widget.currentItem()
         if not it:
             return
-        src_e, val = it.data(Qt.UserRole)
-        self._weapon_write_field(target, field, int(val), src_e.get('name', '?'))
+        val = it.data(Qt.UserRole)
+        self._weapon_write_field(target, field, int(val), 'source')
 
     def _weapon_write_field(self, target: dict, field: str, value: int,
                             source_label: str) -> None:
-        off = target[field + '_offset']
-        struct.pack_into('<I', self._charinfo_data, off, value)
+        dmm_field = getattr(self, '_weapon_dmm_map', {}).get(field, field)
+        cd = target.get('dmm_ref')
+        if cd is not None:
+            cd[dmm_field] = value
+        target[field] = value
         self._field_edit_modified = True
-        # Refresh just the row
+        self._charinfo_dmm_dirty = True
         for row in range(self._weapon_pkg_table.rowCount()):
             ni = self._weapon_pkg_table.item(row, 0)
-            if ni and ni.data(Qt.UserRole) is target:
+            ri = ni.data(Qt.UserRole) if ni else None
+            if ri is not None and hasattr(self, '_weapon_pkg_entries') and ri < len(self._weapon_pkg_entries) and self._weapon_pkg_entries[ri] is target:
                 for col_idx, col in enumerate(self._WEAPON_COLS, start=1):
                     if col[0] == field:
                         self._weapon_refresh_cell(row, col_idx, target, field)
@@ -1447,13 +1530,16 @@ class FieldEditTab(QWidget):
             'version': 1,
             'characters': [],
         }
+        _wdm = getattr(self, '_weapon_dmm_map', {})
         for e in self._weapon_player_order():
             char_data = {'name': e['name'], 'fields': {}}
+            cd = e.get('dmm_ref', {})
+            van = next((v for v in self._charinfo_dmm_vanilla if v['key'] == e.get('_key')), {})
             for col in self._WEAPON_COLS:
                 field = col[0]
-                off = e[field + '_offset']
-                cur = struct.unpack_from('<I', self._charinfo_data, off)[0]
-                orig = struct.unpack_from('<I', self._charinfo_original, off)[0]
+                dmm_f = _wdm.get(field, field)
+                cur = cd.get(dmm_f, 0)
+                orig = van.get(dmm_f, 0)
                 char_data['fields'][field] = {
                     'value': cur,
                     'vanilla': orig,
@@ -1495,17 +1581,18 @@ class FieldEditTab(QWidget):
         by_name = {e['name']: e for e in self._charinfo_player_entries}
         applied = 0
         skipped = 0
-        for cd in preset.get('characters', []) or []:
-            target = by_name.get(cd.get('name'))
+        _wdm = getattr(self, '_weapon_dmm_map', {})
+        for cd_p in preset.get('characters', []) or []:
+            target = by_name.get(cd_p.get('name'))
             if not target:
                 skipped += 1
                 continue
-            for field, fdata in (cd.get('fields') or {}).items():
-                if field + '_offset' not in target:
+            for field, fdata in (cd_p.get('fields') or {}).items():
+                dmm_f = _wdm.get(field)
+                if not dmm_f:
                     continue
                 value = int(fdata.get('value', 0))
-                struct.pack_into('<I', self._charinfo_data,
-                                 target[field + '_offset'], value)
+                self._weapon_write_field(target, field, value, 'preset')
                 applied += 1
         self._field_edit_modified = True
         self._weapon_pkg_populate()
@@ -1599,11 +1686,13 @@ class FieldEditTab(QWidget):
                 summary.setText(f"Could not parse '{txt}' as hex.")
                 return
             matches = []
+            _wdm2 = getattr(self, '_weapon_dmm_map', {})
             for e in all_entries:
-                off = e.get(field + '_offset')
-                if off is None:
+                _df = _wdm2.get(field)
+                _cd_v = next((v for v in self._charinfo_dmm_vanilla if v['key'] == e.get('_key', e.get('key', 0))), None)
+                if not _df or _cd_v is None:
                     continue
-                v_ = struct.unpack_from('<I', self._charinfo_original, off)[0]
+                v_ = _cd_v.get(_df, 0)
                 if v_ == target_val:
                     matches.append(e)
             cat_counts: dict[str, int] = {}
@@ -1631,10 +1720,12 @@ class FieldEditTab(QWidget):
                         if e.get('name') == src_name), None)
             if not src or not field:
                 return
-            off = src.get(field + '_offset')
-            if off is None:
+            _wdm3 = getattr(self, '_weapon_dmm_map', {})
+            _df3 = _wdm3.get(field)
+            _v3 = next((v for v in self._charinfo_dmm_vanilla if v['key'] == src.get('_key')), None)
+            if not _df3 or _v3 is None:
                 return
-            val = struct.unpack_from('<I', self._charinfo_original, off)[0]
+            val = _v3.get(_df3, 0)
             value_edit.setText(f'0x{val:08x}')
             _do_search()
 
@@ -2317,103 +2408,116 @@ class FieldEditTab(QWidget):
 
 
     def _weapon_apply_kliff_gun_preset(self) -> None:
-        if not self._charinfo_data or not self._charinfo_player_entries:
+        if not self._charinfo_player_entries:
             QMessageBox.information(
                 self, tr("Kliff Gun Fix"),
                 tr("Load game data first (click Load FieldInfo).")
             )
             return
         by_name = {e['name']: e for e in self._charinfo_player_entries}
-        if not all(n in by_name for n in ('Kliff', 'Damian', 'Oongka')):
+        if not all(n in by_name for n in ('Kliff', 'Damiane', 'Oongka')):
             QMessageBox.warning(
                 self, tr("Kliff Gun Fix"),
                 tr("Could not find all three player chars in characterinfo.pabgb.")
             )
             return
         kliff = by_name['Kliff']
-        damian = by_name['Damian']
+        damiane = by_name['Damiane']
         oongka = by_name['Oongka']
 
-        upper_off = kliff['_upperActionChartPackageGroupName_offset']
-        damian_upper_off = damian['_upperActionChartPackageGroupName_offset']
-        damian_upper = struct.unpack_from('<I', self._charinfo_original, damian_upper_off)[0]
-        struct.pack_into('<I', self._charinfo_data, upper_off, damian_upper)
+        _WDM = self._weapon_dmm_map
+        van_damiane = next((v for v in self._charinfo_dmm_vanilla
+                            if v.get('string_key') == 'Damiane'), None)
+        van_oongka = next((v for v in self._charinfo_dmm_vanilla
+                           if v.get('string_key') == 'Oongka'), None)
 
-        gp_off = kliff['_characterGamePlayDataName_offset']
-        oongka_gp_off = oongka['_characterGamePlayDataName_offset']
-        oongka_gp = struct.unpack_from('<I', self._charinfo_original, oongka_gp_off)[0]
-        struct.pack_into('<I', self._charinfo_data, gp_off, oongka_gp)
+        upper_field = _WDM['_upperActionChartPackageGroupName']
+        gp_field = _WDM['_characterGamePlayDataName']
+        damian_upper = (van_damiane or {}).get(upper_field, 0)
+        oongka_gp = (van_oongka or {}).get(gp_field, 0)
 
-        self._field_edit_modified = True
+        self._weapon_write_field(kliff, '_upperActionChartPackageGroupName',
+                                 damian_upper, 'Damiane')
+        self._weapon_write_field(kliff, '_characterGamePlayDataName',
+                                 oongka_gp, 'Oongka')
+
         self._weapon_pkg_populate()
         self._field_edit_status.setText(
-            "Kliff gun fix staged: _upperAC ← Damian (0x%08x), _gamePlay ← Oongka (0x%08x). "
-            "Click Save & Pack to deploy." % (damian_upper, oongka_gp)
+            "Kliff gun fix staged: upper ← Damiane (0x%08x), gamePlay ← Oongka (0x%08x). "
+            "Click Apply to deploy." % (damian_upper, oongka_gp)
         )
 
     def _weapon_reset_vanilla(self) -> None:
-        if not self._charinfo_data or not self._charinfo_player_entries:
+        if not self._charinfo_player_entries:
             return
+        _WDM = self._weapon_dmm_map
         for e in self._charinfo_player_entries:
+            van = next((v for v in self._charinfo_dmm_vanilla
+                        if v['key'] == e.get('_key')), None)
+            if not van:
+                continue
             for col in self._WEAPON_COLS:
                 field = col[0]
-                off = e[field + '_offset']
-                vanilla = struct.unpack_from('<I', self._charinfo_original, off)[0]
-                struct.pack_into('<I', self._charinfo_data, off, vanilla)
+                dmm_f = _WDM.get(field, field)
+                vanilla_val = van.get(dmm_f, 0)
+                cd = e.get('dmm_ref')
+                if cd is not None:
+                    cd[dmm_f] = vanilla_val
+                e[field] = vanilla_val
+        self._charinfo_dmm_dirty = True
         self._weapon_pkg_populate()
         self._field_edit_status.setText(
-            "Reset Kliff/Damian/Oongka runtime-package fields to vanilla."
+            "Reset Kliff/Damiane/Oongka runtime-package fields to vanilla."
         )
 
 
     def _field_edit_make_killable(self):
-        if not self._charinfo_data or not self._charinfo_mount_entries:
+        dmm_items = getattr(self, '_charinfo_dmm_items', None)
+        if not dmm_items:
             QMessageBox.information(self, tr("Make Killable"), tr("Load game data first (click Load FieldInfo)."))
             return
         reply = QMessageBox.question(
             self, tr("Make All NPCs Killable"),
-            "This will set _isAttackable=1 and _invincibility=0\n"
-            "on all non-mount characters in characterinfo.pabgb.\n\n"
-            "Mounts are excluded (use Invincible Mounts for those).\n"
-            "Killing quest-essential NPCs may break story progression.\n\n"
+            "Sets _isAttackable=1 and _invincibility=0 on all non-mount\n"
+            "characters via dmm_parser field-level edits.\n\n"
+            "Mounts are excluded. Killing quest-essential NPCs may\n"
+            "break story progression.\n\n"
             "Continue?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
-        from characterinfo_full_parser import parse_all_entries as ci_parse_all
-        all_ci = ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
         made_attackable = 0
         made_vincible = 0
         skipped_mounts = 0
-        for e in all_ci:
-            if e.get('_vehicleInfo', 0) != 0 or e.get('name', '').startswith('Riding_'):
+        for it in dmm_items:
+            if it.get('vehicle_info', 0) != 0 or it.get('string_key', '').startswith('Riding_'):
                 skipped_mounts += 1
                 continue
-            att_off = e.get('_isAttackable_offset', -1)
-            inv_off = e.get('_invincibility_offset', -1)
-            if att_off >= 0 and e.get('_isAttackable', 1) == 0:
-                self._charinfo_data[att_off] = 1
+            ff = it.get('four_flags', {})
+            if not ff:
+                continue
+            if ff.get('flag_b', 1) == 0:
+                ff['flag_b'] = 1
                 made_attackable += 1
-            if inv_off >= 0 and e.get('_invincibility', 0) == 1:
-                self._charinfo_data[inv_off] = 0
+            if ff.get('flag_a', 0) == 1:
+                ff['flag_a'] = 0
                 made_vincible += 1
         if made_attackable == 0 and made_vincible == 0:
             QMessageBox.information(self, tr("Make Killable"), tr("All NPCs are already attackable."))
             return
+        self._charinfo_dmm_dirty = True
         self._field_edit_modified = True
-        self._charinfo_mount_entries = [e for e in ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
-                                        if e.get('_vehicleInfo', 0) != 0
-                                        or e.get('name', '').startswith('Riding_')]
-        self._mount_populate()
-        log.info("make_killable: attackable+=%d vincible+=%d skipped_mounts=%d (total_entries=%d)",
-                 made_attackable, made_vincible, skipped_mounts, len(all_ci))
+        log.info("make_killable (dmm_parser): attackable+=%d vincible+=%d skipped=%d",
+                 made_attackable, made_vincible, skipped_mounts)
         self._field_edit_status.setText(
-            f"Made killable: {made_attackable} attackable + {made_vincible} vincible ({skipped_mounts} mounts skipped)")
+            f"Made killable: {made_attackable} attackable + {made_vincible} vincible "
+            f"({skipped_mounts} mounts skipped) — field-level via dmm_parser")
 
 
     def _ally_ensure_loaded(self) -> bool:
-        if (self._allygroup_data is not None and self._relationinfo_data is not None
-                and self._factionrelgrp_data is not None):
+        if (getattr(self, '_ally_dmm', None) is not None
+                and getattr(self, '_relation_dmm', None) is not None
+                and getattr(self, '_factionrel_dmm', None) is not None):
             return True
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
@@ -2421,26 +2525,35 @@ class FieldEditTab(QWidget):
                                  tr("Set the game install path first."))
             return False
         try:
-            import crimson_rs
+            import crimson_rs, dmm_parser, copy
             dp = "gamedata/binary__/client/bin"
-            if self._allygroup_data is None:
-                ag_body = crimson_rs.extract_file(game_path, "0008", dp, "allygroupinfo.pabgb")
-                ag_schema = crimson_rs.extract_file(game_path, "0008", dp, "allygroupinfo.pabgh")
-                self._allygroup_data = bytearray(ag_body)
-                self._allygroup_original = bytes(ag_body)
-                self._allygroup_schema = bytes(ag_schema)
-            if self._relationinfo_data is None:
-                ri_body = crimson_rs.extract_file(game_path, "0008", dp, "relationinfo.pabgb")
-                ri_schema = crimson_rs.extract_file(game_path, "0008", dp, "relationinfo.pabgh")
-                self._relationinfo_data = bytearray(ri_body)
-                self._relationinfo_original = bytes(ri_body)
-                self._relationinfo_schema = bytes(ri_schema)
-            if self._factionrelgrp_data is None:
-                fg_body = crimson_rs.extract_file(game_path, "0008", dp, "factionrelationgroup.pabgb")
-                fg_schema = crimson_rs.extract_file(game_path, "0008", dp, "factionrelationgroup.pabgh")
-                self._factionrelgrp_data = bytearray(fg_body)
-                self._factionrelgrp_original = bytes(fg_body)
-                self._factionrelgrp_schema = bytes(fg_schema)
+
+            ag_gb = bytes(crimson_rs.extract_file(game_path, "0008", dp, "allygroupinfo.pabgb"))
+            ag_gh = bytes(crimson_rs.extract_file(game_path, "0008", dp, "allygroupinfo.pabgh"))
+            self._ally_dmm = dmm_parser.parse_table('ally_group_info', ag_gb, ag_gh)
+            self._ally_dmm_vanilla = copy.deepcopy(self._ally_dmm)
+            self._allygroup_data = bytearray(ag_gb)
+            self._allygroup_original = bytes(ag_gb)
+            self._allygroup_schema = bytes(ag_gh)
+
+            ri_gb = bytes(crimson_rs.extract_file(game_path, "0008", dp, "relationinfo.pabgb"))
+            ri_gh = bytes(crimson_rs.extract_file(game_path, "0008", dp, "relationinfo.pabgh"))
+            self._relation_dmm = dmm_parser.parse_table('relation_info', ri_gb, ri_gh)
+            self._relation_dmm_vanilla = copy.deepcopy(self._relation_dmm)
+            self._relationinfo_data = bytearray(ri_gb)
+            self._relationinfo_original = bytes(ri_gb)
+            self._relationinfo_schema = bytes(ri_gh)
+
+            fg_gb = bytes(crimson_rs.extract_file(game_path, "0008", dp, "factionrelationgroup.pabgb"))
+            fg_gh = bytes(crimson_rs.extract_file(game_path, "0008", dp, "factionrelationgroup.pabgh"))
+            self._factionrel_dmm = dmm_parser.parse_table('faction_relation_group_info', fg_gb, fg_gh)
+            self._factionrel_dmm_vanilla = copy.deepcopy(self._factionrel_dmm)
+            self._factionrelgrp_data = bytearray(fg_gb)
+            self._factionrelgrp_original = bytes(fg_gb)
+            self._factionrelgrp_schema = bytes(fg_gh)
+
+            log.info("Alliance loaded via dmm_parser: ally=%d relation=%d faction=%d",
+                     len(self._ally_dmm), len(self._relation_dmm), len(self._factionrel_dmm))
         except Exception as e:
             QMessageBox.critical(self, tr("Extract Failed"),
                                  f"Could not extract ally/relation/faction pabgbs:\n{e}")
@@ -2449,26 +2562,26 @@ class FieldEditTab(QWidget):
 
     def _parse_ally_index(self) -> list[tuple[int, int]]:
         s = self._allygroup_schema
-        count = struct.unpack_from("<H", s, 0)[0]
+        count = int.from_bytes(s[0:2], 'little')
         kw = (len(s) - 2 - count * 4) // count
         out = []
         p = 2
         for _ in range(count):
             key = int.from_bytes(s[p:p + kw], "little")
-            off = struct.unpack_from("<I", s, p + kw)[0]
+            off = int.from_bytes(s[p + kw:p + kw + 4], "little")
             out.append((key, off))
             p += kw + 4
         return out
 
     def _parse_relation_index(self) -> list[tuple[int, int]]:
         s = self._relationinfo_schema
-        count = struct.unpack_from("<H", s, 0)[0]
+        count = int.from_bytes(s[0:2], 'little')
         kw = (len(s) - 2 - count * 4) // count
         out = []
         p = 2
         for _ in range(count):
             key = int.from_bytes(s[p:p + kw], "little")
-            off = struct.unpack_from("<I", s, p + kw)[0]
+            off = int.from_bytes(s[p + kw:p + kw + 4], "little")
             out.append((key, off))
             p += kw + 4
         return out
@@ -2478,7 +2591,7 @@ class FieldEditTab(QWidget):
             return
         reply = QMessageBox.question(
             self, tr("Path A — All NPCs Hostile"),
-            "Set RelationInfo._order = 99 on all 45 entries?\n\n"
+            "Set RelationInfo.order = 99 on all entries?\n\n"
             "Everyone becomes max-hostile to everyone. Your mounts will\n"
             "damage guards. Side effect: town NPCs may attack each other.\n\n"
             "Fully reversible via Restore. Continue?",
@@ -2486,33 +2599,23 @@ class FieldEditTab(QWidget):
         if reply != QMessageBox.Yes:
             return
         flipped = 0
-        before: list[int] = []
-        after: list[int] = []
-        for _key, offset in self._parse_relation_index():
-            p = offset + 1
-            if p + 4 > len(self._relationinfo_data):
-                continue
-            slen = struct.unpack_from("<I", self._relationinfo_data, p)[0]
-            if slen > 200:
-                continue
-            order_pos = offset + 1 + 4 + slen + 1 + 1
-            if order_pos < len(self._relationinfo_data):
-                before.append(self._relationinfo_data[order_pos])
-                if self._relationinfo_data[order_pos] != 99:
-                    self._relationinfo_data[order_pos] = 99
-                    flipped += 1
-                after.append(self._relationinfo_data[order_pos])
-        log.info("path_a: flipped=%d/45, before=%s, after=%s",
-                 flipped, sorted(set(before)), sorted(set(after)))
+        for it in self._relation_dmm:
+            if it.get('order', 0) != 99:
+                it['order'] = 99
+                flipped += 1
+        import dmm_parser
+        self._relationinfo_data = bytearray(dmm_parser.serialize_table(
+            'relation_info', self._relation_dmm))
+        log.info("path_a (dmm_parser): set order=99 on %d entries", flipped)
         self._field_edit_status.setText(
-            tr(f"Path A: set _order=99 on {flipped} relation entries. Click Apply."))
+            f"Path A: set order=99 on {flipped} relation entries. Click Apply.")
 
     def _field_edit_wipe_ally_lists(self):
         if not self._ally_ensure_loaded():
             return
         reply = QMessageBox.question(
             self, tr("Path B — Wipe Ally Lists"),
-            "Zero out _addOnAllyGroupList (list #0) hashes on all 50 groups?\n\n"
+            "Clear add_on_ally_group_list on all ally groups?\n\n"
             "Effect: no faction is allied with any other. Guards still\n"
             "function (combat rules intact) but mutual defense is gone.\n\n"
             "Fully reversible via Restore. Continue?",
@@ -2520,67 +2623,56 @@ class FieldEditTab(QWidget):
         if reply != QMessageBox.Yes:
             return
         zeroed = 0
-        for _key, offset in self._parse_ally_index():
-            p = offset + 4
-            slen = struct.unpack_from("<I", self._allygroup_data, p)[0]
-            p += 4 + slen + 1
-            if p + 4 > len(self._allygroup_data):
-                continue
-            cnt = struct.unpack_from("<I", self._allygroup_data, p)[0]
-            if cnt > 200:
-                continue
-            hash_start = p + 4
-            hash_end = hash_start + cnt * 4
-            if hash_end <= len(self._allygroup_data):
-                for i in range(hash_start, hash_end):
-                    self._allygroup_data[i] = 0
-                zeroed += cnt
+        for it in self._ally_dmm:
+            lst = it.get('add_on_ally_group_list', [])
+            if lst:
+                zeroed += len(lst)
+                it['add_on_ally_group_list'] = []
+        import dmm_parser
+        self._allygroup_data = bytearray(dmm_parser.serialize_table(
+            'ally_group_info', self._ally_dmm))
+        log.info("path_b (dmm_parser): cleared %d ally hashes", zeroed)
         self._field_edit_status.setText(
-            tr(f"Path B: zeroed {zeroed} ally-group hashes across 50 entries. Click Apply."))
+            f"Path B: cleared {zeroed} ally-group hashes. Click Apply.")
 
     def _field_edit_set_ally_flag(self, slot: int):
         if slot < 0 or slot > 4:
             return
         if not self._ally_ensure_loaded():
             return
+        flag_names = {
+            0: 'is_intruder', 1: 'is_main_ally_group', 2: 'is_wild',
+            3: 'apply_reporting', 4: 'interesting_condition',
+        }
+        fname = flag_names.get(slot, f'flag_{slot}')
         reply = QMessageBox.question(
-            self, tr(f"Path C — Flag Slot {slot}"),
-            f"Set u8 flag #{slot} = 1 on all 50 AllyGroup entries?\n\n"
-            f"Experiment: one of the 5 flag slots is _isIntruder. Try this\n"
-            f"and tell me if NPCs attack each other.\n\n"
+            self, tr(f"Path C — {fname}"),
+            f"Set {fname} = 1 on all AllyGroup entries?\n\n"
             f"Fully reversible via Restore. Continue?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
         set_count = 0
-        for _key, offset in self._parse_ally_index():
-            p = offset + 4
-            slen = struct.unpack_from("<I", self._allygroup_data, p)[0]
-            p += 4 + slen + 1
-            try:
-                for _ in range(7):
-                    cnt = struct.unpack_from("<I", self._allygroup_data, p)[0]
-                    if cnt > 200:
-                        raise ValueError("bad list count")
-                    p += 4 + cnt * 4
-                target = p + slot
-                if target < len(self._allygroup_data):
-                    self._allygroup_data[target] = 1
-                    set_count += 1
-            except Exception:
-                continue
+        for it in self._ally_dmm:
+            if it.get(fname, 0) != 1:
+                it[fname] = 1
+                set_count += 1
+        import dmm_parser
+        self._allygroup_data = bytearray(dmm_parser.serialize_table(
+            'ally_group_info', self._ally_dmm))
+        log.info("path_c (dmm_parser): set %s=1 on %d entries", fname, set_count)
         self._field_edit_status.setText(
-            tr(f"Path C: set flag #{slot}=1 on {set_count} ally groups. Click Apply."))
+            f"Path C: set {fname}=1 on {set_count} ally groups. Click Apply.")
 
     def _parse_factionrelgrp_index(self) -> list[tuple[int, int]]:
         s = self._factionrelgrp_schema
-        count = struct.unpack_from("<H", s, 0)[0]
+        count = int.from_bytes(s[0:2], 'little')
         kw = (len(s) - 2 - count * 4) // count
         out = []
         p = 2
         for _ in range(count):
             key = int.from_bytes(s[p:p + kw], "little")
-            off = struct.unpack_from("<I", s, p + kw)[0]
+            off = int.from_bytes(s[p + kw:p + kw + 4], "little")
             out.append((key, off))
             p += kw + 4
         return out
@@ -2588,80 +2680,97 @@ class FieldEditTab(QWidget):
     def _field_edit_wipe_faction_relation_allies(self, all_lists: bool = False):
         if not self._ally_ensure_loaded():
             return
-        label = "ALL 4 LISTS" if all_lists else "list #0 (allied)"
+        label = "ALL 4 LISTS" if all_lists else "rel_0 (allied)"
         reply = QMessageBox.question(
             self, tr(f"Path D — Wipe FactionRelationGroup {label}"),
-            f"Zero the hash bytes in {label} across all 5 FactionRelationGroup entries?\n\n"
-            f"Target: the 5 top-level groups (Civilian/Guard/Bandit/Player/...).\n"
+            f"Clear {label} across all FactionRelationGroup entries?\n\n"
+            f"Target: the top-level groups (Civilian/Guard/Bandit/Player/...).\n"
             f"This is the LEVEL ABOVE allygroupinfo — where guard immunity lives.\n\n"
             f"Fully reversible via Restore. Continue?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
-        buf = self._factionrelgrp_data
         zeroed_entries = 0
         zeroed_hashes = 0
-        list_counts_seen: list[tuple[int, int, int, int]] = []
-        for key, offset in self._parse_factionrelgrp_index():
-            try:
-                p = offset + 2
-                slen = struct.unpack_from("<I", buf, p)[0]
-                p += 4 + slen
-                if slen > 200:
-                    log.warning("path_d: entry %d has bad slen=%d, skipping", key, slen)
-                    continue
-                p += 1
-                counts = []
-                for list_idx in range(4):
-                    if p + 4 > len(buf):
-                        raise ValueError(f"truncated at list {list_idx}")
-                    cnt = struct.unpack_from("<I", buf, p)[0]
-                    if cnt > 500:
-                        raise ValueError(f"bad cnt={cnt} at list {list_idx}")
-                    counts.append(cnt)
-                    hash_start = p + 4
-                    hash_end = hash_start + cnt * 2
-                    if hash_end > len(buf):
-                        raise ValueError(f"truncated hashes at list {list_idx}")
-                    if (all_lists or list_idx == 0) and cnt > 0:
-                        for i in range(hash_start, hash_end):
-                            buf[i] = 0
-                        zeroed_hashes += cnt
-                    p = hash_end
-                list_counts_seen.append(tuple(counts))
-                zeroed_entries += 1
-            except Exception as e:
-                log.exception("path_d: failed on entry key=%d offset=%d: %s",
-                              key, offset, e)
-        log.info("path_d: wiped %s on %d/5 entries; %d u16 hashes zeroed; per-entry counts=%s",
-                 label, zeroed_entries, zeroed_hashes, list_counts_seen)
+        list_fields = ['rel_0', 'rel_1', 'rel_2', 'rel_3'] if all_lists else ['rel_0']
+        for it in self._factionrel_dmm:
+            for lf in list_fields:
+                lst = it.get(lf, [])
+                if lst:
+                    zeroed_hashes += len(lst)
+                    it[lf] = []
+            zeroed_entries += 1
+        import dmm_parser
+        self._factionrelgrp_data = bytearray(dmm_parser.serialize_table(
+            'faction_relation_group_info', self._factionrel_dmm))
+        log.info("path_d (dmm_parser): wiped %s on %d entries, %d hashes cleared",
+                 label, zeroed_entries, zeroed_hashes)
         self._field_edit_status.setText(
-            tr(f"Path D: wiped {label} on {zeroed_entries} entries "
-               f"({zeroed_hashes} hashes zeroed). Click Apply."))
+            f"Path D: wiped {label} on {zeroed_entries} entries "
+               f"({zeroed_hashes} hashes zeroed). Click Apply.")
 
     def _field_edit_invincible_mounts(self):
+        """Make all rideable mounts invincible (four_flags.flag_a = 1).
+
+        The old implementation used _find_bool_block heuristic which landed
+        4 bytes too early — in the alive_skill_info_list count field instead
+        of flag_a (_invincibility). This version mutates _charinfo_dmm_items
+        directly (same dict objects the export diff watches) so changes are
+        picked up by Export Field JSON v3 without needing a re-serialize.
+        """
         if not self._charinfo_data or not self._charinfo_schema:
-            QMessageBox.information(self, tr("Invincible Mounts"), tr("Load game data first (click Load FieldInfo)."))
+            QMessageBox.information(self, tr("Invincible Mounts"),
+                tr("Load game data first (click Load FieldInfo)."))
             return
-        from characterinfo_full_parser import parse_all_entries as ci_parse_all
-        all_ci = ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
+
+        dmm_items = getattr(self, '_charinfo_dmm_items', None)
+        if not dmm_items:
+            QMessageBox.warning(self, tr("Invincible Mounts"),
+                "characterinfo DMM items not loaded.\n"
+                "Click 'Load FieldInfo' first.")
+            return
+
         count = 0
-        for e in all_ci:
-            if e.get('_vehicleInfo', 0) == 0 and not e.get('name', '').startswith('Riding_'):
+        for it in dmm_items:
+            sk = it.get('string_key', '') or ''
+            vehicle = it.get('vehicle_info', 0) or 0
+            # Mount entries: have a vehicle_info reference OR start with Riding_
+            if vehicle == 0 and not sk.startswith('Riding_'):
                 continue
-            inv_off = e.get('_invincibility_offset', -1)
-            if inv_off >= 0 and e.get('_invincibility', 0) == 0:
-                self._charinfo_data[inv_off] = 1
+            # four_flags is a nested dict; flag_a = _invincibility
+            four_flags = it.get('four_flags')
+            if isinstance(four_flags, dict) and four_flags.get('flag_a', 0) == 0:
+                four_flags['flag_a'] = 1
                 count += 1
+
         if count == 0:
-            QMessageBox.information(self, tr("Invincible Mounts"), tr("All mounts are already invincible."))
+            QMessageBox.information(self, tr("Invincible Mounts"),
+                tr("All mounts are already invincible."))
             return
+
+        # Re-serialize _charinfo_data so Apply to Game also picks up the change
+        try:
+            from characterinfo_full_parser import serialize_all_dmm
+            new_bytes = serialize_all_dmm(dmm_items)
+            if new_bytes:
+                self._charinfo_data[:] = new_bytes
+        except Exception as e:
+            log.warning("invincible_mounts: re-serialize failed: %s", e)
+
         self._field_edit_modified = True
-        self._charinfo_mount_entries = [e for e in ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
-                                        if e.get('_vehicleInfo', 0) != 0
-                                        or e.get('name', '').startswith('Riding_')]
-        self._mount_populate()
-        log.info("invincible_mounts: patched=%d", count)
+
+        # Refresh mount table display
+        from characterinfo_full_parser import parse_all_entries as ci_parse_all
+        try:
+            self._charinfo_mount_entries = [
+                e for e in ci_parse_all(bytes(self._charinfo_data), self._charinfo_schema)
+                if e.get('_vehicleInfo', 0) != 0 or (e.get('name', '') or '').startswith('Riding_')
+            ]
+            self._mount_populate()
+        except Exception:
+            pass
+
+        log.info("invincible_mounts: patched=%d via dmm_items", count)
         self._field_edit_status.setText(f"Made {count} mounts invincible")
 
     def _field_edit_enable_mounts(self):
@@ -2679,7 +2788,15 @@ class FieldEditTab(QWidget):
             QMessageBox.information(self, tr("FieldEdit"), tr("Load FieldInfo first."))
             return
         v_count = 0
-        if self._vehicle_data and self._vehicle_entries:
+        vi_dmm = getattr(self, '_vehicleinfo_dmm_items', None)
+        if vi_dmm:
+            for vit in vi_dmm:
+                if vit.get('send_damage_to', 1) == 0:
+                    vit['send_damage_to'] = 1
+                    v_count += 1
+            self._vehicleinfo_dmm_dirty = True
+            self._vehicle_populate()
+        elif self._vehicle_data and self._vehicle_entries:
             for e in self._vehicle_entries:
                 off = e.get('can_call_safe_zone_offset', -1)
                 if off >= 0 and e.get('can_call_safe_zone', 0) == 0:
@@ -2688,60 +2805,83 @@ class FieldEditTab(QWidget):
                     v_count += 1
             self._vehicle_populate()
         ri_count = 0
-        if self._regioninfo_data and self._regioninfo_entries:
-            from regioninfo_parser import parse_pabgh_index as ri_idx_fn
-            ri_idx = ri_idx_fn(self._regioninfo_schema)
-            for e in self._regioninfo_entries:
-                if e.get('_limitVehicleRun', 0) or e.get('_isTown', 0):
-                    entry_off = ri_idx.get(e['_key'])
-                    if entry_off is not None:
-                        p = entry_off
-                        p += 2
-                        slen = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + slen
-                        p += 1
-                        p += 1; p += 8
-                        dslen = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + dslen
-                        p += 4
-                        rk_c = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + rk_c * 8
-                        p += 2
-                        cr_c = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + cr_c * 2
-                        p += 2; p += 4; p += 1; p += 4
-                        if e.get('_limitVehicleRun', 0):
-                            self._regioninfo_data[p] = 0
-                            e['_limitVehicleRun'] = 0
-                            ri_count += 1
-                        if e.get('_isTown', 0):
-                            self._regioninfo_data[p + 1] = 0
-                            e['_isTown'] = 0
-                            ri_count += 1
-            # Switch to 'All regions' so table stays populated after clearing flags
+        ri_dmm = getattr(self, '_regioninfo_dmm_items', None)
+        if ri_dmm:
+            for rit in ri_dmm:
+                if rit.get('is_wild', 0):
+                    rit['is_wild'] = 0
+                    ri_count += 1
+                if rit.get('is_town', 0):
+                    rit['is_town'] = 0
+                    ri_count += 1
+                if rit.get('limit_vehicle_run', 0):
+                    rit['limit_vehicle_run'] = 0
+                    ri_count += 1
+            if ri_count:
+                self._regioninfo_dmm_dirty = True
             if self._ri_filter_combo.currentData() != 'all':
                 self._ri_filter_combo.blockSignals(True)
-                self._ri_filter_combo.setCurrentIndex(1)  # 'All regions'
+                self._ri_filter_combo.setCurrentIndex(1)
+                self._ri_filter_combo.blockSignals(False)
+            self._regioninfo_populate()
+        elif self._regioninfo_entries:
+            for e in self._regioninfo_entries:
+                dmm_r = e.get('_dmm_ref')
+                if e.get('_limitVehicleRun', 0):
+                    if dmm_r:
+                        dmm_r['limit_vehicle_run'] = 0
+                    e['_limitVehicleRun'] = 0
+                    ri_count += 1
+                if e.get('_isTown', 0):
+                    if dmm_r:
+                        dmm_r['is_town'] = 0
+                    e['_isTown'] = 0
+                    ri_count += 1
+            if ri_count:
+                self._regioninfo_dmm_dirty = True
+                # Build _regioninfo_dmm_items from _dmm_ref if not already set,
+                # then re-serialize so byte diff + struct diff both work
+                try:
+                    import dmm_parser as _dmp_em
+                    if not getattr(self, '_regioninfo_dmm_items', None):
+                        # Collect all _dmm_ref objects from entries to form the items list
+                        refs = [e['_dmm_ref'] for e in self._regioninfo_entries if '_dmm_ref' in e]
+                        if refs:
+                            self._regioninfo_dmm_items = refs
+                            if not getattr(self, '_regioninfo_dmm_vanilla', None):
+                                self._regioninfo_dmm_vanilla = [dict(r) for r in refs]
+                    if getattr(self, '_regioninfo_dmm_items', None):
+                        _ser = _dmp_em.serialize_table('region_info', self._regioninfo_dmm_items)
+                        self._regioninfo_data = bytearray(_ser)
+                except Exception as _se:
+                    log.warning("enable_mounts: region re-serialize failed: %s", _se)
+            if self._ri_filter_combo.currentData() != 'all':
+                self._ri_filter_combo.blockSignals(True)
+                self._ri_filter_combo.setCurrentIndex(1)
                 self._ri_filter_combo.blockSignals(False)
             self._regioninfo_populate()
         mount_count = 0
         patched_names: list[str] = []
         candidates = 0
-        if self._charinfo_data and self._charinfo_mount_entries:
-            for e in self._charinfo_mount_entries:
-                dur = e.get('_callMercenarySpawnDuration', 0)
-                cool = e.get('_callMercenaryCoolTime', 0)
+        dmm_items = getattr(self, '_charinfo_dmm_items', None)
+        if dmm_items:
+            for it in dmm_items:
+                if it.get('vehicle_info', 0) == 0:
+                    continue
+                dur = it.get('call_mercenary_spawn_duration', 0)
+                cool = it.get('call_mercenary_cool_time', 0)
                 if dur > 0 or cool > 0:
                     candidates += 1
                 hit = False
                 if dur > 0:
-                    off = e['_callMercenarySpawnDuration_offset']
-                    struct.pack_into('<Q', self._charinfo_data, off, 0x7FFFFFFF)
-                    e['_callMercenarySpawnDuration'] = 0x7FFFFFFF
+                    it['call_mercenary_spawn_duration'] = 604800  # 7 days — large enough to be permanent, avoids i32/i64 overflow on engine cast
                     mount_count += 1; hit = True
                 if cool > 0:
-                    off = e['_callMercenaryCoolTime_offset']
-                    struct.pack_into('<Q', self._charinfo_data, off, 0)
-                    e['_callMercenaryCoolTime'] = 0
+                    it['call_mercenary_cool_time'] = 0
                     mount_count += 1; hit = True
                 if hit:
-                    patched_names.append(e.get('name', '?'))
+                    patched_names.append(it.get('string_key', '?'))
+            self._charinfo_dmm_dirty = True
             self._mount_populate()
         self._field_edit_modified = True
         log.info("enable_mounts: vehicle=%d region=%d mount=%d edits applied "
@@ -3690,6 +3830,13 @@ class FieldEditTab(QWidget):
 
             new_data, applied, report = apply_mesh_swaps(
                 pre_bytes, bytes(pabgh), list(queue))
+            # Mesh swap now uses dmm_parser — re-parse so dmm items stay in sync
+            if applied:
+                import dmm_parser as _dmp
+                import copy as _copy
+                self._charinfo_dmm_items = _dmp.parse_table(
+                    'character_info', bytes(new_data), bytes(pabgh))
+                self._charinfo_dmm_dirty = True
 
             mesh_diff = sum(1 for a, b in zip(new_data, pre_bytes) if a != b)
             log.info("mesh swap: queue=%d applied=%d diff_bytes=%d",
@@ -3736,7 +3883,9 @@ class FieldEditTab(QWidget):
             return 0
 
 
-    _MOUNT_OVERLAY_GROUP = "0062"
+    @property
+    def _MOUNT_OVERLAY_GROUP(self):
+        return f"{self._config.get('mesh_swap_overlay_dir', 62):04d}"
 
     def _deploy_mount_overlays(self, game_path: str, queue: list[dict]) -> str:
         """Deploy skeleton (rider bone) + appearance (scale) overlays for mesh swaps."""
@@ -3981,6 +4130,7 @@ class FieldEditTab(QWidget):
         reply = QMessageBox.question(
             self, tr("Apply FieldInfo Changes"),
             "Deploy modified game data to the game?\n\n"
+            "TIP: Use 'Export Field JSON v3' to get a DMM-compatible mod file instead.\n\n"
             "IMPORTANT: If you already have a FieldEdit mod applied,\n"
             "click Restore FIRST before applying new changes.\n"
             "Applying over an existing mod will crash the game.\n\n"
@@ -4029,48 +4179,133 @@ class FieldEditTab(QWidget):
                      len(dirty_names), ", ".join(dirty_names))
 
         try:
-            import crimson_rs.pack_mod
+            from gui.utils import resolve_overlay_group
+            requested = self._fieldedit_overlay_spin.value()
+            group_num = resolve_overlay_group(game_path, requested, "FieldEdit", parent=self)
+            if group_num is None:
+                return
+            if group_num != requested:
+                self._fieldedit_overlay_spin.setValue(group_num)
+
+            import crimson_rs
+            INTERNAL_DIR = "gamedata/binary__/client/bin"
             gp = Path(game_path)
-            mod_group = f"{self._fieldedit_overlay_spin.value():04d}"
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                mod_dir = os.path.join(tmp_dir, "gamedata", "binary__", "client", "bin")
-                os.makedirs(mod_dir, exist_ok=True)
-                self._write_modified_files(mod_dir)
+            base_group = group_num
 
-                pack_out = os.path.join(tmp_dir, "output")
-                os.makedirs(pack_out, exist_ok=True)
-                crimson_rs.pack_mod.pack_mod(
-                    game_dir=game_path,
-                    mod_folder=tmp_dir,
-                    output_dir=pack_out,
-                    group_name=mod_group,
-                )
-                try:
-                    pamt_path = os.path.join(pack_out, mod_group, "0.pamt")
-                    if os.path.isfile(pamt_path):
-                        import re as _re
-                        with open(pamt_path, "rb") as _f:
-                            _pamt = _f.read()
-                        _files = sorted(set(
-                            m.decode('ascii', errors='replace')
-                            for m in _re.findall(rb'[A-Za-z0-9_]+\.pabgb', _pamt)))
-                        log.info("field_edit pack_mod verifier: PAMT lists %d file(s): %s",
-                                 len(_files), ", ".join(_files) if _files else "(none)")
-                except Exception:
-                    log.exception("field_edit pack_mod post-verify failed")
-                papgt_path = gp / "meta" / "0.papgt"
-                backup_path = papgt_path.with_suffix(".papgt.field_bak")
-                if papgt_path.exists() and not backup_path.exists():
-                    shutil.copy2(papgt_path, backup_path)
-                dest = gp / mod_group
-                dest.mkdir(exist_ok=True)
-                shutil.copyfile(os.path.join(pack_out, mod_group, "0.paz"), dest / "0.paz")
-                shutil.copyfile(os.path.join(pack_out, mod_group, "0.pamt"), dest / "0.pamt")
-                shutil.copyfile(os.path.join(pack_out, "meta", "0.papgt"), papgt_path)
+            dirty_tables = []
+            table_defs = [
+                ("fieldinfo",     self._field_edit_data,    self._field_edit_original),
+                ("gameplaytrigger", self._gptrigger_data,   self._gptrigger_original),
+                ("wantedinfo",    self._wantedinfo_data,    self._wantedinfo_original),
+                ("allygroupinfo", self._allygroup_data,     self._allygroup_original),
+                ("relationinfo",  self._relationinfo_data,  self._relationinfo_original),
+                ("factionrelationgroup", self._factionrelgrp_data, self._factionrelgrp_original),
+            ]
+            for stem, data, orig in table_defs:
+                if data is not None and orig is not None and bytes(data) != orig:
+                    dirty_tables.append((stem, bytes(data)))
 
-            self._field_edit_status.setText(f"Applied to {mod_group}/")
+            # vehicleinfo: prefer dmm_parser field-level serialization
+            _vi_dmm_dirty = getattr(self, '_vehicleinfo_dmm_dirty', False)
+            _vi_dmm_items = getattr(self, '_vehicleinfo_dmm_items', None)
+            _vi_byte_dirty = (self._vehicle_data is not None
+                              and self._vehicle_original is not None
+                              and bytes(self._vehicle_data) != self._vehicle_original)
+            if _vi_dmm_dirty and _vi_dmm_items:
+                import dmm_parser as _dmp
+                vi_pabgb = bytes(_dmp.serialize_table('vehicle_info', _vi_dmm_items))
+                dirty_tables.append(("vehicleinfo", vi_pabgb))
+                log.info("vehicleinfo: serialized via dmm_parser (%d bytes)", len(vi_pabgb))
+            elif _vi_byte_dirty:
+                dirty_tables.append(("vehicleinfo", bytes(self._vehicle_data)))
+                log.info("vehicleinfo: using byte-patched data")
+
+            # regioninfo: prefer dmm_parser field-level serialization
+            _ri_dmm_dirty = getattr(self, '_regioninfo_dmm_dirty', False)
+            _ri_dmm_items = getattr(self, '_regioninfo_dmm_items', None)
+            _ri_byte_dirty = (self._regioninfo_data is not None
+                              and self._regioninfo_original is not None
+                              and bytes(self._regioninfo_data) != self._regioninfo_original)
+            if _ri_dmm_dirty and _ri_dmm_items:
+                import dmm_parser as _dmp
+                ri_pabgb = bytes(_dmp.serialize_table('region_info', _ri_dmm_items))
+                dirty_tables.append(("regioninfo", ri_pabgb))
+                log.info("regioninfo: serialized via dmm_parser (%d bytes)", len(ri_pabgb))
+            elif _ri_byte_dirty:
+                dirty_tables.append(("regioninfo", bytes(self._regioninfo_data)))
+                log.info("regioninfo: using byte-patched data")
+
+            # characterinfo: deployed separately via merge helper to avoid
+            # conflicts with ItemBuffs Kliff gun fix overlay
+            _dmm_dirty = getattr(self, '_charinfo_dmm_dirty', False)
+            _dmm_items = getattr(self, '_charinfo_dmm_items', None)
+            _byte_dirty = (self._charinfo_data is not None
+                           and self._charinfo_original is not None
+                           and bytes(self._charinfo_data) != self._charinfo_original)
+            _charinfo_pabgb = None
+            if _dmm_dirty and _dmm_items:
+                import dmm_parser as _dmp
+                _charinfo_pabgb = bytes(_dmp.serialize_table('character_info', _dmm_items))
+                log.info("characterinfo: serialized via dmm_parser (%d bytes)", len(_charinfo_pabgb))
+            elif _byte_dirty:
+                _charinfo_pabgb = bytes(self._charinfo_data)
+                log.info("characterinfo: using byte-patched data (%d bytes)", len(_charinfo_pabgb))
+
+            if not dirty_tables:
+                log.warning("FieldEdit apply: no dirty tables")
+
+            papgt_path = gp / "meta" / "0.papgt"
+            backup_path = papgt_path.with_suffix(".papgt.field_bak")
+            if papgt_path.exists() and not backup_path.exists():
+                shutil.copy2(papgt_path, backup_path)
+
+            deployed = []
+            for i, (stem, pabgb_data) in enumerate(dirty_tables):
+                grp = f"{base_group + i:04d}"
+                pabgh_data = bytes(crimson_rs.extract_file(
+                    game_path, "0008", INTERNAL_DIR, f"{stem}.pabgh"))
+
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    group_dir = os.path.join(tmp_dir, grp)
+                    builder = crimson_rs.PackGroupBuilder(
+                        group_dir, crimson_rs.Compression.NONE,
+                        crimson_rs.Crypto.NONE)
+                    builder.add_file(INTERNAL_DIR, f"{stem}.pabgb", pabgb_data)
+                    builder.add_file(INTERNAL_DIR, f"{stem}.pabgh", pabgh_data)
+                    pamt_bytes = bytes(builder.finish())
+                    pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+
+                    dest = gp / grp
+                    dest.mkdir(exist_ok=True)
+                    for fn in os.listdir(group_dir):
+                        shutil.copy2(os.path.join(group_dir, fn), str(dest / fn))
+
+                papgt = crimson_rs.parse_papgt_file(str(papgt_path))
+                papgt["entries"] = [e for e in papgt["entries"]
+                                    if e.get("group_name") != grp]
+                papgt = crimson_rs.add_papgt_entry(
+                    papgt, grp, pamt_checksum, 0, 16383)
+                crimson_rs.write_papgt_file(papgt, str(papgt_path))
+                deployed.append(f"{stem} -> {grp}/")
+                log.info("FieldEdit deployed %s to %s/ (%d bytes)",
+                         stem, grp, len(pabgb_data))
+
+            # Deploy characterinfo separately via merge helper
+            if _charinfo_pabgb:
+                from gui.utils import deploy_merged_pabgb
+                ci_pabgh = bytes(crimson_rs.extract_file(
+                    game_path, "0008", INTERNAL_DIR, "characterinfo.pabgh"))
+                ci_grp = f"{self._config.get('charinfo_overlay_dir', 65):04d}"
+                deploy_merged_pabgb(
+                    game_path, 'character_info', 'characterinfo',
+                    _charinfo_pabgb, ci_pabgh, ci_grp,
+                    "FieldEdit mounts/mesh", parent=self)
+                deployed.append(f"characterinfo -> {ci_grp}/ (merged)")
+
+            summary = "\n".join(f"  {d}" for d in deployed)
+            self._field_edit_status.setText(f"Applied {len(deployed)} table(s)")
             QMessageBox.information(self, tr("Applied"),
-                f"FieldInfo mod deployed to {mod_group}/.\n"
+                f"FieldInfo mod deployed:\n{summary}\n\n"
                 f"Restart the game for changes to take effect.")
         except Exception as e:
             log.exception("FieldEdit apply failed")
@@ -4288,35 +4523,16 @@ class FieldEditTab(QWidget):
             if ch:
                 patches.append({"game_file": "gamedata/gameplaytrigger.pabgb", "changes": ch})
 
-        if self._regioninfo_data and self._regioninfo_original:
-            ri_field_map = {}
-            if self._regioninfo_entries:
-                from regioninfo_parser import parse_pabgh_index as ri_idx_fn
-                ri_idx = ri_idx_fn(self._regioninfo_schema)
-                for e in self._regioninfo_entries:
-                    entry_off = ri_idx.get(e['_key'])
-                    if entry_off is None:
-                        continue
-                    rname = e.get('_stringKey', f"Region_{e['_key']}")
-                    p = entry_off
-                    p += 2
-                    slen = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + slen
-                    p += 1
-                    p += 1; p += 8
-                    dslen = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + dslen
-                    p += 4
-                    rk_c = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + rk_c * 8
-                    p += 2
-                    cr_c = struct.unpack_from('<I', self._regioninfo_data, p)[0]; p += 4 + cr_c * 2
-                    p += 2; p += 4; p += 1; p += 4
-                    ri_field_map[p] = f"{rname}: _limitVehicleRun"
-                    ri_field_map[p + 1] = f"{rname}: _isTown"
-                    ri_field_map[p + 2] = f"{rname}: _isWild"
-            def _ri_label(off, _n):
-                return ri_field_map.get(off, f"regioninfo offset {off}")
-            ch = _diff_bytes(self._regioninfo_data, self._regioninfo_original, _ri_label)
-            if ch:
-                patches.append({"game_file": "gamedata/regioninfo.pabgb", "changes": ch})
+        if self._regioninfo_entries and hasattr(self, '_regioninfo_dmm_items') and self._regioninfo_dmm_items:
+            import dmm_parser as _dmp_ri_exp
+            cur_ri = _dmp_ri_exp.serialize_table('region_info', self._regioninfo_dmm_items)
+            van_ri = _dmp_ri_exp.serialize_table('region_info', self._regioninfo_dmm_vanilla)
+            if cur_ri != van_ri:
+                def _ri_label(off, _n):
+                    return f"regioninfo offset {off}"
+                ch = _diff_bytes(cur_ri, van_ri, _ri_label)
+                if ch:
+                    patches.append({"game_file": "gamedata/regioninfo.pabgb", "changes": ch})
 
         if self._charinfo_data and self._charinfo_original:
             ci_field_map = {}
@@ -4615,14 +4831,20 @@ class FieldEditTab(QWidget):
             f"Use Export Field JSON v3 or")
 
     def _field_edit_export_field_json_v3(self) -> None:
-        """Export all FieldEdit modifications as Format 3.1 multi-target field JSON."""
-        import struct as _st
+        """Export all FieldEdit modifications as Format 3.1 multi-target field JSON.
 
+        Uses dmm_parser struct-level diff for all tables — produces semantic intents
+        (entry name + key + field name + new value) instead of raw byte offsets.
+        Compatible with DMM 1.3.6b+ for all supported tables.
+        """
         def _has_diff(cur, orig):
             return cur is not None and orig is not None and bytes(cur) != bytes(orig)
 
         _any_change = (
             self._field_edit_modified
+            or getattr(self, '_regioninfo_dmm_dirty', False)
+            or getattr(self, '_vehicleinfo_dmm_dirty', False)
+            or getattr(self, '_charinfo_dmm_dirty', False)
             or _has_diff(self._charinfo_data, self._charinfo_original)
             or _has_diff(self._field_edit_data, self._field_edit_original)
             or _has_diff(self._vehicle_data, self._vehicle_original)
@@ -4635,155 +4857,122 @@ class FieldEditTab(QWidget):
                 tr("No modifications to export. Make some changes first."))
             return
 
-        def _diff_buf(cur_buf, van_buf):
-            """Fast stride-4 diff."""
-            intents = []
-            cur = bytes(cur_buf)
-            van = bytes(van_buf)
-            for j in range(0, min(len(cur), len(van)) - 3, 4):
-                if cur[j:j+4] != van[j:j+4]:
-                    intents.append({
-                        'entry': f'offset_{j}', 'key': j,
-                        'field': 'raw_bytes', 'op': 'set',
-                        'new': cur[j:j+4].hex().upper(),
-                        '_offset': j,
-                        '_original': van[j:j+4].hex().upper(),
-                    })
-            return intents
+        import dmm_parser as _dmp_efj
 
-        def _annotate(intents, off_map):
-            for intent in intents:
-                info = off_map.get(intent['_offset'])
-                if info:
-                    intent['entry'], intent['field'], intent['key'] = info
-            return intents
+        def _struct_diff(current_recs, vanilla_recs):
+            """Diff two dmm_parser record lists, return Format 3 intents.
 
-        def _build_map(entries, field_pairs, field_sizes=None):
-            """Build offset map aligning field byte offsets to stride-4 blocks.
-            field_sizes: dict of field_name -> byte size (default 4).
-            All stride-4 blocks overlapping the field are mapped.
+            For nested dict fields (e.g. four_flags), emits sub-field intents
+            using dot-path syntax (e.g. 'four_flags.flag_a') so DMM only sets
+            the specific sub-field that changed rather than replacing the whole
+            nested object.
             """
-            if field_sizes is None:
-                field_sizes = {}
-            m = {}
-            for e in (entries or []):
-                ename = e.get('name', f"Entry_{e.get('entry_key','?')}")
-                ekey = int(e.get('entry_key', e.get('key', 0)))
-                for fname, okey in field_pairs:
-                    off = e.get(okey, -1)
-                    if off < 0:
+            van_by_key = {r['key']: r for r in vanilla_recs}
+            intents = []
+            for rec in current_recs:
+                rkey = rec.get('key')
+                rskey = rec.get('string_key', f'entry_{rkey}')
+                van = van_by_key.get(rkey)
+                if van is None:
+                    continue
+                for field in rec:
+                    if field in ('key', 'string_key'):
                         continue
-                    size = field_sizes.get(fname, 4)
-                    # Map all 4-byte-aligned blocks that overlap this field
-                    block_start = (off // 4) * 4
-                    block_end = ((off + size - 1) // 4) * 4
-                    for b in range(block_start, block_end + 4, 4):
-                        if b not in m:  # first match wins
-                            m[b] = (ename, fname, ekey)
-            return m
+                    cur_val = rec[field]
+                    van_val = van.get(field)
+                    if cur_val == van_val:
+                        continue
+                    # For nested dicts, emit one intent per changed sub-field
+                    # using dot-path syntax (e.g. 'four_flags.flag_a')
+                    if isinstance(cur_val, dict) and isinstance(van_val, dict):
+                        for sub_field, sub_val in cur_val.items():
+                            if sub_val != van_val.get(sub_field):
+                                intents.append({
+                                    'entry': rskey,
+                                    'key':   rkey,
+                                    'field': f'{field}.{sub_field}',
+                                    'op':    'set',
+                                    'new':   sub_val,
+                                })
+                    else:
+                        intents.append({
+                            'entry': rskey,
+                            'key':   rkey,
+                            'field': field,
+                            'op':    'set',
+                            'new':   cur_val,
+                        })
+            return intents
+
+        def _dmm_diff(table_name, cur_bytes, van_bytes, schema_bytes):
+            """Parse both buffers via dmm_parser and struct-diff them."""
+            try:
+                cur_recs = list(_dmp_efj.parse_table(table_name, bytes(cur_bytes), schema_bytes))
+                van_recs = list(_dmp_efj.parse_table(table_name, bytes(van_bytes), schema_bytes))
+                return _struct_diff(cur_recs, van_recs)
+            except Exception as _e:
+                log.warning("FieldEdit v3 dmm_diff %s failed: %s", table_name, _e)
+                return []
 
         targets = []
 
         # ── fieldinfo ──────────────────────────────────────────────────────
         if _has_diff(self._field_edit_data, self._field_edit_original):
-            om = _build_map(self._field_edit_entries, [
-                ('_canCallVehicle',        'can_call_vehicle_offset'),
-                ('_alwaysCallVehicle_dev', 'always_call_vehicle_dev_offset'),
-            ], {'_canCallVehicle': 1, '_alwaysCallVehicle_dev': 1})
-            its = _annotate(_diff_buf(self._field_edit_data, self._field_edit_original), om)
+            its = _dmm_diff('field_info', self._field_edit_data,
+                            self._field_edit_original, self._field_edit_schema)
             if its:
                 targets.append({'file': 'fieldinfo.pabgb', 'intents': its})
 
-        # ── vehicleinfo ────────────────────────────────────────────────────
-        if _has_diff(self._vehicle_data, self._vehicle_original):
-            om = _build_map(self._vehicle_entries, [
-                ('_mountCallType',   'mount_call_type_offset'),
-                ('_canCallSafeZone', 'can_call_safe_zone_offset'),
-                ('_altitudeCap',     'altitude_cap_offset'),
-            ], {'_mountCallType': 1, '_canCallSafeZone': 1, '_altitudeCap': 4})
-            its = _annotate(_diff_buf(self._vehicle_data, self._vehicle_original), om)
+        # ── vehicleinfo ─────────────────────────────────────────────────────
+        vi_cur = getattr(self, '_vehicleinfo_dmm_items', None)
+        vi_van = getattr(self, '_vehicleinfo_dmm_vanilla', None)
+        if vi_cur and vi_van:
+            its = _struct_diff(vi_cur, vi_van)
+            if its:
+                targets.append({'file': 'vehicleinfo.pabgb', 'intents': its})
+        elif _has_diff(self._vehicle_data, self._vehicle_original):
+            its = _dmm_diff('vehicle_info', self._vehicle_data,
+                            self._vehicle_original, self._vehicle_schema)
             if its:
                 targets.append({'file': 'vehicleinfo.pabgb', 'intents': its})
 
-        # ── gameplaytrigger ────────────────────────────────────────────────
+        # ── gameplaytrigger ─────────────────────────────────────────────────
         if _has_diff(self._gptrigger_data, self._gptrigger_original):
-            om = _build_map(self._gptrigger_entries, [
-                ('_safeZoneType', 'safe_zone_type_offset'),
-            ], {'_safeZoneType': 1})
-            its = _annotate(_diff_buf(self._gptrigger_data, self._gptrigger_original), om)
+            its = _dmm_diff('gameplay_trigger_info', self._gptrigger_data,
+                            self._gptrigger_original, self._gptrigger_schema)
             if its:
                 targets.append({'file': 'gameplaytrigger.pabgb', 'intents': its})
 
-        # ── regioninfo ─────────────────────────────────────────────────────
-        if _has_diff(self._regioninfo_data, self._regioninfo_original):
-            om = {}
-            for e in (self._regioninfo_entries or []):
-                ename = e.get('_stringKey', f"Region_{e.get('_key','?')}")
-                ekey = e.get('_key', 0)
-                for fname, okey, size in [('_limitVehicleRun','_limitVehicleRun_offset',1),
-                                           ('_isTown','_isTown_offset',1),
-                                           ('_isWild','_isWild_offset',1)]:
-                    off = e.get(okey, -1)
-                    if off >= 0:
-                        block = (off // 4) * 4
-                        if block not in om:
-                            om[block] = (ename, fname, ekey)
-            its = _annotate(_diff_buf(self._regioninfo_data, self._regioninfo_original), om)
+        # ── regioninfo ──────────────────────────────────────────────────────
+        ri_cur = getattr(self, '_regioninfo_dmm_items', None)
+        ri_van = getattr(self, '_regioninfo_dmm_vanilla', None)
+        if ri_cur and ri_van:
+            its = _struct_diff(ri_cur, ri_van)
+            if its:
+                targets.append({'file': 'regioninfo.pabgb', 'intents': its})
+        elif _has_diff(self._regioninfo_data, self._regioninfo_original):
+            its = _dmm_diff('region_info', self._regioninfo_data,
+                            self._regioninfo_original, self._regioninfo_schema)
             if its:
                 targets.append({'file': 'regioninfo.pabgb', 'intents': its})
 
-        # ── characterinfo ─────────────────────────────────────────────────
-        if _has_diff(self._charinfo_data, self._charinfo_original):
-            _MOUNT_FIELDS = [
-                ('_isAttackable',               '_isAttackable_offset'),
-                ('_invincibility',              '_invincibility_offset'),
-                ('_callMercenarySpawnDuration', '_callMercenarySpawnDuration_offset'),
-                ('_callMercenaryCoolTime',      '_callMercenaryCoolTime_offset'),
-            ]
-            _PLAYER_FIELDS = _MOUNT_FIELDS + [
-                ('_upperActionChartPackageGroupName', '_upperActionChartPackageGroupName_offset'),
-                ('_lowerActionChartPackageGroupName', '_lowerActionChartPackageGroupName_offset'),
-                ('_characterGamePlayDataName',        '_characterGamePlayDataName_offset'),
-                ('_characterAppearanceName',          '_characterAppearanceName_offset'),
-                ('_skeletonVariationName',            '_skeletonVariationName_offset'),
-            ]
-            # Hash fields are 8 bytes; 1-byte flags are 1 byte
-            _CI_SIZES = {
-                '_isAttackable': 1, '_invincibility': 1,
-                '_callMercenarySpawnDuration': 8, '_callMercenaryCoolTime': 8,
-                '_upperActionChartPackageGroupName': 8,
-                '_lowerActionChartPackageGroupName': 8,
-                '_characterGamePlayDataName': 8,
-                '_characterAppearanceName': 8,
-                '_skeletonVariationName': 8,
-            }
-            om = _build_map(getattr(self, '_charinfo_mount_entries', []), _MOUNT_FIELDS, _CI_SIZES)
-            om.update(_build_map(getattr(self, '_charinfo_player_entries', []), _PLAYER_FIELDS, _CI_SIZES))
-            its = _annotate(_diff_buf(self._charinfo_data, self._charinfo_original), om)
+        # ── characterinfo ───────────────────────────────────────────────────
+        ci_cur = getattr(self, '_charinfo_dmm_items', None)
+        ci_van = getattr(self, '_charinfo_dmm_vanilla', None)
+        if ci_cur and ci_van:
+            its = _struct_diff(ci_cur, ci_van)
+            if its:
+                targets.append({'file': 'characterinfo.pabgb', 'intents': its})
+        elif _has_diff(self._charinfo_data, self._charinfo_original):
+            its = _dmm_diff('character_info', self._charinfo_data,
+                            self._charinfo_original, self._charinfo_schema)
             if its:
                 targets.append({'file': 'characterinfo.pabgb', 'intents': its})
 
-        # ── wantedinfo ────────────────────────────────────────────────────
+        # ── wantedinfo ──────────────────────────────────────────────────────
         if _has_diff(self._wantedinfo_data, self._wantedinfo_original):
-            om = {}
-            try:
-                from wantedinfo_parser import parse_all_entries as wi_parse, FACTION_NAMES, CRIME_TIERS
-                for e in wi_parse(bytes(self._wantedinfo_data), self._wantedinfo_schema):
-                    faction = FACTION_NAMES.get(e['_faction'], f"Faction_{e['_faction']}")
-                    tier = CRIME_TIERS.get(e['_crimeTier'], f"Tier_{e['_crimeTier']}")
-                    ename = f"{faction}_{tier}"
-                    ekey = e.get('_key', e.get('_faction', 0))
-                    for fname, okey, size in [('_isBlocked','_isBlocked_offset',1),
-                                               ('_increasePrice','_increasePrice_offset',8)]:
-                        off = e.get(okey, -1)
-                        if off >= 0:
-                            block = (off // 4) * 4
-                            for b in range(block, block + size + 4, 4):
-                                if b not in om:
-                                    om[b] = (ename, fname, ekey)
-            except Exception as _wie:
-                log.warning("FieldEdit v3: wantedinfo annotation: %s", _wie)
-            its = _annotate(_diff_buf(self._wantedinfo_data, self._wantedinfo_original), om)
+            its = _dmm_diff('wanted_info', self._wantedinfo_data,
+                            self._wantedinfo_original, self._wantedinfo_schema)
             if its:
                 targets.append({'file': 'wantedinfo.pabgb', 'intents': its})
 
@@ -4792,8 +4981,9 @@ class FieldEditTab(QWidget):
                 tr("No field-level changes detected.\n\nMake changes then try again."))
             return
 
-        total = sum(len(t['intents']) for t in targets)
-        summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in targets)
+        total   = sum(len(t['intents']) for t in targets)
+        summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}"
+                            for t in targets)
 
         path, _ = QFileDialog.getSaveFileName(
             self, tr("Export Field JSON v3"), "FieldEdit.field.json",
@@ -4805,8 +4995,10 @@ class FieldEditTab(QWidget):
             'modinfo': {
                 'title': 'FieldEdit Mod', 'version': '1.0',
                 'author': 'CrimsonGameMods FieldEdit',
-                'description': f'{total} intent(s) across {len(targets)} target(s) — {summary}',
-                'note': 'Field JSON v3.1 (multi-target) — Requires DMM 1.3.3+.',
+                'description': f'{total} field-level intent(s) across {len(targets)} target(s) — {summary}',
+                'note': ('Format 3.1 multi-target field JSON. '
+                         'Structured intents via dmm_parser — update-proof, '
+                         'compatible with DMM 1.3.6b+.'),
             },
             'format': 3, 'format_minor': 1,
             'targets': targets,
@@ -4814,12 +5006,12 @@ class FieldEditTab(QWidget):
 
         import json as _json
         with open(path, 'w', encoding='utf-8') as f:
-            _json.dump(doc, f, indent=2, ensure_ascii=False)
+            _json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
 
         self._field_edit_status.setText(f"Exported {total} intents to {os.path.basename(path)}")
         QMessageBox.information(self, tr("Export Field JSON v3"),
-            f"Exported {total} intents across {len(targets)} targets:\n"
-            + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents" for t in targets)
+            f"Exported {total} structured field intent(s) across {len(targets)} target(s):\n"
+            + "\n".join(f"  \u2022 {t['file']}: {len(t['intents'])} intent(s)" for t in targets)
             + f"\n\nFile: {path}")
 
     def _field_edit_export_mesh_json(self):

@@ -58,6 +58,12 @@ class SkillTreeTab(QWidget):
         self._original_grp_pabgb: bytes = b""
         self._loaded = False
 
+        # UI state — skilltreeinfo combo table + preset buttons
+        self._table: 'QTableWidget | None' = None
+        self._preset_btns: list = []
+        self._root_combos: dict = {}
+        self._btn_swap_export: 'QPushButton | None' = None
+
         # Parser state — skillinfo (skill.pabgb stamina/cooldown editor)
         self._skill_entries: list[dict] = []
         self._skill_vanilla_entries: list[dict] = []
@@ -83,6 +89,14 @@ class SkillTreeTab(QWidget):
         self._btn_extract = QPushButton("Extract from Game")
         self._btn_extract.clicked.connect(self._on_extract)
         top_row.addWidget(self._btn_extract)
+
+        self._btn_swap_export = QPushButton("Export Swap as Field JSON v3")
+        self._btn_swap_export.setEnabled(False)
+        self._btn_swap_export.setToolTip(
+            "Export the current Cross-Character Skill Swap combo box selections\n"
+            "as a Format 3 _buff_data_raw JSON for DMM (skilltreeinfo.pabgb).")
+        self._btn_swap_export.clicked.connect(self._on_swap_export)
+        top_row.addWidget(self._btn_swap_export)
 
         top_row.addStretch()
 
@@ -117,140 +131,74 @@ class SkillTreeTab(QWidget):
 
         root.addLayout(top_row)
 
-        # --- preset buttons by category ---
-        self._preset_btns: list[QPushButton] = []
+        # ═══════════════════════════════════════════════════════════════
+        # Cross-Character Skill Swap  (skilltreeinfo.pabgb)
+        # ═══════════════════════════════════════════════════════════════
+        swap_grp = QGroupBox("Cross-Character Skill Swap (skilltreeinfo.pabgb)")
+        swap_grp.setStyleSheet(
+            f"QGroupBox {{ font-weight: bold; color: {COLORS['accent']}; "
+            f"border: 1px solid {COLORS.get('border', '#555')}; "
+            f"border-radius: 4px; margin-top: 8px; padding-top: 14px; }}"
+            f"QGroupBox::title {{ subcontrol-origin: margin; left: 10px; }}"
+        )
+        swap_layout = QVBoxLayout(swap_grp)
 
-        # Kliff row
-        kliff_row = QHBoxLayout()
-        kliff_row.setSpacing(4)
-        lbl = QLabel("Kliff:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        kliff_row.addWidget(lbl)
-        kliff_row.addWidget(self._make_preset_btn(
-            "Damiane Skills", "#7B1FA2",
-            "Give Kliff Damiane's full skill tree + moveset.\n\n"
-            "Redirects Kliff's skill tree to load Damiane's tree data.\n"
-            "Kliff sees Damiane skills (Marksmanship, Rapier, Pistol, etc.)\n"
-            "and uses her combat animations.\n\n"
-            "Weapon trees: Sword/Shield/Bow/Spear -> Rapier/Pistol/Longsword",
-            {50: 0x332D},
-        ))
-        kliff_row.addWidget(self._make_preset_btn(
-            "Oongka Skills", "#E65100",
-            "Give Kliff Oongka's full skill tree + moveset.\n\n"
-            "Redirects Kliff's skill tree to load Oongka's tree data.\n"
-            "Kliff sees Oongka skills (Greataxe, Blaster, Axe, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Sword/Shield/Bow/Spear -> Greataxe/Blaster/Axe",
-            {50: 0x3391},
-        ))
-        kliff_row.addStretch()
-        root.addLayout(kliff_row)
+        # Preset buttons row
+        preset_btn_row = QHBoxLayout()
+        preset_btn_row.addWidget(QLabel("Presets:"))
 
-        # Damiane row
-        dami_row = QHBoxLayout()
-        dami_row.setSpacing(4)
-        lbl = QLabel("Damiane:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        dami_row.addWidget(lbl)
-        dami_row.addWidget(self._make_preset_btn(
-            "Kliff Skills", "#1565C0",
-            "Give Damiane Kliff's full skill tree + moveset.\n\n"
-            "Redirects Damiane's skill tree to load Kliff's tree data.\n"
-            "Damiane sees Kliff skills (Sword, Shield, Bow, Spear, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Rapier/Pistol/Longsword -> Sword/Shield/Bow/Spear",
-            {52: 0x32C9},
-        ))
-        dami_row.addWidget(self._make_preset_btn(
-            "Oongka Skills", "#E65100",
-            "Give Damiane Oongka's full skill tree + moveset.\n\n"
-            "Redirects Damiane's skill tree to load Oongka's tree data.\n"
-            "Damiane sees Oongka skills (Greataxe, Blaster, Axe, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Rapier/Pistol/Longsword -> Greataxe/Blaster/Axe",
-            {52: 0x3391},
-        ))
-        dami_row.addStretch()
-        root.addLayout(dami_row)
+        from skilltreeinfo_parser import CHAR_MELEE_ROOT
+        for label, color, tip, swaps in [
+            ("Kliff = Oongka",   "#00695C",
+             "Give Kliff the Oongka melee moveset.",
+             {50: CHAR_MELEE_ROOT[51]}),
+            ("Kliff = Damiane",  "#00695C",
+             "Give Kliff the Damiane melee moveset.",
+             {50: CHAR_MELEE_ROOT[52]}),
+            ("Oongka = Kliff",   "#1565C0",
+             "Give Oongka the Kliff melee moveset.",
+             {51: CHAR_MELEE_ROOT[50]}),
+            ("Oongka = Damiane", "#1565C0",
+             "Give Oongka the Damiane melee moveset.",
+             {51: CHAR_MELEE_ROOT[52]}),
+            ("Damiane = Kliff",  "#6A1B9A",
+             "Give Damiane the Kliff melee moveset.",
+             {52: CHAR_MELEE_ROOT[50]}),
+            ("Damiane = Oongka", "#6A1B9A",
+             "Give Damiane the Oongka melee moveset.",
+             {52: CHAR_MELEE_ROOT[51]}),
+            ("Reset All",       "#B71C1C",
+             "Restore all characters to their native movesets.",
+             None),
+        ]:
+            btn = self._make_preset_btn(label, color, tip, swaps)
+            preset_btn_row.addWidget(btn)
 
-        # Oongka row
-        oong_row = QHBoxLayout()
-        oong_row.setSpacing(4)
-        lbl = QLabel("Oongka:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        oong_row.addWidget(lbl)
-        oong_row.addWidget(self._make_preset_btn(
-            "Kliff Skills", "#1565C0",
-            "Give Oongka Kliff's full skill tree + moveset.\n\n"
-            "Redirects Oongka's skill tree to load Kliff's tree data.\n"
-            "Oongka sees Kliff skills (Sword, Shield, Bow, Spear, etc.)\n"
-            "and uses his combat animations.\n\n"
-            "Weapon trees: Greataxe/Blaster/Axe -> Sword/Shield/Bow/Spear",
-            {51: 0x32C9},
-        ))
-        oong_row.addWidget(self._make_preset_btn(
-            "Damiane Skills", "#7B1FA2",
-            "Give Oongka Damiane's full skill tree + moveset.\n\n"
-            "Redirects Oongka's skill tree to load Damiane's tree data.\n"
-            "Oongka sees Damiane skills (Marksmanship, Rapier, Pistol, etc.)\n"
-            "and uses her combat animations.\n\n"
-            "Weapon trees: Greataxe/Blaster/Axe -> Rapier/Pistol/Longsword",
-            {51: 0x332D},
-        ))
-        oong_row.addStretch()
-        root.addLayout(oong_row)
+        preset_btn_row.addStretch()
+        swap_layout.addLayout(preset_btn_row)
 
-        # All row
-        all_row = QHBoxLayout()
-        all_row.setSpacing(4)
-        lbl = QLabel("All:")
-        lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
-        all_row.addWidget(lbl)
-        all_row.addWidget(self._make_preset_btn(
-            "Share Kliff", "#1565C0",
-            "All 3 characters use Kliff's full skill tree + moveset.\n\n"
-            "Redirects Oongka and Damiane to load Kliff's trees.\n"
-            "Everyone sees Kliff skills and uses Sword/Shield/Bow/Spear.",
-            {50: 0x32C9, 51: 0x32C9, 52: 0x32C9},
-        ))
-        all_row.addWidget(self._make_preset_btn(
-            "Share Damiane", "#7B1FA2",
-            "All 3 characters use Damiane's full skill tree + moveset.\n\n"
-            "Redirects Kliff and Oongka to load Damiane's trees.\n"
-            "Everyone sees Damiane skills and uses Rapier/Pistol/Longsword.",
-            {50: 0x332D, 51: 0x332D, 52: 0x332D},
-        ))
-        all_row.addWidget(self._make_preset_btn(
-            "Share Oongka", "#E65100",
-            "All 3 characters use Oongka's full skill tree + moveset.\n\n"
-            "Redirects Kliff and Damiane to load Oongka's trees.\n"
-            "Everyone sees Oongka skills and uses Greataxe/Blaster/Axe.",
-            {50: 0x3391, 51: 0x3391, 52: 0x3391},
-        ))
-        all_row.addWidget(self._make_preset_btn(
-            "Reset Vanilla", "#424242",
-            "Reset all 3 characters to their original skill trees.\n\n"
-            "Restores vanilla group mappings and root packages.\n"
-            "Undoes any preset selection (still need to Apply to Game).",
-            None,  # special: reset to vanilla
-        ))
-        all_row.addStretch()
-        root.addLayout(all_row)
-
-        # --- table ---
+        # Skill tree table
         self._table = QTableWidget()
         self._table.setColumnCount(6)
-        self._table.setHorizontalHeaderLabels([
-            "Key", "Name", "Character", "Category", "Size", "Melee Root",
-        ])
-        hh = self._table.horizontalHeader()
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
-        self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._table.setHorizontalHeaderLabels(
+            ["Key", "Name", "Character", "Category", "Size", "Melee Root"])
+        th = self._table.horizontalHeader()
+        th.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        th.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self._table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
-        root.addWidget(self._table)
+        self._table.setMaximumHeight(260)
+        swap_layout.addWidget(self._table)
+
+        swap_status = QLabel("Click 'Extract from Game' to load skill tree entries.")
+        swap_status.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px;")
+        swap_layout.addWidget(swap_status)
+        self._lbl_swap_status = swap_status
+
+        root.addWidget(swap_grp)
 
         # ═══════════════════════════════════════════════════════════════
         # Skill Editor — Stamina & Cooldown Mods  (skill.pabgb)
@@ -290,40 +238,33 @@ class SkillTreeTab(QWidget):
         sg_layout.addLayout(skill_btn_row)
 
         # --- stamina preset row ---
+        # --- stamina preset row ---
         preset_row = QHBoxLayout()
         preset_row.setSpacing(4)
-        preset_lbl = QLabel("Stamina Presets:")
+        preset_lbl = QLabel("Stamina/Spirit:")
         preset_lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
         preset_row.addWidget(preset_lbl)
 
         stamina_presets = [
-            ("10%", "CrimsonWings_Stamina_10pct.json",
-             "10% stamina drain — barely noticeable reduction."),
-            ("25%", "CrimsonWings_Stamina_25pct.json",
-             "25% stamina drain — mild reduction."),
-            ("50%", "CrimsonWings_Stamina_50pct.json",
-             "50% stamina drain — half drain rate."),
-            ("75%", "CrimsonWings_Stamina_75pct.json",
-             "75% stamina drain — significant reduction."),
-            ("Infinite", "CrimsonWings_Stamina_infinite.json",
-             "Infinite stamina — near-zero drain, massive recovery."),
+            ("10%", 0.10, "10% stamina drain — barely noticeable reduction."),
+            ("25%", 0.25, "25% stamina drain — mild reduction."),
+            ("50%", 0.50, "50% stamina drain — half drain rate."),
+            ("75%", 0.75, "75% stamina drain — significant reduction."),
+            ("Infinite", 0.0, "Infinite stamina — zero drain."),
         ]
-        self._stamina_preset_files = {}
-        for label, filename, tip in stamina_presets:
+        for label, factor, tip in stamina_presets:
             btn = QPushButton(label)
             btn.setToolTip(f"Apply Stamina Preset: {tip}")
             btn.setStyleSheet(
                 "QPushButton { background-color: #00695C; color: white; "
                 "font-weight: bold; padding: 4px 10px; }")
             btn.clicked.connect(
-                lambda _c=False, fn=filename: self._on_stamina_preset(fn))
+                lambda _c=False, f=factor: self._on_stamina_preset(f))
             preset_row.addWidget(btn)
-            self._stamina_preset_files[filename] = None
 
         preset_row.addStretch()
         sg_layout.addLayout(preset_row)
 
-        # --- bulk skill mod buttons ---
         bulk_row = QHBoxLayout()
         bulk_row.setSpacing(4)
         bulk_lbl = QLabel("Bulk Mods:")
@@ -431,13 +372,27 @@ class SkillTreeTab(QWidget):
         for btn in self._preset_btns:
             btn.setEnabled(True)
         self._btn_apply.setEnabled(True)
+        if self._btn_swap_export is not None:
+            self._btn_swap_export.setEnabled(True)
+        n = len(self._records)
+        if hasattr(self, '_lbl_swap_status'):
+            self._lbl_swap_status.setText(
+                f"{n} skill tree entries loaded — use combo boxes to redirect movesets.")
         self.status_message.emit(
-            f"Loaded {len(self._records)} skill tree entries "
+            f"Loaded {n} skill tree entries "
             f"({len(self._original_pabgb)} bytes)"
         )
 
     def _populate_table(self) -> None:
-        from skilltreeinfo_parser import ROOT_PACKAGES, CHAR_MELEE_ROOT
+        if self._table is None:
+            return
+        from skilltreeinfo_parser import ROOT_PACKAGES, CHAR_MELEE_ROOT, MAIN_TREE_KEYS
+
+        # Sort: main tree entries (50/51/52) first so combo boxes are immediately visible
+        self._records = sorted(
+            self._records,
+            key=lambda r: (0 if r.key in MAIN_TREE_KEYS else 1, r.key)
+        )
 
         self._table.setRowCount(len(self._records))
         self._root_combos: dict[int, QComboBox] = {}
@@ -503,6 +458,8 @@ class SkillTreeTab(QWidget):
     def _apply_preset(self, swaps: Optional[dict[int, int]]) -> None:
         """Apply a preset by updating the table combo boxes."""
         if not self._loaded:
+            QMessageBox.warning(self, "Not loaded",
+                "Click 'Extract from Game' first to load skill tree entries.")
             return
         from skilltreeinfo_parser import CHAR_MELEE_ROOT
 
@@ -510,6 +467,7 @@ class SkillTreeTab(QWidget):
             # Reset to vanilla
             swaps = dict(CHAR_MELEE_ROOT)
 
+        first_row = None
         for key, new_root in swaps.items():
             if key in self._root_combos:
                 combo = self._root_combos[key]
@@ -517,6 +475,120 @@ class SkillTreeTab(QWidget):
                     if combo.itemData(i) == new_root:
                         combo.setCurrentIndex(i)
                         break
+                # Find the row for this key to scroll to it
+                if first_row is None and self._table is not None:
+                    for row in range(self._table.rowCount()):
+                        item = self._table.item(row, 0)
+                        if item and item.text() == str(key):
+                            first_row = row
+                            break
+
+        # Scroll to the first modified row so the user can see the change
+        if first_row is not None and self._table is not None:
+            self._table.scrollToItem(
+                self._table.item(first_row, 0),
+                QTableWidget.ScrollHint.PositionAtCenter)
+
+    # -- export swap as field json -------------------------------------
+
+    def _on_swap_export(self) -> None:
+        """Export the current combo box selections as _buff_data_raw intents
+        targeting skilltreeinfo.pabgb via DMM's skill_tree_info dispatcher."""
+        if not self._loaded:
+            QMessageBox.warning(self, "Not loaded",
+                "Click 'Extract from Game' first.")
+            return
+
+        import json as _json
+        from PySide6.QtWidgets import QFileDialog
+        from skilltreeinfo_parser import (
+            parse_all, serialize_all, CHAR_MELEE_ROOT
+        )
+
+        # Parse vanilla records from the original bytes
+        vanilla_records = parse_all(
+            self._original_pabgh, self._original_pabgb)
+        van_by_key = {r.key: r for r in vanilla_records}
+
+        # Build modified records by applying current combo selections
+        import copy as _copy
+        mod_records = parse_all(
+            self._original_pabgh, self._original_pabgb)
+        mod_by_key = {r.key: r for r in mod_records}
+
+        intents = []
+        changed = 0
+
+        # Build the full set of swaps from the current combo selections
+        # {native_root: new_root} for each character whose combo changed
+        root_swaps: dict[int, int] = {}
+        for char_key, combo in self._root_combos.items():
+            new_root = combo.currentData()
+            if new_root is None:
+                continue
+            native_root = CHAR_MELEE_ROOT.get(char_key)
+            if native_root is None or new_root == native_root:
+                continue
+            root_swaps[native_root] = new_root
+
+        if not root_swaps:
+            QMessageBox.information(self, "Export Swap",
+                "No changes detected — all combos are at their vanilla values.\n"
+                "Select a different moveset from the combo boxes first.")
+            return
+
+        # Patch ALL records that contain any of the native root package IDs
+        # (not just the main tree entry — weapon/martial art/special skill
+        # entries also reference the melee root and need to be updated too)
+        for van_rec, mod_rec in zip(vanilla_records, mod_records):
+            van_bytes = van_rec.to_bytes()
+            patched = False
+            for native_root, new_root in root_swaps.items():
+                count = mod_rec.patch_root_package(native_root, new_root)
+                if count > 0:
+                    patched = True
+            if not patched:
+                continue
+            mod_bytes = mod_rec.to_bytes()
+            if van_bytes == mod_bytes:
+                continue
+            intents.append({
+                'entry': mod_rec.name,
+                'key': mod_rec.key,
+                'field': '_buff_data_raw',
+                'old': van_bytes.hex(),
+                'new': mod_bytes.hex(),
+            })
+            changed += 1
+
+        doc = {
+            'modinfo': {
+                'title': 'Cross-Character Skill Swap',
+                'version': '1.0',
+                'author': 'CrimsonGameMods SkillTree',
+                'description': f'{changed} skilltreeinfo entry swap(s)',
+                'note': 'Format 3 — _buff_data_raw byte-replace via dmmski dispatcher',
+            },
+            'format': 3,
+            'format_minor': 1,
+            'target': 'skilltreeinfo.pabgb',
+            'intents': intents,
+            'targets': [{'file': 'skilltreeinfo.pabgb', 'intents': intents}],
+        }
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Skill Swap",
+            "SkillSwap.field.json",
+            "Field JSON (*.field.json *.json);;All Files (*)")
+        if not path:
+            return
+
+        with open(path, 'w', encoding='utf-8') as f:
+            _json.dump(doc, f, indent=2, ensure_ascii=False)
+
+        QMessageBox.information(self, "Export Swap",
+            f"Exported {len(intents)} swap intent(s).\n\n"
+            f"Drop the JSON into your DMM mods folder.")
 
     # -- apply to game -------------------------------------------------
 
@@ -572,10 +644,17 @@ class SkillTreeTab(QWidget):
         # Also include skill.pabgb if stamina/cooldown edits are pending
         try:
             if self._has_skill_modifications():
-                import skillinfo_parser as sip
-                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
-                result["skill.pabgb"] = bytes(skill_pabgb)
-                result["skill.pabgh"] = bytes(skill_pabgh)
+                if getattr(self, '_skill_dmm_loaded', False):
+                    import dmm_parser as _dmp_ser
+                    new_pabgb = bytes(_dmp_ser.serialize_table(
+                        'skill_info', self._skill_entries))
+                    result["skill.pabgb"] = new_pabgb
+                    result["skill.pabgh"] = self._skill_pabgh
+                else:
+                    import skillinfo_parser as sip
+                    skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                    result["skill.pabgb"] = bytes(skill_pabgb)
+                    result["skill.pabgh"] = bytes(skill_pabgh)
         except Exception:
             pass
         return result
@@ -690,7 +769,14 @@ class SkillTreeTab(QWidget):
                                     "Nothing to deploy.")
             return
 
-        overlay_group = f"{self._overlay_spin.value():04d}"
+        from gui.utils import resolve_overlay_group
+        requested = self._overlay_spin.value()
+        group_num = resolve_overlay_group(game_path, requested, "SkillTree", parent=self)
+        if group_num is None:
+            return
+        if group_num != requested:
+            self._overlay_spin.setValue(group_num)
+        overlay_group = f"{group_num:04d}"
 
         # Build overlay with PackGroupBuilder(NONE)
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -714,10 +800,17 @@ class SkillTreeTab(QWidget):
 
             # Pack skill.pabgb + skill.pabgh if skill edits are active
             if has_skill_edits:
-                import skillinfo_parser as sip
-                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
-                builder.add_file(INTERNAL_DIR, "skill.pabgb", skill_pabgb)
-                builder.add_file(INTERNAL_DIR, "skill.pabgh", skill_pabgh)
+                if getattr(self, '_skill_dmm_loaded', False):
+                    import dmm_parser as _dmp_ser2
+                    _new_pabgb = bytes(_dmp_ser2.serialize_table(
+                        'skill_info', self._skill_entries))
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb", _new_pabgb)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgh", self._skill_pabgh)
+                else:
+                    import skillinfo_parser as sip
+                    skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb", skill_pabgb)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgh", skill_pabgh)
                 mod_count = self._count_skill_modifications()
                 changes.append(f"skill.pabgb: {mod_count} skill(s) modified")
 
@@ -858,25 +951,57 @@ class SkillTreeTab(QWidget):
         self._skill_pabgh = pabgh
         self._skill_pabgb = pabgb
 
+        # Try dmm_parser first — gives proper field names and structured data.
+        # Fall back to skillinfo_parser if dmm_parser doesn't support skill_info
+        # or returns 0 entries (older bundled version).
+        dmm_loaded = False
         try:
-            import skillinfo_parser as sip
-            self._skill_entries = sip.parse_all(pabgh, pabgb)
-            # Deep copy vanilla baseline for diffing
-            self._skill_vanilla_entries = sip.parse_all(pabgh, pabgb)
-        except Exception as e:
-            QMessageBox.critical(self, "Parse failed",
-                                 f"skillinfo_parser.parse_all failed:\n{e}")
-            return
+            import dmm_parser as _dmp_sk
+            import copy as _copy_sk
+            dmm_entries = list(_dmp_sk.parse_table('skill_info', pabgb, pabgh))
+            if dmm_entries:
+                self._skill_entries = dmm_entries
+                self._skill_vanilla_entries = _copy_sk.deepcopy(dmm_entries)
+                self._skill_dmm_loaded = True
+                dmm_loaded = True
+                self._skill_loaded = True
+                self._skill_dirty_keys: set = set()
+                self._btn_skill_export.setEnabled(True)
+                self._btn_apply.setEnabled(True)
+                self._populate_skill_table()
+                self._lbl_skill_status.setText(
+                    f"Loaded {len(self._skill_entries)} skills via dmm_parser "
+                    f"({len(pabgb):,} bytes)")
+                self.status_message.emit(
+                    f"Loaded {len(self._skill_entries)} skill entries (dmm_parser)")
+            else:
+                log.warning("dmm_parser returned 0 skill_info entries — "
+                            "falling back to skillinfo_parser")
+        except Exception as _dmp_err:
+            log.warning("dmm_parser skill_info failed (%s) — "
+                        "falling back to skillinfo_parser", _dmp_err)
 
-        self._skill_loaded = True
-        self._btn_skill_export.setEnabled(True)
-        self._btn_apply.setEnabled(True)
-        self._populate_skill_table()
-        self._lbl_skill_status.setText(
-            f"Loaded {len(self._skill_entries)} skills "
-            f"({len(pabgb):,} bytes)")
-        self.status_message.emit(
-            f"Loaded {len(self._skill_entries)} skill entries from skill.pabgb")
+        if not dmm_loaded:
+            try:
+                import skillinfo_parser as sip
+                self._skill_entries = sip.parse_all(pabgh, pabgb)
+                self._skill_vanilla_entries = sip.parse_all(pabgh, pabgb)
+                self._skill_dmm_loaded = False
+            except Exception as e:
+                QMessageBox.critical(self, "Parse failed",
+                                     f"skillinfo_parser.parse_all failed:\n{e}")
+                return
+
+            self._skill_loaded = True
+            self._skill_dirty_keys: set = set()
+            self._btn_skill_export.setEnabled(True)
+            self._btn_apply.setEnabled(True)
+            self._populate_skill_table()
+            self._lbl_skill_status.setText(
+                f"Loaded {len(self._skill_entries)} skills "
+                f"({len(pabgb):,} bytes)")
+            self.status_message.emit(
+                f"Loaded {len(self._skill_entries)} skill entries from skill.pabgb")
 
     def _populate_skill_table(self) -> None:
         """Fill the skill table from self._skill_entries."""
@@ -887,13 +1012,14 @@ class SkillTreeTab(QWidget):
 
         self._skill_table_updating = True
         for row, e in enumerate(entries):
-            # Name (read-only)
-            item = QTableWidgetItem(e['name'])
+            # Name — dmm_parser uses 'string_key', skillinfo_parser uses 'name'
+            display_name = e.get('name', e.get('string_key', str(e.get('key', row))))
+            item = QTableWidgetItem(display_name)
             item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             dn = e.get('dev_skill_name', b'')
             if isinstance(dn, bytes):
                 dn = dn.decode('utf-8', 'replace')
-            item.setToolTip(dn if dn else e['name'])
+            item.setToolTip(dn if dn else display_name)
             self._skill_table.setItem(row, 0, item)
 
             # Key (read-only)
@@ -915,8 +1041,9 @@ class SkillTreeTab(QWidget):
             ml.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self._skill_table.setItem(row, 3, ml)
 
-            # BuffLevels (read-only)
-            bl = QTableWidgetItem(str(e.get('_buffLevelCount', 0)))
+            # BuffLevels (read-only) — dmm_parser has 'buff_level_list', skillinfo_parser has '_buffLevelCount'
+            bl_count = e.get('_buffLevelCount', len(e.get('buff_level_list', [])))
+            bl = QTableWidgetItem(str(bl_count))
             bl.setFlags(bl.flags() & ~Qt.ItemFlag.ItemIsEditable)
             bl.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self._skill_table.setItem(row, 4, bl)
@@ -941,6 +1068,7 @@ class SkillTreeTab(QWidget):
         if not self._skill_loaded or row >= len(self._skill_entries):
             return
         e = self._skill_entries[row]
+        self._skill_dirty_keys.add(e.get('key', row))
         item = self._skill_table.item(row, col)
         if not item:
             return
@@ -977,6 +1105,8 @@ class SkillTreeTab(QWidget):
         """Check if skill entry at idx differs from vanilla."""
         if idx >= len(self._skill_vanilla_entries):
             return True
+        if getattr(self, '_skill_dmm_loaded', False):
+            return self._skill_entries[idx] != self._skill_vanilla_entries[idx]
         import skillinfo_parser as sip
         cur = sip.serialize_entry(self._skill_entries[idx])
         van = sip.serialize_entry(self._skill_vanilla_entries[idx])
@@ -986,6 +1116,10 @@ class SkillTreeTab(QWidget):
         """Return True if any skill entry has been modified."""
         if not self._skill_loaded or not self._skill_entries:
             return False
+        if getattr(self, '_skill_dmm_loaded', False):
+            return any(self._skill_entries[i] != self._skill_vanilla_entries[i]
+                       for i in range(min(len(self._skill_entries),
+                                          len(self._skill_vanilla_entries))))
         import skillinfo_parser as sip
         for i, e in enumerate(self._skill_entries):
             if i >= len(self._skill_vanilla_entries):
@@ -1247,6 +1381,7 @@ class SkillTreeTab(QWidget):
                 e['field_12'] = 0
                 e['_cooltime'] = 0
                 e.pop('_raw', None)
+                self._skill_dirty_keys.add(e.get('key', 0))
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Zero Cooldown: {count} skills modified")
@@ -1266,6 +1401,7 @@ class SkillTreeTab(QWidget):
                     if isinstance(res, dict) and res.get('value', 0) != 0:
                         res['value'] = 0
                         count += 1
+                        self._skill_dirty_keys.add(e.get('key', 0))
                 e.pop('_raw', None)
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Free Skills: {count} resource costs zeroed")
@@ -1282,6 +1418,7 @@ class SkillTreeTab(QWidget):
                 e['_maxLevel'] = 30
                 e['max_level'] = 30
                 e.pop('_raw', None)
+                self._skill_dirty_keys.add(e.get('key', 0))
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Max Level 30: {count} skills modified")
@@ -1298,6 +1435,7 @@ class SkillTreeTab(QWidget):
                 e['_buffSustainFlag'] = 1
                 e['buff_sustain_flag'] = 1
                 e.pop('_raw', None)
+                self._skill_dirty_keys.add(e.get('key', 0))
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Permanent Buffs: {count} skills set to sustain")
@@ -1379,41 +1517,192 @@ class SkillTreeTab(QWidget):
             f"All skills are now usable by all characters.\n"
             "")
 
-    def _on_stamina_preset(self, filename: str) -> None:
-        """One-click stamina preset: load skillinfo if needed, find preset, import it."""
+    _STAMINA_HASH = 1000026
+    _SPIRIT_HASH = 1000027
+
+    def _on_regen_boost(self) -> None:
+        """Multiply only stamina/spirit REGENERATION (positive d values) by the
+        selected factor. Costs (negative d values) are left unchanged."""
         if not self._skill_loaded:
             self._on_skill_load()
         if not self._skill_loaded:
             return
 
-        preset_path = None
-        for base_dir in [
-            os.path.dirname(os.path.abspath(__file__)),
-            getattr(sys, '_MEIPASS', ''),
-            os.getcwd(),
-        ]:
-            for rel in [
-                os.path.join(base_dir, '..', '..', 'stamina_presets', filename),
-                os.path.join(base_dir, 'stamina_presets', filename),
-                os.path.join(base_dir, '..', '..', filename),
-                os.path.join(base_dir, filename),
-            ]:
-                p = os.path.normpath(rel)
-                if os.path.isfile(p):
-                    preset_path = p
-                    break
-            if preset_path:
-                break
+        factor = self._regen_spin.value()
 
-        if not preset_path:
-            from PySide6.QtWidgets import QFileDialog
-            preset_path, _ = QFileDialog.getOpenFileName(
-                self, f"Locate {filename}", "",
-                "JSON Files (*.json);;All Files (*)")
-        if not preset_path:
+        try:
+            import dmm_parser, copy
+            dmm_items = dmm_parser.parse_table(
+                'skill_info', self._skill_pabgb, self._skill_pabgh)
+            vanilla_items = copy.deepcopy(dmm_items)
+        except Exception as e:
+            QMessageBox.critical(self, "Regen Boost",
+                f"dmm_parser failed:\n{e}")
             return
 
-        self._apply_skill_value_patches(preset_path)
+        regen_count = 0
+        dirty_keys: set = set()
+
+        for it in dmm_items:
+            hit = False
+            for list_key in ('use_resource_stat_list', 'use_driver_resource_stat_list'):
+                for r in (it.get(list_key) or []):
+                    if not isinstance(r, dict):
+                        continue
+                    d = r.get('d', 0)
+                    if isinstance(d, int) and d > 2**63:
+                        d = d - 2**64
+                    # Only boost POSITIVE values (restoration/regen)
+                    # Negative values are costs — leave them alone
+                    if d > 0:
+                        r['d'] = int(d * factor)
+                        regen_count += 1
+                        hit = True
+            if hit:
+                dirty_keys.add(it.get('key', 0))
+
+        new_pabgb = bytes(dmm_parser.serialize_table('skill_info', dmm_items))
+        self._skill_pabgb = new_pabgb
+        self._skill_entries = dmm_items
+        self._skill_dirty_keys.update(dirty_keys)
+
+        # Do NOT overwrite _skill_vanilla_entries — it must always reflect
+        # the original game data so the export diff is cumulative across
+        # multiple preset applications (stamina + regen, etc.)
+        self._skill_loaded = True
+        self._btn_skill_export.setEnabled(True)
+
+        self._lbl_skill_status.setText(
+            f"Regen Boost {factor}×: {regen_count} regen values boosted "
+            f"across {len(dirty_keys)} skills.")
+
+    def _on_stamina_preset(self, factor: float) -> None:
+        """One-click stamina preset using dmm_parser for full field access.
+        Zeros positive resource costs and stamina drain buffs.
+        Preserves recovery (negative) values."""
+        if not self._skill_loaded:
+            self._on_skill_load()
+        if not self._skill_loaded:
+            return
+
+        try:
+            import dmm_parser, copy
+            dmm_items = dmm_parser.parse_table(
+                'skill_info', self._skill_pabgb, self._skill_pabgh)
+            vanilla_items = copy.deepcopy(dmm_items)
+        except Exception as e:
+            QMessageBox.critical(self, "Stamina Preset",
+                f"dmm_parser failed:\n{e}")
+            return
+
+        res_count = 0
+        buff_count = 0
+        dirty_keys: set = set()
+
+        for it in dmm_items:
+            hit = False
+            for list_key in ('use_resource_stat_list', 'use_driver_resource_stat_list'):
+                for r in (it.get(list_key) or []):
+                    if not isinstance(r, dict):
+                        continue
+                    d = r.get('d', 0)
+                    if isinstance(d, int) and d > 2**63:
+                        d = d - 2**64
+                    # Only scale NEGATIVE values (stamina costs: roll, dash, fly,
+                    # climb, swim, combat skills). Positive values are regen/restore
+                    # and are handled independently by the Regen Boost button so
+                    # both presets can be combined without cancelling each other.
+                    if d < 0:
+                        scaled = int(d * factor)
+                        if scaled < 0:
+                            scaled = scaled + 2**64
+                        r['d'] = scaled
+                        res_count += 1
+                        hit = True
+
+            for level in (it.get('buff_level_list') or []):
+                for buff in level:
+                    var = buff.get('variant', {})
+                    vtype = var.get('type', '')
+                    body = var.get('body', {})
+                    if body.get('f00') not in (self._STAMINA_HASH, self._SPIRIT_HASH):
+                        continue
+
+                    if vtype == 'VaryDataDefinedStatBuffData':
+                        for fk in ('f01', 'f02'):
+                            val = body.get(fk, 0)
+                            if isinstance(val, int) and val > 2**63:
+                                val = val - 2**64
+                            if isinstance(val, (int, float)) and val < 0:
+                                scaled_fk = int(val * factor)
+                                if scaled_fk < 0:
+                                    scaled_fk = scaled_fk + 2**64
+                                body[fk] = scaled_fk
+                                buff_count += 1
+                                hit = True
+                    elif vtype == 'BlockRegenerateStatBuffData':
+                        body['f00'] = 0
+                        buff_count += 1
+                        hit = True
+                    elif vtype == 'ChangeBuffLevelBuffData':
+                        body['f01'] = 0
+                        buff_count += 1
+                        hit = True
+
+            if hit:
+                dirty_keys.add(it.get('key', 0))
+
+        new_pabgb = bytes(dmm_parser.serialize_table('skill_info', dmm_items))
+        self._skill_pabgb = new_pabgb
+
+        # Keep dmm_parser items directly — do NOT re-parse with skillinfo_parser.
+        self._skill_entries = dmm_items
+        self._skill_dirty_keys.update(dirty_keys)
+
+        # Generate _buff_data_raw byte-replace intents for entries where
+        # buff_level_list was modified. The typed apply path (dmmv3_skill)
+        # handles use_resource_stat_list, but buff_level_list is opaque to
+        # the typed path ("per-buff field edits aren't addressable yet" per
+        # DMM source). The dmmski byte-replace path handles _buff_data_raw
+        # intents — both paths run independently on the same export file.
+        # We detect buff-only changes by comparing full entry bytes against
+        # a version where only use_resource_stat_list was modified.
+        buff_raw_intents = []
+        for van_it, mod_it in zip(vanilla_items, dmm_items):
+            try:
+                van_bytes = bytes(dmm_parser.serialize_table('skill_info', [van_it]))
+                mod_bytes = bytes(dmm_parser.serialize_table('skill_info', [mod_it]))
+            except Exception:
+                continue
+            if van_bytes == mod_bytes:
+                continue
+            # Emit _buff_data_raw for every changed entry.
+            # dmmski byte-replace is the only working apply path for skill.pabgb
+            # (dmmv3_skill typed intents are silently ignored for pabgh-bounded
+            # tables per DMM task #11 — confirmed against CrimsonWings mod which
+            # uses _buff_data_raw exclusively and works correctly).
+            name = mod_it.get('string_key', str(mod_it.get('key', '')))
+            key  = mod_it.get('key')
+            buff_raw_intents.append({
+                'entry': name,
+                'key':   key,
+                'field': '_buff_data_raw',
+                'old':   van_bytes.hex(),
+                'new':   mod_bytes.hex(),
+            })
+        self._skill_buff_raw_intents = buff_raw_intents
+        self._populate_skill_table()
+
+        pct = f"{int(factor * 100)}%" if factor > 0 else "Infinite"
+        total = res_count + buff_count
+        self._lbl_skill_status.setText(
+            f"Stamina {pct}: {res_count} costs + {buff_count} buff drains modified")
+        QMessageBox.information(self, f"Stamina Preset: {pct}",
+            f"Modified {total} stamina values via dmm_parser:\n"
+            f"  {res_count} resource costs scaled to {pct}\n"
+            f"    (includes roll, dash, fly, climb, swim, combat)\n"
+            f"  {buff_count} buff-level drains scaled to {pct}\n\n"
+            f"Export Field JSON v3 to save.")
 
     def _apply_skill_value_patches(self, path: str) -> None:
         """Apply a legacy skill JSON mod by patching values in-place.
@@ -1512,18 +1801,41 @@ class SkillTreeTab(QWidget):
             return
 
         import skillinfo_parser as sip
+        dirty_keys = getattr(self, '_skill_dirty_keys', set())
         intents = []
         for i, e in enumerate(self._skill_entries):
             if i >= len(self._skill_vanilla_entries):
                 continue
-            van = self._skill_vanilla_entries[i]
-            if sip.serialize_entry(e) == sip.serialize_entry(van):
+            ekey = e.get('key', i)
+            # If dirty tracking is active, only process entries we know changed
+            if dirty_keys and ekey not in dirty_keys:
                 continue
-            # Build a field-level diff
+            van = self._skill_vanilla_entries[i]
+            # When loaded via dmm_parser, compare dicts directly
+            if getattr(self, '_skill_dmm_loaded', False):
+                if e == van:
+                    continue
+            else:
+                if sip.serialize_entry(e) == sip.serialize_entry(van):
+                    continue
             entry_intents = _diff_skill_entry(van, e)
             intents.extend(entry_intents)
 
-        if not intents:
+        # Merge in _buff_data_raw byte-replace intents generated by the stamina
+        # preset (dmmski path). These cover buff_level_list entries that the
+        # typed dmmv3_skill path can't reach ("per-buff field edits aren't
+        # addressable yet" per DMM source). Both dispatchers read the same file:
+        # typed path picks up op="set" intents, byte-replace path picks up
+        # field="_buff_data_raw" old/new hex intents — neither interferes.
+        #
+        # IMPORTANT: must use legacy "target"/"intents" format (not "targets"
+        # array) so the dmmski byte-replace dispatcher sees the file. The
+        # dispatcher reads json.get("target") at root level; "targets" array
+        # is only read by the typed dmmv3_skill path.
+        buff_raw = getattr(self, '_skill_buff_raw_intents', [])
+        all_intents = intents + buff_raw
+
+        if not all_intents:
             QMessageBox.information(self, "Export Field JSON",
                                     "No modifications to export.")
             return
@@ -1535,20 +1847,36 @@ class SkillTreeTab(QWidget):
         if not path:
             return
 
+        n_structured = len(intents)
+        n_buff_raw   = len(buff_raw)
+
+        # All skill.pabgb changes go as _buff_data_raw via dmmski dispatcher.
+        # dmmv3_skill typed intents are silently ignored for pabgh-bounded tables
+        # (DMM task #11 not yet implemented) — confirmed by CrimsonWings mod which
+        # uses _buff_data_raw exclusively. Structured intents are dropped from export.
+        raw_intents_only = [i for i in all_intents
+                            if i.get('field') == '_buff_data_raw']
+
         doc = {
             'modinfo': {
                 'title': 'Skill Mod',
                 'version': '1.0',
                 'author': 'CrimsonGameMods SkillTree',
-                'description': f'{len(intents)} field-level intent(s)',
-                'note': 'Format 3 -- uses field names, survives game updates',
+                'description': (
+                    f'{n_buff_raw} _buff_data_raw intent(s)'
+                ),
+                'note': 'Format 3 — _buff_data_raw byte-replace intents via dmmski dispatcher',
             },
             'format': 3,
             'format_minor': 1,
+            # Root target/intents → dmmski dispatcher (_buff_data_raw only)
+            'target': 'skill.pabgb',
+            'intents': raw_intents_only,
+            # targets array still included for forward compatibility
             'targets': [
                 {
-                    'file': 'skill_info.pabgb',
-                    'intents': intents,
+                    'file': 'skill.pabgb',
+                    'intents': raw_intents_only,
                 }
             ],
         }
@@ -1557,11 +1885,14 @@ class SkillTreeTab(QWidget):
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
             self._lbl_skill_status.setText(
-                f"Exported {len(intents)} intents to {os.path.basename(path)}")
+                f"Exported {len(all_intents)} intents to {os.path.basename(path)}"
+                + (f" ({n_structured} structured + {n_buff_raw} buff_raw)" if n_buff_raw else ""))
             QMessageBox.information(
                 self, "Export Field JSON",
-                f"Exported {len(intents)} field-level intents.\n\n"
-                f"File: {path}")
+                f"Exported {len(all_intents)} intents:\n"
+                f"  {n_structured} structured (use_resource_stat_list)\n"
+                + (f"  {n_buff_raw} _buff_data_raw (buff_level_list byte-replace)\n" if n_buff_raw else "")
+                + f"\nFile: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
 
@@ -1758,31 +2089,69 @@ def _apply_one_skill_patch(patched: bytearray, vanilla: bytes,
     return 0
 
 
+def _remap_resource_stat_list(items) -> list:
+    """Convert a use_resource_stat_list from skillinfo_parser field names to
+    dmm_parser field names so DMM can deserialize them correctly.
+
+    skillinfo_parser  →  dmm_parser (ResourceStat in info.rs)
+      stat_type       →  a           (u8)
+      stat_hash       →  lookup_b    (u32)
+      flag            →  c           (u8)
+      value           →  d           (u64)  ← the stamina cost
+      hash2           →  lookup_e    (u32)
+      hash3           →  lookup_f    (u32)
+
+    If the item already uses dmm_parser names (e.g. loaded via dmm_parser
+    directly), it passes through unchanged.
+    """
+    _SP_TO_DMP = {
+        'stat_type': 'a',
+        'stat_hash': 'lookup_b',
+        'flag':      'c',
+        'value':     'd',
+        'hash2':     'lookup_e',
+        'hash3':     'lookup_f',
+    }
+    result = []
+    for item in (items or []):
+        if not isinstance(item, dict):
+            result.append(item)
+            continue
+        # Already dmm_parser format if it has 'a' or 'lookup_b'
+        if 'a' in item or 'lookup_b' in item:
+            result.append(item)
+        else:
+            result.append({_SP_TO_DMP.get(k, k): v for k, v in item.items()})
+    return result
+
+
 def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
     """Produce Format 3 field-level intents for one skill entry diff."""
     intents = []
-    name = modified['name']
+    # dmm_parser uses 'string_key'; skillinfo_parser uses 'name'
+    name = modified.get('name', modified.get('string_key', str(modified.get('key', '?'))))
     key = modified['key']
 
-    # Alias fields written by the UI for compat — only export canonical name
-    SKIP = {'key', 'name_len', 'name_bytes', 'name', '_raw', '_pad_01',
+    # Fields to never export
+    SKIP = {'key', 'string_key', 'is_blocked',
+            'name_len', 'name_bytes', 'name', '_raw', '_pad_01',
             '_buffLevelCount', 'max_level', 'dev_skill_name', 'dev_skill_desc',
             'video_path_hash', 'buff_sustain_flag', 'skill_group_key_list',
-            '_buff_data_raw',
-            # cooltime aliases — only export 'cooltime'
+            '_buff_data_raw', '_buff_raw_fallback', 'raw_bytes',
             '_cooltime', 'field_12',
-            # resource list aliases — only export snake_case
-            '_useDriverResourceStatList'}
+            '_useDriverResourceStatList',
+            # buff_level_list: DMM exposes this as base64 blob internally —
+            # structured field intents (absent_flag/base/variant) can't be applied.
+            # Also prevents spurious round-trip diffs from the dmm_parser re-parse.
+            'buff_level_list', '_buffLevelList'}
 
-    # camelCase → snake_case remap for fields that may appear in old-parser entries
+    # camelCase → snake_case remap for old-parser fields that have canonical names
     FIELD_REMAP = {
         '_useResourceStatList': 'use_resource_stat_list',
         '_buffLevelList':       'buff_level_list',
-        '_buff_raw_fallback':   'raw_bytes',
     }
 
     # Build canonical→value lookup for vanilla to handle alias field names
-    # e.g. vanilla stores cooltime as 'field_12', modified stores it as 'cooltime'
     VAN_ALIASES = {
         'cooltime':              vanilla.get('cooltime', vanilla.get('field_12', vanilla.get('_cooltime', 0))),
         'use_resource_stat_list': vanilla.get('use_resource_stat_list', vanilla.get('_useResourceStatList', [])),
@@ -1792,6 +2161,10 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
 
     for field in modified:
         if field in SKIP:
+            continue
+        # Skip ALL underscore-prefixed fields from skillinfo_parser that aren't
+        # explicitly remapped — they are internal parser metadata, not game data.
+        if field.startswith('_') and field not in FIELD_REMAP:
             continue
         # Remap field name to canonical
         export_field = FIELD_REMAP.get(field, field)
@@ -1805,9 +2178,20 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
                 'entry': name, 'key': key, 'field': export_field, 'op': 'set',
                 'new': new_val.hex(),
             })
+        elif new_val is None:
+            # None means the field was cleared/absent — skip, DMM can't apply None
+            pass
         elif isinstance(new_val, (list, dict)):
-            if export_field in ('buff_level_list', '_buffLevelList') and new_val is not None:
+            if export_field in ('buff_level_list', '_buffLevelList'):
                 _diff_buff_levels(intents, name, key, old_val, new_val)
+            elif export_field in ('use_resource_stat_list', 'use_driver_resource_stat_list'):
+                # Remap sub-field names from skillinfo_parser to dmm_parser format
+                # so DMM can deserialize ResourceStat objects correctly.
+                remapped = _remap_resource_stat_list(new_val)
+                intents.append({
+                    'entry': name, 'key': key, 'field': export_field, 'op': 'set',
+                    'new': remapped,
+                })
             else:
                 intents.append({
                     'entry': name, 'key': key, 'field': export_field, 'op': 'set',
@@ -1826,7 +2210,8 @@ def _diff_buff_levels(intents: list, name: str, key: int,
                       old_levels, new_levels) -> None:
     """Diff _buffLevelList at the per-buff-data field level."""
     if old_levels is None or new_levels is None:
-        if old_levels != new_levels:
+        # One side has no buff levels — if new is None, nothing to emit
+        if new_levels is not None and old_levels != new_levels:
             intents.append({
                 'entry': name, 'key': key,
                 'field': 'buff_level_list', 'op': 'set',

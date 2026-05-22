@@ -479,15 +479,35 @@ def _classify(path: str) -> ModEntry:
     if grp:
         return ModEntry(name=display, path=path, kind="folder_paz",
                         group=grp, note=f"compiled PAZ mod (group {grp})")
+    # Bare 0.paz dropped directly: look for 0.pamt sibling and walk up to mod root
+    if os.path.isfile(path) and path.lower().endswith(".paz"):
+        paz_dir = os.path.dirname(path)
+        pamt = os.path.join(paz_dir, "0.pamt")
+        if os.path.isfile(pamt):
+            parent = os.path.dirname(paz_dir)
+            grp = _find_folder_paz_group(parent)
+            if grp:
+                disp = Path(parent).name or parent
+                return ModEntry(name=disp, path=parent, kind="folder_paz",
+                                group=grp, note=f"compiled PAZ mod (group {grp})")
+            grp = _find_folder_paz_group(paz_dir)
+            if grp:
+                disp = Path(paz_dir).name or paz_dir
+                return ModEntry(name=disp, path=paz_dir, kind="folder_paz",
+                                group=grp, note=f"compiled PAZ mod (group {grp})")
+        return ModEntry(name=Path(path).name, path=path, kind="", ok=False,
+                        note="Drop the mod ROOT FOLDER not the .paz file directly")
     if os.path.isfile(path) and path.lower().endswith(".json"):
         try:
             with open(path, encoding="utf-8") as f:
                 doc = json.load(f)
-            if doc.get("format") == 3 and doc.get("intents"):
-                n = len(doc["intents"])
+            if doc.get("format") == 3 and (doc.get("intents") or doc.get("targets")):
+                total_intents = len(doc.get("intents") or [])
+                for t in doc.get("targets") or []:
+                    total_intents += len(t.get("intents") or [])
                 title = (doc.get("modinfo") or {}).get("title", display)
                 return ModEntry(name=title, path=path, kind="field_json",
-                                note=f"Format 3 field JSON ({n} intents)")
+                                note=f"Format 3 field JSON ({total_intents} intents)")
             patches = doc.get("patches") or []
             if any("iteminfo.pabgb" in (pt.get("game_file") or "").lower()
                    for pt in patches):
@@ -1457,9 +1477,18 @@ class StackerTab(QWidget):
         gbl.addWidget(browse)
         v.addWidget(game_bar)
 
-        # --- Drop zone --------------------------------------------------
+        # --- Drop zone + Browse button ------------------------------------
+        drop_row = QHBoxLayout()
+        drop_row.setSpacing(6)
         self._drop = DropZone(self._add_files)
-        v.addWidget(self._drop)
+        drop_row.addWidget(self._drop, stretch=1)
+        browse_mod_btn = _size_button(QPushButton("+ Browse Mod..."))
+        browse_mod_btn.setObjectName("flatBtn")
+        browse_mod_btn.setToolTip(
+            "Browse for a mod folder or .json file to add as a stacker source.")
+        browse_mod_btn.clicked.connect(self._browse_add_mod)
+        drop_row.addWidget(browse_mod_btn)
+        v.addLayout(drop_row)
 
         # --- Main 3-column splitter ------------------------------------
         main = QSplitter(Qt.Horizontal)
@@ -1880,6 +1909,19 @@ class StackerTab(QWidget):
         if paths:
             self._add_files(paths)
 
+    def _browse_add_mod(self) -> None:
+        """Open a file/folder dialog to add a mod source manually."""
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Add Mod",
+            self._game_path or "",
+            "Mod files (*.json *.paz *.pabgb);;All files (*)")
+        if not path:
+            path = QFileDialog.getExistingDirectory(
+                self, "Add Mod Folder", self._game_path or "")
+        if path:
+            self._add_files([path])
+
     def _add_files(self, paths: list[str]):
         for p in paths:
             entry = _classify(p)
@@ -2246,14 +2288,19 @@ class StackerTab(QWidget):
             info = doc.get("modinfo") or doc
             title = info.get("title") or info.get("name") or file_name
 
-            # Classify: if it has format:3 intents, load as field_json;
-            # otherwise as legacy_json
-            if doc.get("format") == 3 and doc.get("intents"):
+            # Classify: if it has format:3 intents OR format:3 targets, load as field_json;
+            # otherwise as legacy_json. Multi-target (format_minor:1) uses "targets" not "intents".
+            is_field_json = (doc.get("format") == 3 and
+                             (doc.get("intents") or doc.get("targets")))
+            if is_field_json:
+                total_intents = len(doc.get("intents", []))
+                for t in doc.get("targets", []):
+                    total_intents += len(t.get("intents", []))
                 entry = ModEntry(
                     name=f"[DMM] {title}",
                     path=json_path,
                     kind="field_json",
-                    note=f"DMM Format 3 ({len(doc['intents'])} intents)",
+                    note=f"DMM Format 3 ({total_intents} intents)",
                 )
             else:
                 patches = doc.get("patches", [])

@@ -22,10 +22,12 @@ A PySide6 desktop tool for modifying **Crimson Desert** game data via PAZ archiv
 ## Build from source
 
 ```bash
-pip install PySide6 lz4 cryptography Pillow pyinstaller crimson-rs
-python -m PyInstaller CrimsonGameMods.spec --noconfirm
-# Output: dist/CrimsonGameMods.exe
+../../build.sh --project=gamemods --target=full --backend=nuitka
+../../build.sh --project=gamemods --target=cli --backend=pyinstaller
+../../build.sh --project=gamemods --target=lite --backend=nuitka
 ```
+
+The single repo-root `build.sh` / `build.cmd` driver is the preferred entry point for builds.
 
 ## Save File Integration
 
