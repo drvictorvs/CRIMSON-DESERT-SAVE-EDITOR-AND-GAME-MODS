@@ -265,6 +265,7 @@ class BagSpaceTab(QWidget):
         if dmm_items:
             self._dmm_items = dmm_items
             self._records = []
+            seen_keys = set()
             for it in dmm_items:
                 ds = it.get('default_slot_count')
                 ms = it.get('max_slot_count')
@@ -276,6 +277,23 @@ class BagSpaceTab(QWidget):
                     "default_slots": int(ds) if ds is not None else 0,
                     "max_slots": int(ms) if ms is not None else 0,
                 })
+                seen_keys.add(it.get('key', 0))
+            # Fill in blob entries using byte-level parser
+            try:
+                from inventory_parser_108 import parse_inventory_entries
+                byte_entries = parse_inventory_entries(pabgb_bytes, pabgh_bytes)
+                for be in byte_entries:
+                    if be.get('key', 0) not in seen_keys and be.get('default_slot_count') is not None:
+                        self._records.append({
+                            "key": be.get('key', 0),
+                            "name": be.get('string_key', ''),
+                            "default_slots": int(be['default_slot_count']),
+                            "max_slots": int(be['max_slot_count']),
+                            "default_offset": be.get('_default_slot_offset'),
+                            "max_offset": be.get('_max_slot_offset'),
+                        })
+            except Exception:
+                pass
             parser_name = "dmm_parser"
         else:
             self._dmm_items = None
@@ -437,7 +455,11 @@ class BagSpaceTab(QWidget):
         old_default = int(char["default_slots"])
         old_max = int(char["max_slots"])
 
-        if self._dmm_items is not None:
+        if "default_offset" in char and "max_offset" in char:
+            # Byte-level edit (works for both dmm_parser blob entries and PABGEditor)
+            struct.pack_into("<H", self._inventory_data, int(char["default_offset"]), default_slots)
+            struct.pack_into("<H", self._inventory_data, int(char["max_offset"]), max_slots)
+        elif self._dmm_items is not None:
             for it in self._dmm_items:
                 if it.get('string_key') == 'Character':
                     it['default_slot_count'] = default_slots

@@ -29,6 +29,13 @@ from PySide6.QtWidgets import (
 from gui.theme import COLORS, CATEGORY_COLORS
 from gui.iteminfo_index import IteminfoIndex
 
+def _patch_docking_108(items):
+    """Ensure all docking_child_data dicts have the 1.0.8 unk_docking_108 field."""
+    for it in items:
+        dcd = it.get('docking_child_data')
+        if isinstance(dcd, dict) and 'unk_docking_108' not in dcd:
+            dcd['unk_docking_108'] = 0
+
 def _safe_iv(v, default=0):
     """Safely extract int from plain int, float, or dmm_parser nested dict.
     dmm_parser returns numeric structs as {'a': int, 'b': int, 'c': int}.
@@ -157,6 +164,7 @@ class ItemBuffsTab(QWidget):
         import crimson_rs
         try:
             items = crimson_rs.parse_iteminfo_from_bytes(raw_bytes)
+            _patch_docking_108(items)
             return {int(it['key']): it for it in items}
         except Exception:
             pass
@@ -4357,6 +4365,8 @@ class ItemBuffsTab(QWidget):
                     if isinstance(val, dict):
                         val = {k: v for k, v in val.items() if not k.startswith('_note')}
                     if gf == 'docking_child_data' and isinstance(val, dict):
+                        if 'unk_docking_108' not in val:
+                            val['unk_docking_108'] = 0
                         if val.get('gimmick_info_key', 0) == 0:
                             continue
                         val.setdefault('inherit_summoner', 0)

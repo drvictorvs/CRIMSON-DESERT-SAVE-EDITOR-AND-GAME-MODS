@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 log = logging.getLogger(__name__)
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 
 # ─── Palette ──────────────────────────────────────────────────────────
 BG        = "#1a1510"
@@ -52,7 +52,8 @@ VANILLA_GROUPS = set(f"{g:04d}" for g in range(36))
 INTERNAL = "gamedata/binary__/client/bin"
 
 CONFIG_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "simple_launcher_config.json")
+    os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)),
+    "simple_launcher_config.json")
 
 
 # ─── Mod Definitions ─────────────────────────────────────────────────
@@ -144,9 +145,6 @@ MOD_DEFS = [
      "desc": "Character inventory=240, warehouse=700", "section": "Bag Space"},
     {"id": "bagspace_700", "title": "Bag Space 700 / 700",
      "desc": "Character inventory=700, warehouse=700", "section": "Bag Space"},
-    # ── NPC Trust ──
-    {"id": "trust_100x", "title": "NPC Trust x100",
-     "desc": "Max every NPC relationship in one session (trust, gifts, pet companionship)", "section": "Other"},
 ]
 
 
@@ -365,10 +363,6 @@ class ModWorker(QThread):
                 self._handle_quest()
             if is_all or mid in ("bagspace_240", "bagspace_700"):
                 self._handle_bagspace()
-            if is_all or mid == "infinite_stamina":
-                self._handle_stamina()
-            if is_all or mid == "trust_100x":
-                self._rebuild_drops()
             if mid == "reset_vanilla":
                 self._reset_vanilla()
             self.finished.emit(True, "")
@@ -417,12 +411,15 @@ class ModWorker(QThread):
         self.progress.emit(f"Applying {len(active_ii)} item mutations to {len(items)} items...")
         COSTS = [500, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
         for it in items:
-            if "no_cooldown" in active_ii and _safe_iv(it.get('cooltime', 0)) > 1000:
-                _cd = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000
-                it['cooltime'] = {'a': _cd, 'b': _cd, 'c': _cd}
+            if "no_cooldown" in active_ii and _safe_iv(it.get('cooltime', 0)) > 1:
+                it['cooltime'] = 1
+                it['unk_post_cooltime_a'] = 1
+                it['unk_post_cooltime_b'] = 1
             if "max_charges" in active_ii:
                 if _safe_iv(it.get('item_charge_type', 0)) == 0 and _safe_iv(it.get('max_charged_useable_count', 0)) > 0:
-                    it['max_charged_useable_count'] = {'a': 99, 'b': 99, 'c': 99}
+                    it['max_charged_useable_count'] = 99
+                    it['unk_post_max_charged_a'] = 99
+                    it['unk_post_max_charged_b'] = 99
             if "max_stacks" in active_ii and _safe_iv(it.get('max_stack_count', 0)) > 1:
                 it['max_stack_count'] = 999999
             if "inf_durability" in active_ii and _safe_iv(it.get('max_endurance', 0)) > 0:
@@ -555,38 +552,64 @@ class ModWorker(QThread):
             _remove_overlay(self.gp, "0065")
             return
 
+        import crimson_rs
+        import characterinfo_full_parser as cfp
+
         self.progress.emit("Patching characterinfo...")
-        items, pabgh, serialize = _parse_table('character_info', self.gp, 'characterinfo')
+        pabgb = bytes(crimson_rs.extract_file(
+            self.gp, '0008', INTERNAL, 'characterinfo.pabgb'))
+        pabgh = bytes(crimson_rs.extract_file(
+            self.gp, '0008', INTERNAL, 'characterinfo.pabgh'))
+        entries = cfp.parse_all_entries(pabgb, pabgh)
+        modified = bytearray(pabgb)
 
         if "kliff_gun_fix" in active_ci:
-            by_name = {it.get('string_key'): it for it in items}
+            by_name = {e.get('name'): e for e in entries}
             if all(n in by_name for n in ('Kliff', 'Damian', 'Oongka')):
-                kliff, damian, oongka = by_name['Kliff'], by_name['Damian'], by_name['Oongka']
-                kliff['appearance_name'] = damian.get('appearance_name', 0)
-                kliff['skeleton_name'] = oongka.get('skeleton_name', 0)
+                kliff = by_name['Kliff']
+                damian = by_name['Damian']
+                oongka = by_name['Oongka']
+                # Copy Damian's appearance key to Kliff
+                if '_appearanceName_offset' in kliff and '_appearanceName_key' in damian:
+                    struct.pack_into('<I', modified,
+                                    kliff['_appearanceName_offset'],
+                                    damian['_appearanceName_key'])
+                # Copy Oongka's skeleton key to Kliff
+                if '_skeletonName_offset' in kliff and '_skeletonName_key' in oongka:
+                    struct.pack_into('<I', modified,
+                                    kliff['_skeletonName_offset'],
+                                    oongka['_skeletonName_key'])
 
         if "npcs_killable" in active_ci:
-            for it in items:
-                if it.get('vehicle_info', 0) != 0:
+            for e in entries:
+                if e.get('_vehicleInfo', 0) != 0:
                     continue
-                if str(it.get('string_key', '')).startswith('Riding_'):
+                if e.get('name', '').startswith('Riding_'):
                     continue
-                ff = it.get('four_flags', {})
-                if ff and ff.get('flag_b', 1) == 0:
-                    ff['flag_b'] = 1
+                # Set _invincibility to 0 and _isAttackable to 1
+                if '_invincibility_offset' in e and e.get('_invincibility', 0) != 0:
+                    modified[e['_invincibility_offset']] = 0
+                if '_isAttackable_offset' in e and e.get('_isAttackable', 1) != 1:
+                    modified[e['_isAttackable_offset']] = 1
 
         if "mounts_in_towns" in active_ci:
-            for it in items:
-                if it.get('vehicle_info', 0) == 0:
+            for e in entries:
+                if e.get('_vehicleInfo', 0) == 0:
                     continue
-                if it.get('call_mercenary_spawn_duration', 0) > 0:
-                    it['call_mercenary_spawn_duration'] = 0x7FFFFFFF
-                if it.get('call_mercenary_cool_time', 0) > 0:
-                    it['call_mercenary_cool_time'] = 0
+                if '_callMercenarySpawnDuration_offset' in e:
+                    cur = e.get('_callMercenarySpawnDuration', 0)
+                    if cur > 0:
+                        struct.pack_into('<Q', modified,
+                                        e['_callMercenarySpawnDuration_offset'],
+                                        0x7FFFFFFF)
+                if '_callMercenaryCoolTime_offset' in e:
+                    cur = e.get('_callMercenaryCoolTime', 0)
+                    if cur > 0:
+                        struct.pack_into('<Q', modified,
+                                        e['_callMercenaryCoolTime_offset'], 0)
 
-        new_pabgb = bytes(serialize('character_info', items))
         _deploy_overlay(self.gp, "0065", [
-            ("characterinfo.pabgb", new_pabgb),
+            ("characterinfo.pabgb", bytes(modified)),
             ("characterinfo.pabgh", pabgh)])
 
     # ── Regioninfo (0039) — Mounts in Towns zone flags ──
@@ -609,37 +632,23 @@ class ModWorker(QThread):
             ("regioninfo.pabgb", new_pabgb),
             ("regioninfo.pabgh", pabgh)])
 
-    # ── Drop Rates + NPC Trust (0042, shared overlay) ──
+    # ── Drop Rates (0042) ──
     def _rebuild_drops(self):
         active_drops = self.active & {"drop_5x", "drop_max"}
-        has_trust = "trust_100x" in self.active
-        if not active_drops and not has_trust:
+        if not active_drops:
             _remove_overlay(self.gp, "0042")
             return
 
-        self.progress.emit("Patching drop rates / trust...")
+        self.progress.emit("Patching drop rates...")
         items, pabgh, serialize = _parse_table('drop_set_info', self.gp, 'dropsetinfo')
-
-        if active_drops:
-            multiplier = 0 if "drop_max" in active_drops else 5
-            for d in items:
-                for item in d.get('list', []):
-                    old = item.get('raw_16', 0)
-                    if 100 <= old <= 100000 and old % 100 == 0:
-                        new_val = 10000 if multiplier == 0 else min(old * multiplier, 10000)
-                        if new_val != old:
-                            item['raw_16'] = new_val
-
-        if has_trust:
-            for d in items:
-                sk = d.get('string_key', '')
-                if sk in ('DropSet_Friendly_Talk', 'DropSet_Friendly_Donate') or sk.startswith('DropSet_AbyssGear_Equip_AddPetFriendly'):
-                    for entry in d.get('list', []):
-                        for field in ('raw_40', 'raw_48'):
-                            v = entry.get(field, 0)
-                            if isinstance(v, int) and 0 < v < 2**63:
-                                entry[field] = v * 100
-
+        multiplier = 0 if "drop_max" in active_drops else 5
+        for d in items:
+            for item in d.get('list', []):
+                old = item.get('raw_16', 0)
+                if 100 <= old <= 100000 and old % 100 == 0:
+                    new_val = 10000 if multiplier == 0 else min(old * multiplier, 10000)
+                    if new_val != old:
+                        item['raw_16'] = new_val
         new_pabgb = bytes(serialize('drop_set_info', items))
         _deploy_overlay(self.gp, "0042", [
             ("dropsetinfo.pabgb", new_pabgb),
@@ -735,7 +744,6 @@ class ModWorker(QThread):
 
     # ── Infinite Stamina (0064) ──
     _STAMINA_HASH = 1000026
-    _SPIRIT_HASH = 1000027
 
     def _handle_stamina(self):
         if "infinite_stamina" not in self.active:
@@ -746,29 +754,13 @@ class ModWorker(QThread):
         items, pabgh, serialize = _parse_table('skill_info', self.gp, 'skill')
 
         for it in items:
+            # Zero ALL resource d values — both cost (positive) and drain
+            # (negative stored as large unsigned). Matches the working
+            # skill_mod.field.json which sets d=0 on all 385 entries.
             for list_key in ('use_resource_stat_list', 'use_driver_resource_stat_list'):
                 for r in (it.get(list_key) or []):
                     if isinstance(r, dict) and r.get('d', 0) != 0:
                         r['d'] = 0
-
-            for level in (it.get('buff_level_list') or []):
-                for buff in level:
-                    var = buff.get('variant', {})
-                    vtype = var.get('type', '')
-                    body = var.get('body', {})
-                    if body.get('f00') not in (self._STAMINA_HASH, self._SPIRIT_HASH):
-                        continue
-                    if vtype == 'VaryDataDefinedStatBuffData':
-                        for fk in ('f01', 'f02'):
-                            val = body.get(fk, 0)
-                            if isinstance(val, int) and val > 2**63:
-                                val = val - 2**64
-                            if isinstance(val, (int, float)) and val < 0:
-                                body[fk] = 0
-                    elif vtype == 'BlockRegenerateStatBuffData':
-                        body['f00'] = 0
-                    elif vtype == 'ChangeBuffLevelBuffData':
-                        body['f01'] = 0
 
         new_pabgb = bytes(serialize('skill_info', items))
         _deploy_overlay(self.gp, "0064", [
@@ -821,20 +813,33 @@ class ModWorker(QThread):
         default_slots = 700 if "bagspace_700" in active_bs else 240
         max_slots = 700
         self.progress.emit(f"Patching bag space to {default_slots}/{max_slots}...")
-        items, pabgh, serialize = _parse_table('inventory_info', self.gp, 'inventory')
-        for it in items:
-            if it.get('string_key') == 'Character':
-                it['default_slot_count'] = default_slots
-                it['max_slot_count'] = max_slots
-            sk = it.get('string_key', '')
-            if sk in ('CampWareHouse', 'WareHouse', 'Bank'):
-                cur_max = it.get('max_slot_count', 0)
-                if cur_max and cur_max < 700:
-                    it['max_slot_count'] = 700
-                    it['default_slot_count'] = 700
-        new_pabgb = bytes(serialize('inventory_info', items))
+
+        import crimson_rs
+        from inventory_parser_108 import parse_inventory_entries, modify_slots
+
+        pabgb = bytes(crimson_rs.extract_file(
+            self.gp, '0008', INTERNAL, 'inventory.pabgb'))
+        pabgh = bytes(crimson_rs.extract_file(
+            self.gp, '0008', INTERNAL, 'inventory.pabgh'))
+
+        entries = parse_inventory_entries(pabgb, pabgh)
+        modified = bytearray(pabgb)
+
+        log.info("Bag space: found %d inventory entries", len(entries))
+        for name, dslot, mslot in [
+            ('Character', default_slots, max_slots),
+            ('CampWareHouse', 700, 700),
+            ('WareHouse', 700, 700),
+            ('Bank', 700, 700),
+        ]:
+            ok = modify_slots(modified, entries, name, dslot, mslot)
+            log.info("  %s -> %d/%d: %s", name, dslot, mslot, "OK" if ok else "NOT FOUND")
+
+        if modified == pabgb:
+            log.warning("Bag space: no bytes changed! Parser may have failed.")
+
         _deploy_overlay(self.gp, "0061", [
-            ("inventory.pabgb", new_pabgb),
+            ("inventory.pabgb", bytes(modified)),
             ("inventory.pabgh", pabgh)])
 
     # ── Reset to Vanilla ──

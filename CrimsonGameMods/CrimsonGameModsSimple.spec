@@ -13,6 +13,7 @@ a = Analysis(
         'item_creator', 'iteminfo_parser', 'iteminfo_reader',
         'equipslotinfo_parser', 'shared_state', 'overlay_coordinator',
         'models',
+        'inventory_parser_108', 'characterinfo_full_parser',
     ],
     hookspath=[],
     hooksconfig={},
