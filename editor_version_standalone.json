@@ -1,5 +1,5 @@
 {
-  "version": "1.0.6",
-  "url": "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases/download/standalone-v1.0.6/CrimsonSaveEditorStandalone.exe",
-  "notes": "v1.0.6 — Sync Items Local: extract item database directly from game client. Manual Swap (Single) button in Item Swap tab. Removed broken Add Item button. Fixed knowledge unlearn crash."
+  "version": "1.0.7",
+  "url": "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases/download/standalone-v1.0.7/CrimsonSaveEditorStandalone.exe",
+  "notes": "CrimsonSaveEditor v1.0.7 - mount system overhaul + item database update"
 }
