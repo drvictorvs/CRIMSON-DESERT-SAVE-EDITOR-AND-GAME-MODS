@@ -2957,10 +2957,21 @@ def _splice_socket_elements(
     toc_entries_cached = list(_result['toc']['entries'])
 
     locator_start = item.offset - 24
+    if locator_start + 5 > len(orig_blob):
+        return False, blob, "Item locator out of range"
+    # Pre-game-v1.0.5 layout: [mbc:2 = 3] [bitmask:3] [pad:3]
+    # Post-game-v1.0.5 layout: [discrim:1 = 0] [bitmask:4] [pad:3]
     mbc = struct.unpack_from('<H', orig_blob, locator_start)[0]
-    if mbc != 3:
-        return False, blob, "Item locator mbc != 3, cannot locate socket list"
-    bitmask = bytes(orig_blob[locator_start + 2: locator_start + 5])
+    if mbc == 3:
+        bitmask = bytes(orig_blob[locator_start + 2: locator_start + 5])
+    elif orig_blob[locator_start] == 0x00:
+        bitmask = bytes(orig_blob[locator_start + 1: locator_start + 5])
+    else:
+        return False, blob, (
+            f"Unrecognised item locator at 0x{locator_start:08X} "
+            f"(leading bytes 0x{orig_blob[locator_start]:02X} 0x{orig_blob[locator_start+1]:02X}). "
+            "Expected old-format mbc=3 or new-format discriminator=0."
+        )
 
     fp = _item_socket_field_present
     sock_rel = sum(_ITEM_SOCKET_FIELD_SIZES[i] for i in range(13) if fp(bitmask, i))
@@ -3047,7 +3058,7 @@ def _splice_socket_elements(
     struct.pack_into('<I', new_blob, schema_end + 8, old_ss + delta)
 
     equip_idx = next(
-        (e.index for e in toc_entries_cached if e.class_name == 'EquipmentSaveData'),
+        (e.index for e in toc_entries_cached if e.data_offset <= item.offset < e.data_offset + e.data_size),
         None,
     )
     fixed_toc = 0
@@ -3108,7 +3119,7 @@ def fill_socket_slots(
         target_slots=slot_gem_map,
         expected_mask=0x00,
         build_target_elem=_build_filled,
-        valid_count_fn=lambda old, n: old,
+        valid_count_fn=lambda old, n: old,  # filling does not unlock slots
         fn_name="fill_socket_slots",
         verb="Filled",
     )
@@ -3136,7 +3147,7 @@ def clear_socket_slots(
         target_slots={idx: None for idx in slot_indices},
         expected_mask=0x03,
         build_target_elem=_build_empty,
-        valid_count_fn=lambda old, n: old,
+        valid_count_fn=lambda old, n: old,  # clearing does not lock slots
         fn_name="clear_socket_slots",
         verb="Cleared",
     )

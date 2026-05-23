@@ -2424,7 +2424,15 @@ class MainWindow(QMainWindow):
             _enc_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'max_enchant_map.json')
             if os.path.isfile(_enc_path):
                 with open(_enc_path, 'r') as _f:
-                    self._max_enchant_map = _json.load(_f)
+                    self._max_enchant_map = json.load(_f)
+        except Exception:
+            pass
+        self._socket_design_limits: dict = {}
+        try:
+            _lim_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'item_limits.json')
+            if os.path.isfile(_lim_path):
+                with open(_lim_path, 'r') as _f:
+                    self._socket_design_limits = json.load(_f)
         except Exception:
             pass
         self._icon_ready.connect(self._apply_icon_to_table)
@@ -4585,13 +4593,39 @@ QCheckBox::indicator {{
         return bool(bitmask_bytes[byte_idx] & (1 << bit_idx))
 
     def _read_item_bitmask(self, blob: bytearray, item: 'SaveItem') -> bytes:
+        """Return the per-item bitmask, handling all known save-format variants.
+
+        Game ≤ v1.0.4 locator (8 bytes at offset-24):
+            [mbc:2 = 3] [bitmask:3] [pad:3]
+
+        Game v1.0.5 locator (8 bytes at offset-24):
+            [discriminator:1 = 0] [bitmask:4] [pad:3]
+
+        The v1.0.5 bitmask is 4 bytes wide because the game added a new
+        optional field at bit 21. Bits 0..12 — what the editor walks for
+        socket fields — are the same in both formats.
+
+        Falls back to upstream's flexible scan (mbc in [1..8] at offsets
+        -24/-25/-26) for any other variants not covered above.
+        """
+        locator_start = item.offset - 24
+        if locator_start + 5 > len(blob):
+            return b'\x00\x00\x00'
+        # Game ≤ v1.0.4: 2-byte mbc=3 + 3-byte bitmask.
+        mbc = struct.unpack_from("<H", blob, locator_start)[0]
+        if mbc == 3:
+            return bytes(blob[locator_start + 2: locator_start + 5])
+        # Game v1.0.5: 1-byte discriminator=0 + 4-byte bitmask.
+        if blob[locator_start] == 0x00:
+            return bytes(blob[locator_start + 1: locator_start + 5])
+        # Fallback: upstream's flexible mbc scan.
         for back in (24, 25, 26):
-            locator_start = item.offset - back
-            if locator_start < 0:
+            ls = item.offset - back
+            if ls < 0:
                 continue
-            mbc = struct.unpack_from("<H", blob, locator_start)[0]
-            if 1 <= mbc <= 8:
-                return bytes(blob[locator_start + 2: locator_start + 2 + mbc]).ljust(3, b'\x00')
+            m = struct.unpack_from("<H", blob, ls)[0]
+            if 1 <= m <= 8:
+                return bytes(blob[ls + 2: ls + 2 + m]).ljust(3, b'\x00')
         return b'\x00\x00\x00'
 
     def _compute_socket_list_offset(self, bitmask: bytes) -> int:
@@ -4703,6 +4737,15 @@ QCheckBox::indicator {{
         new_count = self._sock_unlock_spin.value()
         max_s, valid_s = self._read_max_valid_sockets(blob, item)
 
+        design_limit = self._get_socket_design_limit(item.item_key)
+        if design_limit > 0 and new_count > design_limit:
+            QMessageBox.warning(
+                self, "Sockets",
+                f"Cannot unlock {new_count} slots: this item's design limit is {design_limit}.\n\n"
+                f"Filling more than {design_limit} slots crashes the game on save load."
+            )
+            return
+
         socket_data = self._read_socket_gems(blob, item)
         if new_count > 0 and max_s == 0 and len(socket_data) == 0:
             reply = QMessageBox.warning(
@@ -4796,6 +4839,15 @@ QCheckBox::indicator {{
         self._sock_info.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
         self._sock_layout.addWidget(self._sock_info)
 
+        self._sock_locked_hint = QLabel("")
+        self._sock_locked_hint.setWordWrap(True)
+        self._sock_locked_hint.setStyleSheet(
+            f"color: {COLORS['accent']}; padding: 4px 8px; "
+            f"border: 1px solid {COLORS['accent']}; border-radius: 4px;"
+        )
+        self._sock_locked_hint.setVisible(False)
+        self._sock_layout.addWidget(self._sock_locked_hint)
+
         self._sock_rows = []
         for i in range(6):
             row = QHBoxLayout()
@@ -4841,25 +4893,25 @@ QCheckBox::indicator {{
         sock_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         layout.addWidget(sock_scroll, 1)
 
-        unlock_group = QGroupBox("Unlock Socket Slots")
-        unlock_layout = QHBoxLayout(unlock_group)
+        self._sock_unlock_group = QGroupBox("Unlock Socket Slots")
+        unlock_layout = QHBoxLayout(self._sock_unlock_group)
         unlock_layout.addWidget(QLabel("Socket Count:"))
         self._sock_unlock_spin = QSpinBox()
         self._sock_unlock_spin.setRange(0, 5)
         self._sock_unlock_spin.setValue(0)
-        self._sock_unlock_spin.setToolTip("Set the number of unlocked socket slots (0-5)")
+        self._sock_unlock_spin.setToolTip("Set the number of unlocked socket slots (capped at this item's design limit)")
         unlock_layout.addWidget(self._sock_unlock_spin)
         unlock_btn = QPushButton("Unlock Sockets")
         unlock_btn.setObjectName("accentBtn")
         unlock_btn.setToolTip(
             "Sets maxSocketCount, validSocketCount, and the socket bits in enchantLevel.\n"
-            "This unlocks socket slots on any equipment — even items that normally can't have sockets."
+            "Capped at the item's design limit to avoid crash-on-load saves."
         )
         unlock_btn.clicked.connect(self._apply_socket_unlock)
         unlock_layout.addWidget(unlock_btn)
         unlock_layout.addStretch()
-        unlock_group.setVisible(False)
-        layout.addWidget(unlock_group)
+        self._sock_unlock_group.setVisible(False)
+        layout.addWidget(self._sock_unlock_group)
 
         btn_row = QHBoxLayout()
         apply_sock_btn = QPushButton("Apply Socket Changes")
@@ -4913,7 +4965,13 @@ QCheckBox::indicator {{
             return
 
         show_merc = hasattr(self, '_sock_show_merc') and self._sock_show_merc.isChecked()
-        equip = [i for i in self._items if i.has_enchant and (show_merc or i.source not in ("Mercenary",))]
+        filter_socketable = bool(self._socket_design_limits)
+        equip = [
+            i for i in self._items
+            if i.has_enchant
+            and (show_merc or i.source not in ("Mercenary",))
+            and (not filter_socketable or self._get_socket_design_limit(i.item_key) > 0)
+        ]
         for it in equip:
             if not self._save_data:
                 continue
@@ -4928,6 +4986,16 @@ QCheckBox::indicator {{
         if self._sock_item_combo.count() > 0:
             self._sock_item_combo.setCurrentIndex(0)
             self._on_socket_item_changed(0)
+
+    def _get_socket_design_limit(self, item_key: int) -> int:
+        """Return the max fillable socket count for this item from iteminfo.pabgb.
+
+        Returns 0 for items that aren't in the lookup table — non-socketable
+        items (cloaks, accessories) and any item not present in
+        item_limits.json. The game crashes on load if more than this many
+        slots are filled.
+        """
+        return self._socket_design_limits.get(str(item_key), 0)
 
     def _on_socket_item_changed(self, index: int) -> None:
         if not self._save_data or index < 0:
@@ -4945,6 +5013,7 @@ QCheckBox::indicator {{
         self._sock_current_item = item
         blob = self._save_data.decompressed_blob
         max_s, valid_s = self._read_max_valid_sockets(blob, item)
+        design_limit = self._get_socket_design_limit(item.item_key)
 
         name = self._name_db.get_name(item.item_key)
         bitmask = self._read_item_bitmask(blob, item)
@@ -4952,58 +5021,97 @@ QCheckBox::indicator {{
         end_raw = item.endurance
         end_low = end_raw & 0xFF
         end_high = (end_raw >> 8) & 0xFF
+
+        if design_limit == 0:
+            self._sock_info.setText(
+                f"{name} +{item.enchant_level}  |  "
+                f"This item does not support abyss gears."
+            )
+            self._sock_info.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
+            self._sock_locked_hint.setVisible(False)
+            for r in self._sock_rows:
+                r["container"].setVisible(False)
+            self._sock_unlock_group.setVisible(False)
+            return
+
+        socket_data = self._read_socket_gems(blob, item)
+        filled = sum(1 for sd in socket_data if sd.get('has_gem'))
+
         self._sock_info.setText(
             f"{name} +{item.enchant_level}  |  "
-            f"Sockets: {valid_s} filled / {max_s} max  |  "
+            f"Sockets: {filled} filled · {valid_s} unlocked · {design_limit} max for this item ({max_s} structural)  |  "
             f"Endurance raw=0x{end_raw:04X} (endurance={end_low}, sockets={end_high})  |  "
             f"Offset=0x{item.offset:06X}"
         )
-        self._sock_unlock_spin.setValue(max_s)
         self._sock_info.setStyleSheet(f"color: {COLORS['accent']}; padding: 4px; font-weight: bold;")
 
-        socket_data = self._read_socket_gems(blob, item)
+        locked_count = max(0, design_limit - valid_s)
+        if locked_count > 0:
+            slot_word = "slot" if locked_count == 1 else "slots"
+            self._sock_locked_hint.setText(
+                f"{locked_count} {slot_word} locked. Use the 'Unlock Socket Slots' panel "
+                f"below the slot rows to enable up to {design_limit} slots without visiting the Witch."
+            )
+            self._sock_locked_hint.setVisible(True)
+        else:
+            self._sock_locked_hint.setVisible(False)
+
+        self._sock_unlock_group.setVisible(True)
+        self._sock_unlock_spin.blockSignals(True)
+        self._sock_unlock_spin.setRange(0, design_limit)
+        self._sock_unlock_spin.setValue(min(max_s, design_limit))
+        self._sock_unlock_spin.blockSignals(False)
 
         for i in range(6):
             row = self._sock_rows[i]
-            if i < max_s:
-                row["container"].setVisible(True)
-                self._populate_gem_combo(row["combo"], row["filter"].currentText())
+            if i >= design_limit:
+                row["container"].setVisible(False)
+                continue
 
-                current_gem = 0
-                has_gem = False
-                if i < len(socket_data):
-                    current_gem = socket_data[i]['gem_key']
-                    has_gem = socket_data[i]['has_gem']
+            row["container"].setVisible(True)
+            self._populate_gem_combo(row["combo"], row["filter"].currentText())
 
-                gem_name = self.GEM_LOOKUP.get(current_gem, (self._name_db.get_name(current_gem), "?"))[0] if current_gem else "(Empty)"
+            current_gem = 0
+            has_gem = False
+            if i < len(socket_data):
+                current_gem = socket_data[i]['gem_key']
+                has_gem = socket_data[i]['has_gem']
 
-                combo = row["combo"]
+            gem_name = self.GEM_LOOKUP.get(current_gem, (self._name_db.get_name(current_gem), "?"))[0] if current_gem else "(Empty)"
 
-                combo.setEnabled(True)
-                row["filter"].setEnabled(True)
-                row["search"].setEnabled(True)
+            combo = row["combo"]
+            unlocked = i < valid_s
 
+            combo.setEnabled(unlocked)
+            row["filter"].setEnabled(unlocked)
+            row["search"].setEnabled(unlocked)
+
+            if unlocked:
                 row["label"].setText(f"Slot {i+1}:")
                 row["label"].setStyleSheet(
                     "font-weight: bold;" if has_gem
                     else "font-weight: bold; color: gray;"
                 )
-                selected = False
-                for ci in range(combo.count()):
-                    if combo.itemData(ci) == current_gem:
-                        combo.setCurrentIndex(ci)
-                        selected = True
-                        break
-                if not selected and current_gem:
-                    combo.insertItem(0, f"{gem_name} (current, key={current_gem})", current_gem)
-                    combo.setCurrentIndex(0)
-                elif not selected:
-                    for ci in range(combo.count()):
-                        if combo.itemData(ci) == 0:
-                            combo.setCurrentIndex(ci)
-                            break
+                row["label"].setToolTip("")
             else:
-                row["container"].setVisible(False)
+                row["label"].setText(f"Slot {i+1} (locked):")
+                row["label"].setStyleSheet("font-weight: bold; color: gray;")
+                row["label"].setToolTip("Locked — visit the Witch (or use Unlock Sockets below) to enable this slot.")
+
+            selected = False
+            for ci in range(combo.count()):
+                if combo.itemData(ci) == current_gem:
+                    combo.setCurrentIndex(ci)
+                    selected = True
+                    break
+            if not selected and current_gem:
+                combo.insertItem(0, f"{gem_name} (current, key={current_gem})", current_gem)
+                combo.setCurrentIndex(0)
+            elif not selected:
+                for ci in range(combo.count()):
+                    if combo.itemData(ci) == 0:
+                        combo.setCurrentIndex(ci)
+                        break
 
     def _shift_item_offsets_after_splice(self, splice_point: int, delta: int) -> None:
         if delta == 0 or not getattr(self, '_items', None):
@@ -5025,10 +5133,19 @@ QCheckBox::indicator {{
         item = self._sock_current_item
         blob = self._save_data.decompressed_blob
         max_s, _ = self._read_max_valid_sockets(blob, item)
+        design_limit = self._get_socket_design_limit(item.item_key)
         socket_data = self._read_socket_gems(blob, item)
 
+        # Only iterate slots the user can actually see and edit. The combo
+        # widgets are reused across item selections, so rows beyond the
+        # current item's design_limit (which are hidden) still hold whatever
+        # gem keys were left over from a previously-selected higher-slot
+        # item. Iterating range(max_s) — the structural array width, always
+        # 5 — would scoop up that stale data and misclassify it as fills,
+        # tripping the design-limit guard for swaps on 1- or 2-slot items.
+        edit_limit = min(max_s, design_limit) if design_limit > 0 else 0
         new_gems = []
-        for i in range(max_s):
+        for i in range(edit_limit):
             key = self._sock_rows[i]["combo"].currentData() if i < len(self._sock_rows) else 0
             new_gems.append(key if key else 0)
 
@@ -5054,6 +5171,18 @@ QCheckBox::indicator {{
 
         bitmask_pre = self._read_item_bitmask(blob, item)
         sock_abs_pre = item.offset + self._compute_socket_list_offset(bitmask_pre)
+
+        # Validate against design limit
+        existing_filled = sum(1 for sd in socket_data if sd['has_gem'])
+        new_filled = existing_filled + len(fills) - len(clears)
+        if new_filled > design_limit:
+            QMessageBox.warning(
+                self, "Sockets",
+                f"Cannot fill {len(fills)} slot(s): would exceed the design limit of "
+                f"{design_limit} for this item (currently {existing_filled} filled).\n\n"
+                f"The game will crash if more than {design_limit} slots are filled."
+            )
+            return
 
         if fills:
             from parc_inserter3 import fill_socket_slots
