@@ -3126,6 +3126,18 @@ class ItemBuffsTab(QWidget):
                 "crimson_rs.pyd not found. This requires Potter's Rust parser module.")
             return
 
+        # Diagnostic: log what's actually in the namespaces at call time.
+        try:
+            import dmm_parser as _chk
+            _dmp_fns = [x for x in dir(_chk) if 'parse' in x.lower() or 'extract' in x.lower()]
+            _crs_fns = [x for x in dir(crimson_rs) if 'parse' in x.lower() or 'extract' in x.lower()]
+            log.info('[DIAG] dmm_parser funcs: %s', _dmp_fns)
+            log.info('[DIAG] crimson_rs funcs: %s', _crs_fns)
+            import sys as _sys_chk
+            log.info('[DIAG] frozen=%s _MEIPASS=%s', getattr(_sys_chk, 'frozen', False), getattr(_sys_chk, '_MEIPASS', 'N/A'))
+        except Exception as _de:
+            log.warning('[DIAG] namespace check failed: %s', _de)
+
         try:
             import time
             raw, _buff_source = self._buff_extract_iteminfo_preferring_overlay()
@@ -5246,7 +5258,7 @@ class ItemBuffsTab(QWidget):
             # Primary: build catalog from Rust-parsed items with display names
             if rust_items:
                 try:
-                    from armor_catalog import ArmorItem, get_category
+                    from armor_catalog import ArmorItem, get_category, SKIP_PREFIXES, SKIP_SUBSTRINGS
                     _ndb = getattr(self, '_name_db', None)
                     catalog = []
                     for it in rust_items:
@@ -5264,6 +5276,10 @@ class ItemBuffsTab(QWidget):
                             continue
                         _k = it.get('key', 0)
                         _sk = it.get('string_key', '')
+                        if _sk.startswith(SKIP_PREFIXES):
+                            continue
+                        if any(t in _sk for t in SKIP_SUBSTRINGS):
+                            continue
                         _dn = _ndb.get_name(_k) if _ndb else ''
                         if not _dn or _dn.startswith('Unknown'):
                             _dn = _sk
@@ -5735,6 +5751,8 @@ class ItemBuffsTab(QWidget):
                     "Click Extract first, then try again.")
                 return
             import json as _jstf, copy as _cptf
+
+
             intents = []
             skipped = []
             same_visual = []
@@ -5771,12 +5789,69 @@ class ItemBuffsTab(QWidget):
                     except Exception:
                         if src_val == tgt_val:
                             continue
+                    # For prefab_data_list: copy prefab_names from source but remap
+                    # tribe-exclusive hashes so the item stays equippable on the
+                    # target item's tribe.  Problem: src_val contains the SOURCE
+                    # item's tribe hash (e.g. Ashen/Tarandus 4268845538) in every
+                    # tribe_gender_list entry.  Copying it verbatim makes the item
+                    # unequippable for the TARGET tribe (e.g. Kairos/Kliff 4234598676)
+                    # because the engine checks tribe_gender_list for equip eligibility.
+                    #
+                    # Fix: compute the symmetric difference between source and target
+                    # tribe_gender_list hashes, then substitute source-exclusive hashes
+                    # with target-exclusive hashes inside each entry.  Hashes shared by
+                    # both items (gender variants etc.) pass through unchanged.
+                    # equip_slot_list and is_craft_material are also taken from the
+                    # corresponding target entry since they are target-specific metadata.
+                    if (field == 'prefab_data_list' and not is_invisible
+                            and isinstance(src_val, list) and isinstance(tgt_val, list)
+                            and tgt_val):
+                        src_pdl = src_val
+                        tgt_pdl = tgt_val
+                        # Collect source tribe coverage and prefab hashes.
+                        _seen_pn: set = set()
+                        src_all_prefabs: list = []
+                        src_covered_tribes: set = set()
+                        for _se in src_pdl:
+                            if isinstance(_se, dict):
+                                for _pn in (_se.get('prefab_names') or []):
+                                    if _pn not in _seen_pn:
+                                        _seen_pn.add(_pn)
+                                        src_all_prefabs.append(_pn)
+                                src_covered_tribes.update(
+                                    _se.get('tribe_gender_list') or [])
+                        # Iterate over TARGET entries. For each entry:
+                        #   - If the source mesh covers ANY of this entry's tribes
+                        #     → replace prefab_names with source mesh.
+                        #   - If the source has NO coverage for this entry's tribes
+                        #     (e.g. a new character type added in a later patch that
+                        #     the NPC item predates) → keep the target's original
+                        #     prefab so those characters see the untransmogged look
+                        #     instead of crashing.
+                        # tribe_gender_list, equip_slot_list, and is_craft_material
+                        # are always kept from the target entry unchanged.
+                        merged_pdl = []
+                        for _te in tgt_pdl:
+                            if not isinstance(_te, dict):
+                                merged_pdl.append(_te)
+                                continue
+                            _new_e = dict(_te)
+                            _te_tribes = set(_te.get('tribe_gender_list') or [])
+                            if not src_covered_tribes or _te_tribes & src_covered_tribes:
+                                # Source covers at least one tribe in this entry
+                                # (empty src_covered_tribes = universal mesh)
+                                _new_e['prefab_names'] = src_all_prefabs
+                            # else: keep original prefab_names for unsupported tribes
+                            merged_pdl.append(_new_e)
+                        new_val = merged_pdl
+                    else:
+                        new_val = src_val
                     intents.append({
                         'entry': tgt.internal_name,
                         'key': tgt_key,
                         'field': field,
                         'op': 'set',
-                        'new': src_val,
+                        'new': new_val,
                         '_comment': f'transmog: visual from {src.internal_name}',
                     })
                     swap_had_diff = True
@@ -11330,7 +11405,7 @@ class ItemBuffsTab(QWidget):
             f"{row('QoL Infinity Durability', dura_hit, dura_expected)}\n"
             f"{row('QoL No Cooldown (==1)', cd_hit, cd_expected)}\n"
             f"{row('Make Dyeable', dye_hit, dye_expected)}\n"
-            f"{row('Sockets (all \u2192 5)', sock_hit, sock_expected)}\n"
+            f"{row('Sockets (all → 5)', sock_hit, sock_expected)}\n"
             f"{row('UP v2 tribe_gender PDs', up_hit, up_expected)}\n\n"
             f"Companion files bundled in overlay:\n"
             f"  equipslotinfo.pabgb:  {'yes' if has_equipslot_pabgb else 'NO'}\n"
