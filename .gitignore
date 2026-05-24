@@ -8,4 +8,5 @@ CrimsonSaveEditor/build/
 CrimsonSaveEditor/dist/
 CrimsonSaveEditor/__pycache__/
 CrimsonGameMods/__pycache__/
-
+.venv/
+.venv_linux/

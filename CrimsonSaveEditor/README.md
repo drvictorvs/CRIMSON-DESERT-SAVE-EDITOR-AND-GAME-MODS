@@ -10,19 +10,32 @@ A PySide6 desktop tool for editing **Crimson Desert** save files. It handles inv
 
 ## Build from source
 
-Linux:
-
-```bash
-../../build.sh --project=saveeditor --backend=nuitka
-../../build.sh --project=saveeditor --backend=pyinstaller
-```
-
-Windows-native batch wrappers:
+## Windows
 
 ```bat
-..\..\build.cmd --project=saveeditor --backend=nuitka
-..\..\build.cmd --project=saveeditor --backend=pyinstaller
+pip install PySide6 lz4 cryptography Pillow pyinstaller
+
+:: Build Save Editor
+cd ..\CrimsonSaveEditor
+python -m PyInstaller CrimsonSaveEditor.spec --noconfirm
+:: Output: CrimsonSaveEditor\dist\CrimsonSaveEditor.exe
 ```
+
+## Linux / SteamOS
+
+```bash
+sudo apt install python3 python3-pip git   # Debian/Ubuntu/SteamOS
+pip install PySide6 lz4 cryptography Pillow pyinstaller
+
+git clone https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS.git
+cd CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/CrimsonSaveEditor
+
+python -m PyInstaller CrimsonSaveEditor.spec --noconfirm
+```
+
+## Note on native extensions
+
+The tools use `dmm_parser` (Rust-based parser). Pre-built `.pyd` (Windows) and `.abi3.so` (Linux) binaries ship with the repo in `CrimsonGameMods/dmm_parser/`. You do not need Rust installed to build.
 
 ## Notes
 
