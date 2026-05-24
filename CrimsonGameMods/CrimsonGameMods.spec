@@ -1,5 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+Path("quest_packs").mkdir(exist_ok=True)
 
 a = Analysis(
     ['main.py'],
