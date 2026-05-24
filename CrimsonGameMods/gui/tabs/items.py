@@ -327,6 +327,7 @@ class DatabaseBrowserTab(QWidget):
 
 
     def _db_export_dropset_pack(self, rows):
+        import sys as _sys
         from PySide6.QtWidgets import QInputDialog, QFileDialog
 
         name, ok = QInputDialog.getText(
@@ -357,7 +358,7 @@ class DatabaseBrowserTab(QWidget):
         if not items:
             return
 
-        packs_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "dropset_packs")
+        packs_dir = os.path.join(os.path.dirname(os.path.abspath(_sys.argv[0])), "dropset_packs")
         os.makedirs(packs_dir, exist_ok=True)
         default_fn = name.strip().replace(" ", "_") + ".json"
 
@@ -378,7 +379,7 @@ class DatabaseBrowserTab(QWidget):
         }
 
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(pack, f, indent=2)
+            _json.dump(pack, f, indent=2)
 
         self.status_message.emit(f"Exported {len(items)} items as DropSet pack: {os.path.basename(path)}")
         QMessageBox.information(self, tr("Pack Exported"),
