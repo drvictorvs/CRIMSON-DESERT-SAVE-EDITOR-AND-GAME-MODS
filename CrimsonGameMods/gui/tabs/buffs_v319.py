@@ -30,14 +30,10 @@ from gui.theme import COLORS, CATEGORY_COLORS
 from gui.iteminfo_index import IteminfoIndex
 
 def _patch_docking_108(items):
-    sample = False
     """Ensure all docking_child_data dicts have the 1.0.8 unk_docking_108 field."""
     for it in items:
         dcd = it.get('docking_child_data')
         if isinstance(dcd, dict) and 'unk_docking_108' not in dcd:
-            if not sample:
-                log.info(f"Sample: {it['string_key']} ({it['key']})")
-                sample = True
             dcd['unk_docking_108'] = 0
 
 def _safe_iv(v, default=0):
@@ -11487,7 +11483,11 @@ class ItemBuffsTab(QWidget):
         for it in self._buff_rust_items:
             cur = _safe_iv(it.get('max_stack_count', 0))
             if cur > 1:
-                it['max_stack_count'] = target
+                # Make Silver stack size match other items
+                if _safe_iv(it.get('key')) == 1:
+                    it['max_stack_count'] = target * 100
+                else:
+                    it['max_stack_count'] = target
                 count += 1
         if hasattr(self, '_buff_rust_lookup'):
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}

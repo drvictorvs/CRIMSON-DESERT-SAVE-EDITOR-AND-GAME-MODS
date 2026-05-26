@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import csv
 import logging
+from pathlib import Path
 from i18n import tr
 import dmm_parser as dmm
 from typing import Optional
@@ -225,9 +226,13 @@ class GameBrowserTab(QWidget):
                 dir_path = "/".join(segments)
                 file_name = node.name
 
-                file_data = extract_file_data(
-                    game_dir, group_name, dir_path, file_name
-                )
+                try:
+                    Path("data").mkdir(exist_ok=True)
+                finally:
+                    file_data = extract_file_data(
+                        game_dir, group_name, dir_path, file_name
+                    )
+                
                 if action in (extract_custom, extract_unknown):
                     with open(f"data/{node.name}", "wb") as f:
                         f.write(file_data)
@@ -256,7 +261,8 @@ class GameBrowserTab(QWidget):
                                 f"{no_ext}.pabgb",
                             )
                             pabgh = file_data
-
+                            
+                        no_ext = 'skill_info' if no_ext == 'skill' else no_ext
                         table = dmm.parse_table(no_ext, pabgb, pabgh)
                         if action == extract_json:
                             with open(f"data/{no_ext}.json", "w") as f:
