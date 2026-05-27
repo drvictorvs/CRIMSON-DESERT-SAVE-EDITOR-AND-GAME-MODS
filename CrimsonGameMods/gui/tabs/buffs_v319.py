@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .helpers import extract_file_data
 from gui.theme import COLORS, CATEGORY_COLORS
 from gui.iteminfo_index import IteminfoIndex
 
@@ -3131,7 +3132,9 @@ class ItemBuffsTab(QWidget):
             import dmm_parser as _chk
             _dmp_fns = [x for x in dir(_chk) if 'parse' in x.lower() or 'extract' in x.lower()]
             _crs_fns = [x for x in dir(crimson_rs) if 'parse' in x.lower() or 'extract' in x.lower()]
+            log.info('[DIAG] dmm_parser spec: %s', getattr(_chk, '__spec__', "None"))
             log.info('[DIAG] dmm_parser funcs: %s', _dmp_fns)
+            log.info('[DIAG] dmm_parser spec: %s', getattr(crimson_rs, '__spec__', "None"))
             log.info('[DIAG] crimson_rs funcs: %s', _crs_fns)
             import sys as _sys_chk
             log.info('[DIAG] frozen=%s _MEIPASS=%s', getattr(_sys_chk, 'frozen', False), getattr(_sys_chk, '_MEIPASS', 'N/A'))
@@ -6982,8 +6985,8 @@ class ItemBuffsTab(QWidget):
     def _eb_apply_no_fall_damage(self) -> None:
         """Apply No Fall Damage buff to the selected item.
 
-        Adds equip_buffs: [{buff: 1000185, level: 10}] to every enchant level
-        on the selected item (BuffLevel_Food_FallDamageReduce at max level),
+        Adds equip_buffs: [{buff: 1000190, level: 10}] to every enchant level
+        on the selected item (BuffLevel_FallDamageReduce at max level),
         and stages buffinfo changes so Export Field JSON v3 includes both
         the iteminfo equip_buffs change and the buffinfo reduction values.
         """
@@ -7003,7 +7006,7 @@ class ItemBuffsTab(QWidget):
         reply = QMessageBox.question(
             self, "No Fall Damage",
             f"Apply No Fall Damage buff to {display_name}?\n\n"
-            f"Adds equip_buff: BuffLevel_Food_FallDamageReduce (1000185) level 10\n"
+            f"Adds equip_buff: BuffLevel_FallDamageReduce (1000190) level 10 "
             f"to all enchant levels on the item.\n\n"
             f"Also stages buffinfo.pabgb changes (exported via Export Field JSON v3).",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
@@ -7012,7 +7015,7 @@ class ItemBuffsTab(QWidget):
             return
 
         # Add equip_buff to every enchant level
-        BUFF_ID = 1000185
+        BUFF_ID = 1000190
         BUFF_LEVEL = 10
         edl = rust_info.get('enchant_data_list', [])
         if not edl:
@@ -7042,6 +7045,9 @@ class ItemBuffsTab(QWidget):
             LEVEL_VALUES = [100000, 200000, 300000, 400000, 500000,
                             600000, 700000, 800000, 900000, 100000000000]
             target = next((e for e in items if e.get('key') == FALL_KEY), None)
+            with open("testing/buff_item_debug.json", "w+") as f:
+                json.dump(target, f, indent=2)
+            # print(target)
             if target:
                 buff_data_list = target.get('buff_data_list', [])
                 for i, new_val in enumerate(LEVEL_VALUES):
@@ -7051,6 +7057,7 @@ class ItemBuffsTab(QWidget):
                         body = variant.get('body', {})
                         body['f01'] = new_val
                 buffinfo_staged = True
+        QMessageBox.information(self, "Buffinfo Intents", json.dumps(self._diff_staged_buffinfo()))
 
         self._buff_modified = True
         self._buff_refresh_stats()
@@ -13797,21 +13804,40 @@ class ItemBuffsTab(QWidget):
         if getattr(self, '_buffinfo_dmm_items', None) is not None:
             return self._buffinfo_dmm_items, self._buffinfo_dmm_vanilla
         try:
-            import crimson_rs, dmm_parser as _dmp, copy as _copy
-            gp = game_path or self._config.get('game_install_path', '')
-            if not gp:
+            import dmm_parser as _dmm
+            import copy as _copy
+            game_dir = game_path or self._config.get('game_install_path', '')
+            if not game_dir:
                 return None, None
-            dp = 'gamedata/binary__/client/bin'
-            pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgb'))
-            pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgh'))
-            items = list(_dmp.parse_buffinfo_from_bytes(pabgb, pabgh))
+            dir_path = 'gamedata/binary__/client/bin'
+            filename = 'buffinfo'
+            pabgh = bytes(extract_file_data(
+                game_dir, '0008', dir_path, f"{filename}.pabgh"
+            ))
+            pabgb = bytes(extract_file_data(
+                game_dir, '0008', dir_path, f"{filename}.pabgb"
+            ))
+            items: list = _dmm.parse_table(filename, pabgb, pabgh)
             vanilla = _copy.deepcopy(items)
             self._buffinfo_dmm_items = items
             self._buffinfo_dmm_vanilla = vanilla
-            self._buffinfo_pabgb = pabgb
-            self._buffinfo_pabgh = pabgh
             log.info("Loaded %d buffinfo entries", len(items))
             return items, vanilla
+            # import crimson_rs, dmm_parser as _dmp, copy as _copy
+            # gp = game_path or self._config.get('game_install_path', '')
+            # if not gp:
+            #     return None, None
+            # dp = 'gamedata/binary__/client/bin'
+            # pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgb'))
+            # pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgh'))
+            # items = list(_dmp.parse_buffinfo_from_bytes(pabgb, pabgh))
+            # vanilla = _copy.deepcopy(items)
+            # self._buffinfo_dmm_items = items
+            # self._buffinfo_dmm_vanilla = vanilla
+            # self._buffinfo_pabgb = pabgb
+            # self._buffinfo_pabgh = pabgh
+            # log.info("Loaded %d buffinfo entries", len(items))
+            # return items, vanilla
         except Exception as e:
             log.warning("Could not load buffinfo: %s", e)
             return None, None
