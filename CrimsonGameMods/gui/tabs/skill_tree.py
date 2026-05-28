@@ -1876,7 +1876,7 @@ class SkillTreeTab(QWidget):
             'targets': [
                 {
                     'file': 'skill.pabgb',
-                    'intents': raw_intents_only,
+                    'intents': all_intents,
                 }
             ],
         }

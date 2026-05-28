@@ -3134,7 +3134,7 @@ class ItemBuffsTab(QWidget):
             _crs_fns = [x for x in dir(crimson_rs) if 'parse' in x.lower() or 'extract' in x.lower()]
             log.info('[DIAG] dmm_parser spec: %s', getattr(_chk, '__spec__', "None"))
             log.info('[DIAG] dmm_parser funcs: %s', _dmp_fns)
-            log.info('[DIAG] dmm_parser spec: %s', getattr(crimson_rs, '__spec__', "None"))
+            log.info('[DIAG] crimson_rs spec: %s', getattr(crimson_rs, '__spec__', "None"))
             log.info('[DIAG] crimson_rs funcs: %s', _crs_fns)
             import sys as _sys_chk
             log.info('[DIAG] frozen=%s _MEIPASS=%s', getattr(_sys_chk, 'frozen', False), getattr(_sys_chk, '_MEIPASS', 'N/A'))
