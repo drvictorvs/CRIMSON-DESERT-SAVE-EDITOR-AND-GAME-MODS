@@ -203,7 +203,7 @@ class SkillTreeTab(QWidget):
         # ═══════════════════════════════════════════════════════════════
         # Skill Editor — Stamina & Cooldown Mods  (skill.pabgb)
         # ═══════════════════════════════════════════════════════════════
-        self._skill_group = QGroupBox("Skill Editor — Stamina & Cooldown Mods")
+        self._skill_group = QGroupBox("Skill Editor — Stamina + Cooldown Mods")
         self._skill_group.setStyleSheet(
             f"QGroupBox {{ font-weight: bold; color: {COLORS['accent']}; "
             f"border: 1px solid {COLORS.get('border', '#555')}; "
@@ -1584,12 +1584,17 @@ class SkillTreeTab(QWidget):
             self._on_skill_load()
         if not self._skill_loaded:
             return
+        # filter_list = [10242,10243,10244,10245,10246,10247,10251,10253,10256,10257,10258,10259,10260,10262,10267,10268,10270,10273,10274,10278,10283,10284,10286,10292,45109,12341,12342,10300,10302,10303,10304,10305,10306,10310,10311,10312,10313,10314,77,10320,10323,10324,10325,10335,10339,10340,10341,10342,10343,10344,10345,10346,10347,10349,10350,10351,10352,10353,10354,10355,10356,10357,10378,10381,10382,10383,10384,10385,76002,10484,10485,60001,60007,60008,17008,17009,6802,60052,15004,15006,60065,15027,15028,15029,15031,15032,15033,15035,15045,15046,15048,15050,15051,15052,15053,13003,15062,15063,15064,13014,15070,15071,15072,15112,15155,15158,15159,15204,15206,15209,15210,15211,15212,15213,15214,15215,15216,52131,52133,52134,5101,5102,5105,5106,5107,5108,5109,5110,5111,1025,1034,1035,1038,1041,1052,1054,1057,11301,11302,11303,11304,11305,11306,1067,11308,1069,11309,1071,1072,1073,1074,1075,11307,1077,11310,11311,11312,1081,40011,40013,5201,5202,40020,40021,75113,1504,1515,20001,20002,20003,20005,20006,20007,20008,20009,20010,20011,20012,20013,20025,20026,20027,20035,20038,20041,20042,20043,20044,20045,20049,20050,18001,20052,20053,20054,20055,20056,18002,20058,20059,20060,20061,20062,20063,20064,20065,20066,20067,18013,18014,20070,20071,18021,20073,18022,20075,20076,20077,20088,20092,20093,20094,20095,20096,20098,20101,20102,20103,20104,20107,20108,20109,20110,20111,20112,18104,65216,12007,12009,12010,12016,12019,12020,12022,12026,12027,12028,12030,12031,12034,12036,12037,12038,12039,12040,12041,12042,12043,12044,12045,12046,12047,12048,12049,12050,12051,10004,10005,12052,12053,10008,12056,10010,10011,12057,12054,12055,12061,10016,10017,12060,10023,10025,10026,10027,10028,10030,10031,10032,10033,10034,10035,10041,10052,10053,10054,10055,10056,10057,10058,10059,10060,10062,10063,10064,10065,10066,10067,10068,10070,10071,10072,10074,10075,10076,10077,10078,10079,10080,10081,10082,10083,10085,10086,10091,10092,10093,10094,10095,10096,10098,10099,10110,10112,10115,10116,10118,10121,10122,10123,10124,10127,10130,10131,10132,10133,10134,10135,10136,10137,10138,10141,10142,10143,10144,10156,10160,10161,10163,10164,10165,10166,10167,10168,10169,10177,10180,10204,10205,10211,10213,10223,43001,10234,10235,10236,10237,10238,10239]
+        # output = [skill for skill in self._skill_entries if skill['key'] in filter_list]
+
+        # with open("data/fixing_stamina_preset.json", "w") as f:
+        #     json.dump(output, f, indent=2)
 
         try:
-            import dmm_parser, copy
-            dmm_items = dmm_parser.parse_table(
-                'skill_info', self._skill_pabgb, self._skill_pabgh)
-            vanilla_items = copy.deepcopy(dmm_items)
+            import dmm_parser#, copy
+        #     dmm_items = dmm_parser.parse_table(
+        #         'skill_info', self._skill_pabgb, self._skill_pabgh)
+        #     vanilla_items = copy.deepcopy(dmm_items)
         except Exception as e:
             QMessageBox.critical(self, "Stamina Preset",
                 f"dmm_parser failed:\n{e}")
@@ -1599,10 +1604,13 @@ class SkillTreeTab(QWidget):
         buff_count = 0
         dirty_keys: set = set()
 
-        for it in dmm_items:
+        for entry in self._skill_entries:
             hit = False
+            if entry.get('_blob_fallback', False):
+                continue
+
             for list_key in ('use_resource_stat_list', 'use_driver_resource_stat_list'):
-                for r in (it.get(list_key) or []):
+                for r in (entry.get(list_key) or []):
                     if not isinstance(r, dict):
                         continue
                     d = r.get('d', 0)
@@ -1620,7 +1628,7 @@ class SkillTreeTab(QWidget):
                         res_count += 1
                         hit = True
 
-            for level in (it.get('buff_level_list') or []):
+            for level in (entry.get('buff_level_list') or []):
                 for buff in level:
                     var = buff.get('variant', {})
                     vtype = var.get('type', '')
@@ -1650,48 +1658,48 @@ class SkillTreeTab(QWidget):
                         hit = True
 
             if hit:
-                dirty_keys.add(it.get('key', 0))
+                dirty_keys.add(entry.get('key', 0))
 
-        new_pabgb = bytes(dmm_parser.serialize_table('skill_info', dmm_items))
+        new_pabgb = bytes(dmm_parser.serialize_table('skill_info', self._skill_entries))
         self._skill_pabgb = new_pabgb
 
-        # Keep dmm_parser items directly — do NOT re-parse with skillinfo_parser.
-        self._skill_entries = dmm_items
+        # # Keep dmm_parser items directly — do NOT re-parse with skillinfo_parser.
+        # self._skill_entries = dmm_items
         self._skill_dirty_keys.update(dirty_keys)
 
-        # Generate _buff_data_raw byte-replace intents for entries where
-        # buff_level_list was modified. The typed apply path (dmmv3_skill)
-        # handles use_resource_stat_list, but buff_level_list is opaque to
-        # the typed path ("per-buff field edits aren't addressable yet" per
-        # DMM source). The dmmski byte-replace path handles _buff_data_raw
-        # intents — both paths run independently on the same export file.
-        # We detect buff-only changes by comparing full entry bytes against
-        # a version where only use_resource_stat_list was modified.
-        buff_raw_intents = []
-        for van_it, mod_it in zip(vanilla_items, dmm_items):
-            try:
-                van_bytes = bytes(dmm_parser.serialize_table('skill_info', [van_it]))
-                mod_bytes = bytes(dmm_parser.serialize_table('skill_info', [mod_it]))
-            except Exception:
-                continue
-            if van_bytes == mod_bytes:
-                continue
-            # Emit _buff_data_raw for every changed entry.
-            # dmmski byte-replace is the only working apply path for skill.pabgb
-            # (dmmv3_skill typed intents are silently ignored for pabgh-bounded
-            # tables per DMM task #11 — confirmed against CrimsonWings mod which
-            # uses _buff_data_raw exclusively and works correctly).
-            name = mod_it.get('string_key', str(mod_it.get('key', '')))
-            key  = mod_it.get('key')
-            buff_raw_intents.append({
-                'entry': name,
-                'key':   key,
-                'field': '_buff_data_raw',
-                'old':   van_bytes.hex(),
-                'new':   mod_bytes.hex(),
-            })
-        self._skill_buff_raw_intents = buff_raw_intents
-        self._populate_skill_table()
+        # # Generate _buff_data_raw byte-replace intents for entries where
+        # # buff_level_list was modified. The typed apply path (dmmv3_skill)
+        # # handles use_resource_stat_list, but buff_level_list is opaque to
+        # # the typed path ("per-buff field edits aren't addressable yet" per
+        # # DMM source). The dmmski byte-replace path handles _buff_data_raw
+        # # intents — both paths run independently on the same export file.
+        # # We detect buff-only changes by comparing full entry bytes against
+        # # a version where only use_resource_stat_list was modified.
+        # buff_raw_intents = []
+        # for van_it, mod_it in zip(vanilla_items, dmm_items):
+        #     try:
+        #         van_bytes = bytes(dmm_parser.serialize_table('skill_info', [van_it]))
+        #         mod_bytes = bytes(dmm_parser.serialize_table('skill_info', [mod_it]))
+        #     except Exception:
+        #         continue
+        #     if van_bytes == mod_bytes:
+        #         continue
+        #     # Emit _buff_data_raw for every changed entry.
+        #     # dmmski byte-replace is the only working apply path for skill.pabgb
+        #     # (dmmv3_skill typed intents are silently ignored for pabgh-bounded
+        #     # tables per DMM task #11 — confirmed against CrimsonWings mod which
+        #     # uses _buff_data_raw exclusively and works correctly).
+        #     name = mod_it.get('string_key', str(mod_it.get('key', '')))
+        #     key  = mod_it.get('key')
+        #     buff_raw_intents.append({
+        #         'entry': name,
+        #         'key':   key,
+        #         'field': '_buff_data_raw',
+        #         'old':   van_bytes.hex(),
+        #         'new':   mod_bytes.hex(),
+        #     })
+        # self._skill_buff_raw_intents = buff_raw_intents
+        # self._populate_skill_table()
 
         pct = f"{int(factor * 100)}%" if factor > 0 else "Infinite"
         total = res_count + buff_count
@@ -1806,7 +1814,7 @@ class SkillTreeTab(QWidget):
         for i, e in enumerate(self._skill_entries):
             if i >= len(self._skill_vanilla_entries):
                 continue
-            ekey = e.get('key', i)
+            ekey = e.get('key', 0)
             # If dirty tracking is active, only process entries we know changed
             if dirty_keys and ekey not in dirty_keys:
                 continue
@@ -1814,12 +1822,19 @@ class SkillTreeTab(QWidget):
             # When loaded via dmm_parser, compare dicts directly
             if getattr(self, '_skill_dmm_loaded', False):
                 if e == van:
+                    log.warning(f"{ekey} marked as dirty but no entry changes were found")
                     continue
             else:
                 if sip.serialize_entry(e) == sip.serialize_entry(van):
+                    log.warning(f"{ekey} marked as dirty but no entry changes were found")
                     continue
             entry_intents = _diff_skill_entry(van, e)
             intents.extend(entry_intents)
+
+
+        output = intents
+        with open("data/fixing_stamina_preset.json", "w") as f:
+            json.dump(output, f, indent=2)
 
         # Merge in _buff_data_raw byte-replace intents generated by the stamina
         # preset (dmmski path). These cover buff_level_list entries that the
@@ -1832,10 +1847,10 @@ class SkillTreeTab(QWidget):
         # array) so the dmmski byte-replace dispatcher sees the file. The
         # dispatcher reads json.get("target") at root level; "targets" array
         # is only read by the typed dmmv3_skill path.
-        buff_raw = getattr(self, '_skill_buff_raw_intents', [])
-        all_intents = intents + buff_raw
+        # buff_raw = getattr(self, '_skill_buff_raw_intents', [])
+        # all_intents = intents + buff_raw
 
-        if not all_intents:
+        if not intents:
             QMessageBox.information(self, "Export Field JSON",
                                     "No modifications to export.")
             return
@@ -1847,36 +1862,34 @@ class SkillTreeTab(QWidget):
         if not path:
             return
 
-        n_structured = len(intents)
-        n_buff_raw   = len(buff_raw)
+        # n_structured = len(intents)
+        # n_buff_raw   = len(buff_raw)
 
-        # All skill.pabgb changes go as _buff_data_raw via dmmski dispatcher.
-        # dmmv3_skill typed intents are silently ignored for pabgh-bounded tables
-        # (DMM task #11 not yet implemented) — confirmed by CrimsonWings mod which
-        # uses _buff_data_raw exclusively. Structured intents are dropped from export.
-        raw_intents_only = [i for i in all_intents
-                            if i.get('field') == '_buff_data_raw']
+        # # All skill.pabgb changes go as _buff_data_raw via dmmski dispatcher.
+        # # dmmv3_skill typed intents are silently ignored for pabgh-bounded tables
+        # # (DMM task #11 not yet implemented) — confirmed by CrimsonWings mod which
+        # # uses _buff_data_raw exclusively. Structured intents are dropped from export.
+        # raw_intents_only = [i for i in all_intents
+        #                     if i.get('field') == '_buff_data_raw']
 
         doc = {
             'modinfo': {
                 'title': 'Skill Mod',
                 'version': '1.0',
                 'author': 'CrimsonGameMods SkillTree',
-                'description': (
-                    f'{n_buff_raw} _buff_data_raw intent(s)'
-                ),
-                'note': 'Format 3 — _buff_data_raw byte-replace intents via dmmski dispatcher',
+                'description': f'{len(intents)} field-level intent(s)',
+                'note': 'Format 3 — uses field names, survives game updates',
             },
             'format': 3,
             'format_minor': 1,
             # Root target/intents → dmmski dispatcher (_buff_data_raw only)
-            'target': 'skill.pabgb',
-            'intents': raw_intents_only,
+            # 'target': 'skill.pabgb',
+            # 'intents': raw_intents_only,
             # targets array still included for forward compatibility
             'targets': [
                 {
                     'file': 'skill.pabgb',
-                    'intents': all_intents,
+                    'intents': intents,
                 }
             ],
         }
@@ -1885,14 +1898,15 @@ class SkillTreeTab(QWidget):
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
             self._lbl_skill_status.setText(
-                f"Exported {len(all_intents)} intents to {os.path.basename(path)}"
-                + (f" ({n_structured} structured + {n_buff_raw} buff_raw)" if n_buff_raw else ""))
+                f"Exported {len(intents)} intents to {os.path.basename(path)}"
+                # + (f" ({n_structured} structured + {n_buff_raw} buff_raw)" if n_buff_raw else "")
+                )
             QMessageBox.information(
                 self, "Export Field JSON",
-                f"Exported {len(all_intents)} intents:\n"
-                f"  {n_structured} structured (use_resource_stat_list)\n"
-                + (f"  {n_buff_raw} _buff_data_raw (buff_level_list byte-replace)\n" if n_buff_raw else "")
-                + f"\nFile: {path}")
+                f"Exported {len(intents)} intents\n"
+                # f"  {n_structured} structured (use_resource_stat_list)\n"
+                # + (f"  {n_buff_raw} _buff_data_raw (buff_level_list byte-replace)\n" if n_buff_raw else "")
+                + f"File: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
 
@@ -2139,11 +2153,13 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
             'video_path_hash', 'buff_sustain_flag', 'skill_group_key_list',
             '_buff_data_raw', '_buff_raw_fallback', 'raw_bytes',
             '_cooltime', 'field_12',
-            '_useDriverResourceStatList',
+            '_useDriverResourceStatList'
             # buff_level_list: DMM exposes this as base64 blob internally —
             # structured field intents (absent_flag/base/variant) can't be applied.
             # Also prevents spurious round-trip diffs from the dmm_parser re-parse.
-            'buff_level_list', '_buffLevelList'}
+            # 'buff_level_list',
+            '_buffLevelList'
+            }
 
     # camelCase → snake_case remap for old-parser fields that have canonical names
     FIELD_REMAP = {
