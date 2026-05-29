@@ -12,7 +12,7 @@ from urllib.error import URLError
 log = logging.getLogger(__name__)
 
 
-APP_VERSION = "2.0.4"
+APP_VERSION = "2.0.5"
 
 APP_VARIANT = "gamemods"
 
