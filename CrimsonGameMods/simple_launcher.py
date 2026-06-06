@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 log = logging.getLogger(__name__)
 
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.1.3"
 
 # ─── Palette ──────────────────────────────────────────────────────────
 BG        = "#1a1510"
