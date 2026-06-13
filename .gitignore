@@ -10,3 +10,5 @@ CrimsonSaveEditor/__pycache__/
 CrimsonGameMods/__pycache__/
 .venv/
 .venv_linux/
+.pi/
+CrimsonGameMods/_dmm_parser/
