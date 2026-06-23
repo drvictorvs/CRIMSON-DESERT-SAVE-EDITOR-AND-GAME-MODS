@@ -130,6 +130,7 @@ from gui.tabs.patches import GamePatchesTab
 from gui.tabs.field_edit import FieldEditTab
 from gui.tabs.bagspace import BagSpaceTab
 from gui.tabs.skill_tree import SkillTreeTab
+from gui.tabs.npc_interactions import NpcInteractionsTab
 from gui.tabs.pas_editor import PasEditorTab
 from gui.tabs.quest_mods import QuestModsTab
 from gui.dialogs import (
@@ -848,6 +849,32 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
         self._mods_tabs.addTab(self._skill_tree_tab, "SkillTree")
+
+        self._npc_inter_tab = NpcInteractionsTab(config=self._config)
+        self._npc_inter_tab.status_message.connect(self._update_status)
+        self._npc_inter_tab.config_save_requested.connect(self._save_config)
+        _saved_gp_npc = self._config.get("game_install_path", "")
+        if _saved_gp_npc:
+            try:
+                self._npc_inter_tab.set_game_path(_saved_gp_npc)
+            except Exception:
+                pass
+        self._mods_tabs.addTab(self._npc_inter_tab, "NPC Interactions")
+
+        try:
+            from gui.tabs.npc_store_swap import NpcStoreSwapTab
+            self._npc_store_tab = NpcStoreSwapTab(config=self._config)
+            self._npc_store_tab.status_message.connect(self._update_status)
+            self._npc_store_tab.config_save_requested.connect(self._save_config)
+            _saved_gp_nst = self._config.get("game_install_path", "")
+            if _saved_gp_nst:
+                try:
+                    self._npc_store_tab.set_game_path(_saved_gp_nst)
+                except Exception:
+                    pass
+            self._mods_tabs.addTab(self._npc_store_tab, "NPC Store Swap")
+        except Exception as e:
+            log.warning("NPC Store Swap tab load failed: %s", e)
 
         # PAS Editor disabled — uses byte-level npc_swap, needs migration to field-level.
         # self._pas_editor_tab = PasEditorTab(

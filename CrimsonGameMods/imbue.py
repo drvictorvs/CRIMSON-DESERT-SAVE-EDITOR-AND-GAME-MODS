@@ -298,12 +298,17 @@ def get_imbue_plan(skill_id: int, target_item: dict) -> dict:
             f"item_type {it_type} not in imbue_lookup — cannot build "
             f"docking_child_data; only passive list + skill filter will be patched.")
 
-    cooltime = target_item.get('cooltime') or 0
+    # 1.12: cooltime / max_charged_useable_count are {a,b,c} structs, not scalars.
+    # Read the representative 'a' value (output stays scalar; the buffs apply path
+    # re-wraps to {a,b,c}). Guards the old `dict < 1` TypeError crash.
+    _ct = target_item.get('cooltime')
+    cooltime = (_ct.get('a', 0) if isinstance(_ct, dict) else _ct) or 0
     if cooltime < 1:
         cooltime = 1
 
     item_charge_type = target_item.get('item_charge_type') or 0
-    max_charged = target_item.get('max_charged_useable_count') or 100
+    _mc = target_item.get('max_charged_useable_count')
+    max_charged = (_mc.get('a') if isinstance(_mc, dict) else _mc) or 100
     respawn = target_item.get('respawn_time_seconds') or 0
 
     target_dcd = target_item.get('docking_child_data') or {}

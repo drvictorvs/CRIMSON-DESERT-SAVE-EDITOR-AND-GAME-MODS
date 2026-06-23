@@ -132,6 +132,11 @@ class ItemBuffsTab(QWidget):
     navigate_requested = Signal(str)
     open_save_browser_requested = Signal()
 
+    # equipslotinfo keys for the 3 player characters (Kliff=1, Damiane=4,
+    # Oongka=6). Only these get their equip slots expanded so weapons/armor
+    # become cross-equippable; NPCs/mercenaries are left untouched.
+    _PLAYER_CHAR_KEYS = {1, 4, 6}
+
     def __init__(
         self,
         name_db: Optional[ItemNameDB] = None,
@@ -2627,19 +2632,6 @@ class ItemBuffsTab(QWidget):
             "Only the 3 player characters are modified (NPCs untouched).")
         bulk_equip_v3_btn.clicked.connect(self._eb_universal_proficiency_v3)
         egl.addWidget(bulk_equip_v3_btn)
-
-        # Dev-only v1 Universal Proficiency.
-        bulk_equip_btn = QPushButton("Universal Proficiency v1 [DEV]")
-        bulk_equip_btn.setStyleSheet(
-            "background-color: #E65100; color: white; font-weight: bold; "
-            "padding: 10px;")
-        bulk_equip_btn.setToolTip(
-            "[DEV] Legacy universal proficiency \u2014 blanket expansion. Kept "
-            "for research. Use the non-DEV button above for production.")
-        bulk_equip_btn.clicked.connect(self._eb_universal_proficiency)
-        bulk_equip_btn.setVisible(self._experimental_mode)
-        egl.addWidget(bulk_equip_btn)
-        self._dev_buff_widgets.append(bulk_equip_btn)
 
         pl.addWidget(equip_grp)
 
@@ -8577,291 +8569,6 @@ class ItemBuffsTab(QWidget):
         layout.addWidget(close_btn)
         dlg.exec()
 
-    def _eb_universal_proficiency(self) -> None:
-        """Remove character-weapon restrictions via equipslotinfo.pabgb.
-
-        For each character record, expands every equip-type array to include
-        all hashes that canonically belong in that slot type (determined by
-        majority vote across all characters). Stages the result so Apply to
-        Game / Export as Mod picks it up.
-        """
-        try:
-            import crimson_rs
-            import equipslotinfo_parser as esp
-        except Exception as e:
-            QMessageBox.critical(self, "Universal Proficiency",
-                f"Import failed: {e}")
-            return
-
-        gp_widget = getattr(self, '_buff_game_path', None)
-        gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
-        if not gp_text:
-            gp_text = getattr(self, '_game_path', '') or \
-                r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
-
-        try:
-            pabgh = crimson_rs.extract_file(
-                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
-            pabgb = crimson_rs.extract_file(
-                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
-        except Exception as e:
-            QMessageBox.critical(self, "Universal Proficiency",
-                f"Could not extract equipslotinfo:\n{e}")
-            return
-
-        records = esp.parse_all(pabgh, pabgb)
-
-        from collections import Counter
-        hash_votes: dict[int, Counter] = {}
-        for rec in records:
-            for e in rec.entries:
-                key = (e.category_a, e.category_b)
-                for h in e.etl_hashes:
-                    if h not in hash_votes:
-                        hash_votes[h] = Counter()
-                    hash_votes[h][key] += 1
-
-        hash_canonical = {h: v.most_common(1)[0][0] for h, v in hash_votes.items()}
-        slot_hashes: dict[tuple[int, int], set[int]] = {}
-        for h, slot in hash_canonical.items():
-            slot_hashes.setdefault(slot, set()).add(h)
-
-        total_added = 0
-        for rec in records:
-            for e in rec.entries:
-                key = (e.category_a, e.category_b)
-                candidates = slot_hashes.get(key, set())
-                to_add = sorted(candidates - set(e.etl_hashes))
-                if to_add:
-                    e.etl_hashes.extend(to_add)
-                    total_added += len(to_add)
-
-        new_pabgh, new_pabgb = esp.serialize_all(records)
-
-        if not hasattr(self, '_staged_equip_files') or self._staged_equip_files is None:
-            self._staged_equip_files = {}
-        self._staged_equip_files['equipslotinfo.pabgb'] = new_pabgb
-        self._staged_equip_files['equipslotinfo.pabgh'] = new_pabgh
-
-        # Find the top player-tribe hashes by frequency across all items.
-        # These are the tribe_gender IDs that cover the main player characters.
-        # We UNION these into every item — preserves original restrictions AND
-        # adds player-character access. Clearing the list breaks items because
-        # empty doesn't mean "any character" (some items use empty to mean "no
-        # equipable" and rely on their non-empty prefab entries to gate).
-        from collections import Counter
-        tg_counter: Counter = Counter()
-        if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
-            for it in self._buff_rust_items:
-                if not it.get('equip_type_info'):
-                    continue
-                for pd in (it.get('prefab_data_list') or []):
-                    for h in (pd.get('tribe_gender_list') or []):
-                        tg_counter[h] += 1
-
-        # Take the hashes that appear on >= 5% of equippable items.
-        # That filters out per-NPC one-offs and keeps the shared player tribes.
-        total_items = sum(1 for it in (self._buff_rust_items or [])
-                          if it.get('equip_type_info'))
-        threshold = max(1, total_items // 20)
-        player_tribes = {h for h, c in tg_counter.items() if c >= threshold}
-
-        # Game semantics (verified empirically):
-        #   tribe_gender_list == []      → no restriction, ANY character can equip
-        #   tribe_gender_list == [a,b,c] → only those tribes can equip
-        # So: only union into lists that are ALREADY non-empty. Leaving an
-        # already-empty list alone preserves the "open to all" state.
-        # Converting [] → [12 player tribes] was actually RESTRICTING items
-        # that had no restriction (breaking NPC default equips like Batz dagger).
-        tg_unioned = 0
-        if player_tribes and hasattr(self, '_buff_rust_items') and self._buff_rust_items:
-            for it in self._buff_rust_items:
-                pdl = it.get('prefab_data_list') or []
-                for pd in pdl:
-                    tg = pd.get('tribe_gender_list')
-                    if not tg:
-                        continue  # empty = already open, don't touch
-                    existing = set(tg)
-                    to_add = [h for h in player_tribes if h not in existing]
-                    if to_add:
-                        pd['tribe_gender_list'] = list(tg) + to_add
-                        tg_unioned += 1
-            if tg_unioned:
-                self._buff_modified = True
-
-        self._buff_status_label.setText(
-            f"Universal Proficiency: +{total_added} slot hashes, "
-            f"{tg_unioned} items unlocked.")
-        QMessageBox.information(self, "Universal Proficiency — Staged",
-            f"Equip slot filter: +{total_added} hashes across {len(records)} characters.\n"
-            f"Item tribe/gender filter: unioned {len(player_tribes)} player-tribe hashes\n"
-            f"into {tg_unioned} prefab entries (originals kept, player tribes added).\n\n"
-            f"equipslotinfo: {len(pabgb):,} -> {len(new_pabgb):,} bytes\n\n"
-            f"WARNING: CDUMM export is not supported with Universal Proficiency.\n"
-            f"The expanded equipslotinfo causes the game to reject the overlay.\n"
-            f"Use 'Apply to Game' instead.\n\n"
-            f"Note: weapons may lack animations on non-native characters\n"
-            f"(e.g. muskets on Kliff won't have fire/reload anims).\n\n"
-            "")
-
-    # Per-character tribe_gender hashes (confirmed via exclusive-item analysis 2026-04-17).
-    # Kliff has 11 (superset of both), Damiane has 4, Oongka has 6.
-    _CHAR_TRIBE_HASHES = {
-        1: {0x13FB2B6E, 0x26BE971F, 0x87D08287, 0x8BF46446,  # Kliff
-            0xABFCD791, 0xBFA1F64B, 0xD0A2E1EF, 0xF96C1DD4,
-            0xFC66D914, 0xFE7169E2, 0xFF16A579},
-        4: {0x26BE971F, 0x8BF46446, 0xABFCD791, 0xF96C1DD4},  # Damiane
-        6: {0x13FB2B6E, 0x87D08287, 0xBFA1F64B, 0xD0A2E1EF,  # Oongka
-            0xFC66D914, 0xFE7169E2},
-    }
-    # Union of all 3 = the 12 player hashes (plus 0xF21FE2D6 unknown/NPC)
-    _PLAYER_TRIBE_HASHES = _CHAR_TRIBE_HASHES[1] | _CHAR_TRIBE_HASHES[4] | _CHAR_TRIBE_HASHES[6] | {0xF21FE2D6}
-    _PLAYER_CHAR_KEYS = {1, 4, 6}  # Only expand these characters
-
-    def _eb_universal_proficiency_v2(self) -> None:
-        """Make ALL items equippable by ALL 3 player characters (Kliff/Damiane/Oongka).
-
-        Two targeted changes:
-        1. iteminfo tribe_gender: union the 12 known player tribe hashes into
-           every item with a non-empty tribe_gender_list. Empty lists (already
-           open to all) are untouched. Never clears or removes hashes.
-        2. equipslotinfo slot expansion: for each of the 3 player characters,
-           collect equip_type hashes from the other 2 players' MATCHING slot
-           categories and add them. Weapons stay in weapon slots, armor in
-           armor slots. NPC characters (201, 701, etc.) are NOT modified.
-
-        Architecture:
-        - iteminfo → staged for Apply to Game (group 0058)
-        - equipslotinfo pair → deployed immediately to group 0059
-        """
-        if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
-            QMessageBox.warning(self, "Universal Prof v2",
-                "Extract with Rust parser first (click 'Extract (Rust)').")
-            return
-
-        reply = QMessageBox.question(
-            self, "Universal Proficiency v2",
-            "Make ALL items equippable by Kliff, Damiane, and Oongka.\n\n"
-            "Changes:\n"
-            "1. Adds player tribe hashes to every restricted item\n"
-            "   (items already open to all are untouched)\n"
-            "2. Expands equip slots on the 3 player characters ONLY\n"
-            "   (weapons \u2192 weapon slots, armor \u2192 armor slots)\n"
-            "   NPCs/mercenaries are NOT modified.\n\n"
-            "Stacks with buff mods, dye mods, and other ItemBuffs edits:\n"
-            "the tool now re-extracts from your existing 0058/ overlay on\n"
-            "each Extract, so prior edits (UP v2, Make Dyeable, etc.) are\n"
-            "preserved — you can pile edits on top across sessions.\n\n"
-            "Note: weapons may lack animations on non-native characters.\n"
-            "Deploy via Apply to Game.\n\n"
-            "Continue?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply != QMessageBox.Yes:
-            return
-
-        # ── Step 1: tribe_gender union (iteminfo) ──
-        player_tribes = self._PLAYER_TRIBE_HASHES
-
-        tg_unioned = 0
-        tg_added_total = 0
-        for it in self._buff_rust_items:
-            if not it.get('equip_type_info'):
-                continue
-            for pd in (it.get('prefab_data_list') or []):
-                tg = pd.get('tribe_gender_list')
-                if not tg:
-                    continue  # empty = already open, don't touch
-                existing = set(tg)
-                to_add = sorted(player_tribes - existing)
-                if to_add:
-                    pd['tribe_gender_list'] = list(tg) + to_add
-                    tg_unioned += 1
-                    tg_added_total += len(to_add)
-
-        if tg_unioned:
-            self._buff_modified = True
-
-        # ── Step 2: targeted equipslotinfo expansion (slot-aware, players only) ──
-        equip_msg = ""
-        try:
-            import crimson_rs
-            import equipslotinfo_parser as esp
-
-            gp_widget = getattr(self, '_buff_game_path', None)
-            gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
-            if not gp_text:
-                gp_text = getattr(self, '_game_path', '') or \
-                    r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
-
-            es_pabgh = crimson_rs.extract_file(
-                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
-            es_pabgb = crimson_rs.extract_file(
-                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
-            es_records = esp.parse_all(es_pabgh, es_pabgb)
-
-            # Build per-category hash pool from PLAYER characters only
-            player_keys = self._PLAYER_CHAR_KEYS
-            player_records = [r for r in es_records if r.key in player_keys]
-
-            # For each slot category, collect ALL hashes across all 3 players
-            category_hashes: dict[tuple[int, int], set[int]] = {}
-            for rec in player_records:
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
-                    category_hashes.setdefault(key, set()).update(e.etl_hashes)
-
-            # Expand: for each player character's slot, add hashes from the
-            # SAME category that other players have. NPC records untouched.
-            total_slot_added = 0
-            for rec in es_records:
-                if rec.key not in player_keys:
-                    continue  # Skip NPCs/mercenaries
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
-                    pool = category_hashes.get(key, set())
-                    to_add = sorted(pool - set(e.etl_hashes))
-                    if to_add:
-                        e.etl_hashes.extend(to_add)
-                        total_slot_added += len(to_add)
-
-            new_es_pabgh, new_es_pabgb = esp.serialize_all(es_records)
-
-            if not hasattr(self, '_staged_equip_files'):
-                self._staged_equip_files = {}
-            self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)
-            self._staged_equip_files['equipslotinfo.pabgh'] = bytes(new_es_pabgh)
-            self._buff_modified = True
-
-            log.info("UP v2: staged equipslotinfo (pabgb=%d pabgh=%d, "
-                     "+%d hashes, players only: %s) — will deploy via Apply to Game",
-                     len(new_es_pabgb), len(new_es_pabgh),
-                     total_slot_added, sorted(player_keys))
-
-            equip_msg = (f"\nEquipslotinfo: +{total_slot_added} hashes across "
-                         f"{len(player_records)} player characters \u2192 staged "
-                         f"for the next Apply to Game\n"
-                         f"(NPCs untouched, slot categories preserved)")
-        except Exception as e:
-            log.exception("UP v2: equipslotinfo expansion failed")
-            equip_msg = f"\nEquipslotinfo expansion failed: {e}"
-
-        # ── Step 3: Kliff gun fix — DISABLED (Kliff uses gun natively in 1.10+) ──
-        # charinfo_msg = self._stage_kliff_gun_fix(gp_text)
-        charinfo_msg = ""
-
-        buff_slot = f"{self._buff_overlay_spin.value():04d}"
-        self._buff_status_label.setText(
-            f"Prof v2 staged: {tg_unioned} items + {total_slot_added} slot hashes. "
-            "")
-        QMessageBox.information(self, "Universal Proficiency v2 — Staged",
-            f"Tribe restriction: added {len(player_tribes)} player tribe hashes\n"
-            f"to {tg_unioned} restricted items (+{tg_added_total} total).\n"
-            f"{equip_msg}{charinfo_msg}\n\n"
-
-            f"Apply will also include any buff/stat/dye edits you've made\n"
-            f"this session.\n\n"
-            f"Note: weapons may lack animations on non-native characters.")
-
     def _eb_universal_proficiency_v3(self) -> None:
         """Make ALL items equippable by ALL 3 player characters.
 
@@ -8935,7 +8642,7 @@ class ItemBuffsTab(QWidget):
                     category_hashes.setdefault(key, set()).update(e['etl_hashes'])
 
             for rec in es_records:
-                if rec.key not in player_keys:
+                if rec['key'] not in player_keys:
                     continue
                 for e in rec['entries']:
                     key = (e['category_a'], e['category_b'])
@@ -8945,7 +8652,13 @@ class ItemBuffsTab(QWidget):
                         e['etl_hashes'].extend(to_add)
                         total_slot_added += len(to_add)
 
-            new_es_pabgh, new_es_pabgb = crimson_rs.serialize_table(es_records)
+            # serialize_table(name, items, shape, original_pabgh) -> (pabgb, pabgh).
+            # Must use the canonical name 'equip_slot_info' (the serialize path
+            # does not resolve the 'equipslotinfo' alias) and pass the original
+            # pabgh so offsets are regenerated (etl_hashes growth changes record
+            # sizes). Returns (pabgb, pabgh) — NOT the reverse.
+            new_es_pabgb, new_es_pabgh = crimson_rs.serialize_table(
+                'equip_slot_info', es_records, None, bytes(es_pabgh))
             if not hasattr(self, '_staged_equip_files'):
                 self._staged_equip_files = {}
             self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)
@@ -11717,7 +11430,6 @@ class ItemBuffsTab(QWidget):
         equip_msg = ""
         try:
             import crimson_rs
-            import equipslotinfo_parser as esp
 
             gp_widget = getattr(self, '_buff_game_path', None)
             gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
@@ -11729,27 +11441,36 @@ class ItemBuffsTab(QWidget):
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
             es_pabgb = crimson_rs.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
-            es_records = esp.parse_all(es_pabgh, es_pabgb)
+
+            # Use the Rust parser (1.12-correct shape). The old Python
+            # equipslotinfo_parser still expects the 1.10 layout (complex_blob +
+            # 11-byte tail) and throws on 1.12 data.
+            table = crimson_rs.parse_table('equipslotinfo', es_pabgb, es_pabgh)
+            es_records = sorted(table, key=lambda e: e['key'])
 
             player_keys = self._PLAYER_CHAR_KEYS
-            player_records = [r for r in es_records if r.key in player_keys]
+            player_records = [r for r in es_records if r['key'] in player_keys]
             category_hashes: dict[tuple[int, int], set[int]] = {}
             for rec in player_records:
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
-                    category_hashes.setdefault(key, set()).update(e.etl_hashes)
+                for e in rec['entries']:
+                    key = (e['category_a'], e['category_b'])
+                    category_hashes.setdefault(key, set()).update(e['etl_hashes'])
             for rec in es_records:
-                if rec.key not in player_keys:
+                if rec['key'] not in player_keys:
                     continue
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
+                for e in rec['entries']:
+                    key = (e['category_a'], e['category_b'])
                     pool = category_hashes.get(key, set())
-                    to_add = sorted(pool - set(e.etl_hashes))
+                    to_add = sorted(pool - set(e['etl_hashes']))
                     if to_add:
-                        e.etl_hashes.extend(to_add)
+                        e['etl_hashes'].extend(to_add)
                         total_slot_added += len(to_add)
 
-            new_es_pabgh, new_es_pabgb = esp.serialize_all(es_records)
+            # serialize_table needs the canonical name 'equip_slot_info' and the
+            # original pabgh so offsets regenerate after etl_hashes growth.
+            # Returns (pabgb, pabgh) — NOT the reverse.
+            new_es_pabgb, new_es_pabgh = crimson_rs.serialize_table(
+                'equip_slot_info', es_records, None, bytes(es_pabgh))
             if not hasattr(self, '_staged_equip_files'):
                 self._staged_equip_files = {}
             self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)

@@ -15,9 +15,11 @@ from typing import Optional
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QHBoxLayout,
     QHeaderView,
     QMenu,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QSizePolicy,
     QTreeView,
@@ -149,9 +151,16 @@ class GameBrowserTab(QWidget):
     def _build_ui(self):
         layout = QVBoxLayout(self)
 
+        btn_row = QHBoxLayout()
         btn = QPushButton("Load Game Data")
         btn.clicked.connect(self.reload_model)
-        layout.addWidget(btn)
+        btn_row.addWidget(btn)
+
+        dump_btn = QPushButton("Dump All PABGB to JSON")
+        dump_btn.clicked.connect(self._dump_all_pabgb)
+        btn_row.addWidget(dump_btn)
+
+        layout.addLayout(btn_row)
 
         tree_view = QTreeView()
         tree_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -204,6 +213,123 @@ class GameBrowserTab(QWidget):
         )
         self._tree_view.header().setSectionResizeMode(
             1, QHeaderView.ResizeMode.ResizeToContents
+        )
+
+    def _collect_pabgb_nodes(self, node: VirtualNode, results: list):
+        if not node.is_dir:
+            if node.name.endswith(".pabgb"):
+                results.append(node)
+            return
+        for child in node.child_items:
+            self._collect_pabgb_nodes(child, results)
+
+    def _dump_all_pabgb(self):
+        model: VirtualFileSystemModel | None = self._tree_view.model()
+        if not model:
+            QMessageBox.warning(
+                self, tr("No Data"), tr("Load game data first.")
+            )
+            return
+
+        pabgb_nodes: list[VirtualNode] = []
+        self._collect_pabgb_nodes(model.root_node, pabgb_nodes)
+
+        if not pabgb_nodes:
+            QMessageBox.information(
+                self, "No Files", "No .pabgb files found in the VFS."
+            )
+            return
+
+        output_dir = Path("data/dump_all")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        success_count = 0
+        fail_count = 0
+        skip_count = 0
+        failures: list[str] = []
+        seen_names: set[str] = set()
+
+        progress = QProgressDialog(
+            "Dumping pabgb files to JSON...",
+            "Cancel",
+            0,
+            len(pabgb_nodes),
+            self,
+        )
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+
+        for i, node in enumerate(pabgb_nodes):
+            if progress.wasCanceled():
+                break
+
+            no_ext = node.name[:-6]
+            progress.setLabelText(f"[{i + 1}/{len(pabgb_nodes)}] {no_ext}")
+            progress.setValue(i)
+
+            if no_ext in seen_names:
+                skip_count += 1
+                continue
+            seen_names.add(no_ext)
+
+            segments = [
+                s for s in node.absolute_path.split("/") if s != node.name
+            ]
+            group_name = segments.pop(0)
+            dir_path = "/".join(segments)
+
+            try:
+                pabgb = extract_file_data(
+                    self._game_path, group_name, dir_path, node.name
+                )
+                pabgh = extract_file_data(
+                    self._game_path, group_name, dir_path, f"{no_ext}.pabgh"
+                )
+
+                if pabgb is None or pabgh is None:
+                    raise ValueError("Could not extract pabgb or pabgh data")
+
+                table = dmm.parse_table(no_ext, pabgb, pabgh)
+
+                with open(
+                    output_dir / f"{no_ext}.json", "w", encoding="utf-8"
+                ) as f:
+                    json.dump(table, f, ensure_ascii=False)
+
+                success_count += 1
+
+            except Exception as e:
+                fail_count += 1
+                failures.append(
+                    f"File: {node.absolute_path}\n"
+                    f"  Table: {no_ext}\n"
+                    f"  Error: {type(e).__name__}: {e}\n"
+                )
+
+        progress.setValue(len(pabgb_nodes))
+
+        if failures:
+            with open(
+                output_dir / "cannot_dump.txt", "w", encoding="utf-8"
+            ) as f:
+                f.write(
+                    f"Failed to dump {fail_count} pabgb file(s)\n"
+                    f"{'=' * 50}\n\n"
+                )
+                for entry in failures:
+                    f.write(entry + "\n")
+
+        msg = f"Done! {success_count} dumped to data/dump_all/"
+        if skip_count:
+            msg += f"\nSkipped {skip_count} duplicates (overlay copies)"
+        if fail_count:
+            msg += (
+                f"\nFailed: {fail_count} — see data/dump_all/cannot_dump.txt"
+            )
+
+        QMessageBox.information(self, "Dump Complete", msg)
+        self.status_message.emit(
+            f"PABGB dump: {success_count} OK, {fail_count} failed"
         )
 
     def show_directory_context_menu(self, position, node: VirtualNode):

@@ -2004,37 +2004,6 @@ class StackerTab(QWidget):
         # Make Dyeable, No Cooldown (dict-level, not _cd_patches), etc.
         feats = _detect_dict_features(snap_items)
 
-        # ------------------------------------------------------------
-        # UP v2 equipslotinfo auto-stage fallback.
-        #
-        # _eb_enable_everything_oneclick and _eb_universal_proficiency_v2
-        # both stage equipslotinfo into _staged_equip_files — BUT their
-        # equipslotinfo serializer is wrapped in a try/except that
-        # silently fails if crimson_rs.extract_file can't find 0008
-        # (wrong game path, missing install, read error). Users who hit
-        # that path get tribe_gender edits in the dict but no
-        # equipslotinfo bundle, which means the game rejects the UP v2
-        # feature in-game even though the dict *looks* right.
-        #
-        # At Pull time: if the dict has UP v2 tribe edits AND staged
-        # equipslotinfo is missing, re-run the expansion here from the
-        # Stacker's game path. Best-effort — logged but not fatal.
-        if feats.get('up_v2_tribe_unioned') and (
-                'equipslotinfo.pabgb' not in staged_equip_snap
-                or 'equipslotinfo.pabgh' not in staged_equip_snap):
-            try:
-                generated = self._regenerate_equipslotinfo_for_up_v2()
-                if generated:
-                    staged_equip_snap.update(generated)
-                    self._log_line(
-                        f"  ℹ UP v2 tribe edits detected without equipslotinfo "
-                        f"bundle — re-staged inline ({len(generated)} files).")
-            except Exception as e:
-                self._log_line(
-                    f"  ⚠ UP v2 tribe edits detected but equipslotinfo stage "
-                    f"failed: {e}. Fix game path and click Extract + "
-                    f"UP v2 in ItemBuffs, then re-Pull.")
-
         # Build a readable summary for the Sources table so the user can
         # verify Pull captured what they expect.
         summary_bits = [f"{len(snap_items)} entries"]
@@ -2189,75 +2158,6 @@ class StackerTab(QWidget):
                 "No tabs have modifications to pull.\n\n"
                 "Make changes in ItemBuffs, FieldEdit, SpawnEdit, etc. first,\n"
                 "then click Pull All Edits.")
-
-    # ------------------------------------------------------------
-    def _regenerate_equipslotinfo_for_up_v2(self) -> dict:
-        """Re-run the equipslotinfo expansion logic from
-        _eb_universal_proficiency_v2 in-process, using the Stacker's
-        game path. Returns {filename: bytes} for the two equipslotinfo
-        files, or empty dict on failure.
-
-        Called from _pull_from_itembuffs when UP v2 tribe edits were
-        detected in the dict but the staged files dict is empty —
-        meaning ItemBuffs's equipslotinfo serializer silently failed.
-        """
-        game = self._game_edit.text().strip() if hasattr(self, "_game_edit") else ""
-        if not game or not os.path.isdir(game):
-            return {}
-        try:
-            import crimson_rs
-            import equipslotinfo_parser as esp
-        except Exception:
-            return {}
-
-        try:
-            pabgh = bytes(crimson_rs.extract_file(
-                game, "0008", INTERNAL_DIR, "equipslotinfo.pabgh"))
-            pabgb = bytes(crimson_rs.extract_file(
-                game, "0008", INTERNAL_DIR, "equipslotinfo.pabgb"))
-        except Exception:
-            return {}
-
-        try:
-            records = esp.parse_all(pabgh, pabgb)
-        except Exception:
-            return {}
-
-        # Kliff/Damiane/Oongka player char keys — same constants as the
-        # buffs tab (_PLAYER_CHAR_KEYS = {1, 4, 6}).
-        player_keys = {1, 4, 6}
-        pool: dict = {}
-        for rec in records:
-            if rec.key not in player_keys:
-                continue
-            for e in rec.entries:
-                key = (e.category_a, e.category_b)
-                pool.setdefault(key, set()).update(e.etl_hashes)
-
-        added = 0
-        for rec in records:
-            if rec.key not in player_keys:
-                continue
-            for e in rec.entries:
-                have = set(e.etl_hashes)
-                extra = sorted(pool.get((e.category_a, e.category_b), set()) - have)
-                if extra:
-                    e.etl_hashes.extend(extra)
-                    added += len(extra)
-
-        if added == 0:
-            # Already unioned — nothing to bundle (would re-serialize vanilla).
-            return {}
-
-        try:
-            new_pabgh, new_pabgb = esp.serialize_all(records)
-        except Exception:
-            return {}
-
-        return {
-            "equipslotinfo.pabgh": bytes(new_pabgh),
-            "equipslotinfo.pabgb": bytes(new_pabgb),
-        }
 
     # ------------------------------------------------------------
     def _pull_from_dmm(self):

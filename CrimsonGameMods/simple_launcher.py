@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 log = logging.getLogger(__name__)
 
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.6"
 
 # ─── Palette ──────────────────────────────────────────────────────────
 BG        = "#1a1510"
@@ -62,13 +62,15 @@ QOL_MEMBERS = {"no_cooldown", "max_charges", "max_stacks", "inf_durability"}
 EVERYTHING_MEMBERS = QOL_MEMBERS | {
     "make_dyeable", "five_sockets", "unlock_abyss", "universal_prof"}
 
-# All mods that write to the iteminfo overlay (0058+0066, +0059 if UP active)
+# All mods that write to the iteminfo overlay (0058+0066). universal_prof
+# additionally drives the 0059 equipslotinfo overlay (weapon component) via
+# _rebuild_equipslotinfo().
 ITEMINFO_MODS = {
     "no_cooldown", "max_charges", "max_stacks", "inf_durability",
     "make_dyeable", "five_sockets", "unlock_abyss", "universal_prof"}
 
 # All mods that write to the characterinfo overlay (0065)
-CHARINFO_MODS = {"kliff_gun_fix", "npcs_killable", "mounts_in_towns"}
+CHARINFO_MODS = {"npcs_killable", "mounts_in_towns"}
 
 # Mods that write to the store overlay (0060)
 STORE_MODS = {"store_max_stock"}
@@ -111,7 +113,7 @@ MOD_DEFS = [
     {"id": "unlock_abyss", "title": "Unlock Abyss Gear",
      "desc": "Remove abyss gate restriction (equipable_hash=0)", "section": "Item Mods"},
     {"id": "universal_prof", "title": "Universal Proficiency v3",
-     "desc": "All outfits wearable by Kliff / Damiane / Oongka", "section": "Item Mods"},
+     "desc": "All outfits + weapons usable by Kliff / Damiane / Oongka", "section": "Item Mods"},
     # ── Skills ──
     {"id": "infinite_stamina", "title": "Infinite Stamina",
      "desc": "Zero all skill stamina/spirit resource costs", "section": "Skills"},
@@ -341,6 +343,7 @@ class ModWorker(QThread):
             # Determine which rebuilds are needed
             if is_all or mid in ITEMINFO_MODS or mid in COMBO_DEFS:
                 self._rebuild_iteminfo()
+                self._rebuild_equipslotinfo()
             if is_all or mid in CHARINFO_MODS or mid == "enable_everything":
                 try:
                     self._rebuild_charinfo()
@@ -356,6 +359,8 @@ class ModWorker(QThread):
                 self._handle_speed()
             if is_all or mid == "hard_2x_hp":
                 self._handle_difficulty()
+            if is_all or mid == "infinite_stamina":
+                self._handle_stamina()
             if is_all or mid in STORE_MODS:
                 self._rebuild_stores()
             if is_all or mid == "quest_unlock":
@@ -389,12 +394,24 @@ class ModWorker(QThread):
         self.progress.emit(f"Applying {len(active_ii)} item mutations to {len(items)} items...")
         COSTS = [500, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
         for it in items:
-            if "no_cooldown" in active_ii and _safe_iv(it.get('cooltime', 0)) > 1:
-                it['cooltime'] = 1
-                it['unk_post_cooltime_a'] = 1
-                it['unk_post_cooltime_b'] = 1
+            if "no_cooldown" in active_ii:
+                # 1.12: cooltime is a 3xi64 struct {a,b,c}, not a scalar. The 3
+                # values are the cooldown + 2 post fields (was unk_post_cooltime_a/b).
+                ct = it.get('cooltime')
+                if isinstance(ct, dict) and any(_safe_iv(ct.get(k, 0)) > 1 for k in ('a', 'b', 'c')):
+                    it['cooltime'] = {'a': 1, 'b': 1, 'c': 1}
+                elif _safe_iv(ct) > 1:  # pre-1.12 scalar fallback
+                    it['cooltime'] = 1
+                    it['unk_post_cooltime_a'] = 1
+                    it['unk_post_cooltime_b'] = 1
             if "max_charges" in active_ii:
-                if _safe_iv(it.get('item_charge_type', 0)) == 0 and _safe_iv(it.get('max_charged_useable_count', 0)) > 0:
+                # 1.12: max_charged_useable_count is also a {a,b,c} struct.
+                mc = it.get('max_charged_useable_count')
+                if isinstance(mc, dict):
+                    if _safe_iv(it.get('item_charge_type', 0)) == 0 and \
+                            any(_safe_iv(mc.get(k, 0)) > 0 for k in ('a', 'b', 'c')):
+                        it['max_charged_useable_count'] = {'a': 99, 'b': 99, 'c': 99}
+                elif _safe_iv(it.get('item_charge_type', 0)) == 0 and _safe_iv(mc) > 0:
                     it['max_charged_useable_count'] = 99
                     it['unk_post_max_charged_a'] = 99
                     it['unk_post_max_charged_b'] = 99
@@ -482,29 +499,10 @@ class ModWorker(QThread):
             "0066": (crimson_rs.Compression.NONE, [("iteminfo.pabgh", pabgh_out)]),
         }
 
-        if "universal_prof" in active_ii:
-            import equipslotinfo_parser as esp
-            eh = crimson_rs.extract_file(self.gp, '0008', INTERNAL, 'equipslotinfo.pabgh')
-            eb = crimson_rs.extract_file(self.gp, '0008', INTERNAL, 'equipslotinfo.pabgb')
-            recs = esp.parse_all(eh, eb)
-            PK = {1, 4, 6}
-            ch: dict[tuple[int, int], set[int]] = {}
-            for r in [x for x in recs if x.key in PK]:
-                for e in r.entries:
-                    ch.setdefault((e.category_a, e.category_b), set()).update(e.etl_hashes)
-            for r in recs:
-                if r.key not in PK:
-                    continue
-                for e in r.entries:
-                    to_add = sorted(ch.get((e.category_a, e.category_b), set()) - set(e.etl_hashes))
-                    if to_add:
-                        e.etl_hashes.extend(to_add)
-            ngh, ngb = esp.serialize_all(recs)
-            groups["0059"] = (crimson_rs.Compression.NONE,
-                              [("equipslotinfo.pabgb", bytes(ngb)),
-                               ("equipslotinfo.pabgh", bytes(ngh))])
-        else:
-            _remove_overlay(self.gp, "0059")
+        # equipslotinfo (the Universal Proficiency *weapon* component) is
+        # handled separately in _rebuild_equipslotinfo(), which owns the 0059
+        # overlay. The outfit component (clearing tribe_gender_list above)
+        # stays in this iteminfo overlay.
 
         with tempfile.TemporaryDirectory() as tmp:
             for grp, (comp, files) in groups.items():
@@ -523,6 +521,63 @@ class ModWorker(QThread):
             with open(os.path.join(self.gp, "0058", ".se_itembuffs"), "w") as f:
                 f.write("CrimsonGameMods Simple\n")
 
+    # ── Equipslotinfo Group (0059) — Universal Proficiency weapon component ──
+    def _rebuild_equipslotinfo(self):
+        """Expand equip slots on the 3 player characters (Kliff=1, Damiane=4,
+        Oongka=6) so weapons/armor become cross-equippable.
+
+        1.12 note: equipslotinfo IS editable via crimson_rs.parse_table(
+        'equipslotinfo', ...) + serialize_table('equip_slot_info', ...). The
+        earlier assumption that the 1.12 table was unparseable (and the
+        Python equipslotinfo_parser, which still expects the 1.10 shape) is
+        obsolete — that path is what made Universal Proficiency outfits-only.
+        """
+        if "universal_prof" not in self.active:
+            _remove_overlay(self.gp, "0059")
+            return
+
+        import crimson_rs
+        self.progress.emit("Expanding equip slots (weapons)...")
+
+        es_pabgb = bytes(crimson_rs.extract_file(
+            self.gp, '0008', INTERNAL, 'equipslotinfo.pabgb'))
+        es_pabgh = bytes(crimson_rs.extract_file(
+            self.gp, '0008', INTERNAL, 'equipslotinfo.pabgh'))
+
+        table = crimson_rs.parse_table('equipslotinfo', es_pabgb, es_pabgh)
+        es_records = sorted(table, key=lambda e: e['key'])
+
+        PLAYER_KEYS = {1, 4, 6}  # Kliff, Damiane, Oongka
+        player_records = [r for r in es_records if r['key'] in PLAYER_KEYS]
+        category_hashes: dict[tuple[int, int], set[int]] = {}
+        for rec in player_records:
+            for e in rec['entries']:
+                k = (e['category_a'], e['category_b'])
+                category_hashes.setdefault(k, set()).update(e['etl_hashes'])
+
+        added = 0
+        for rec in es_records:
+            if rec['key'] not in PLAYER_KEYS:
+                continue
+            for e in rec['entries']:
+                k = (e['category_a'], e['category_b'])
+                to_add = sorted(category_hashes.get(k, set()) - set(e['etl_hashes']))
+                if to_add:
+                    e['etl_hashes'].extend(to_add)
+                    added += len(to_add)
+
+        # serialize_table needs the canonical name 'equip_slot_info' and the
+        # original pabgh so offsets regenerate after etl_hashes growth.
+        # Returns (pabgb, pabgh) — NOT the reverse.
+        new_pabgb, new_pabgh = crimson_rs.serialize_table(
+            'equip_slot_info', es_records, None, es_pabgh)
+
+        self.progress.emit(f"Deploying equipslotinfo overlay (+{added} slot hashes)...")
+        _deploy_overlay(self.gp, "0059", [
+            ("equipslotinfo.pabgb", bytes(new_pabgb)),
+            ("equipslotinfo.pabgh", bytes(new_pabgh))])
+        log.info("equipslotinfo (UP weapons): +%d slot hashes deployed to 0059", added)
+
     # ── Characterinfo Group (0065) ──
     def _rebuild_charinfo(self):
         active_ci = self.active & CHARINFO_MODS
@@ -540,23 +595,6 @@ class ModWorker(QThread):
             self.gp, '0008', INTERNAL, 'characterinfo.pabgh'))
         entries = cfp.parse_all_entries(pabgb, pabgh)
         modified = bytearray(pabgb)
-
-        if "kliff_gun_fix" in active_ci:
-            by_name = {e.get('name'): e for e in entries}
-            if all(n in by_name for n in ('Kliff', 'Damian', 'Oongka')):
-                kliff = by_name['Kliff']
-                damian = by_name['Damian']
-                oongka = by_name['Oongka']
-                # Copy Damian's appearance key to Kliff
-                if '_appearanceName_offset' in kliff and '_appearanceName_key' in damian:
-                    struct.pack_into('<I', modified,
-                                    kliff['_appearanceName_offset'],
-                                    damian['_appearanceName_key'])
-                # Copy Oongka's skeleton key to Kliff
-                if '_skeletonName_offset' in kliff and '_skeletonName_key' in oongka:
-                    struct.pack_into('<I', modified,
-                                    kliff['_skeletonName_offset'],
-                                    oongka['_skeletonName_key'])
 
         if "npcs_killable" in active_ci:
             for e in entries:
@@ -720,12 +758,14 @@ class ModWorker(QThread):
             ("buffinfo.pabgb", new_pabgb),
             ("buffinfo.pabgh", pabgh)])
 
-    # ── Infinite Stamina (0064) ──
+    # ── Infinite Stamina (0073) ──
+    # NOTE: must NOT reuse 0064 — _handle_quest deploys missioninfo.pabgb to
+    # 0064, so the two overlays would clobber each other (last writer wins).
     _STAMINA_HASH = 1000026
 
     def _handle_stamina(self):
         if "infinite_stamina" not in self.active:
-            _remove_overlay(self.gp, "0064")
+            _remove_overlay(self.gp, "0073")
             return
 
         self.progress.emit("Patching skill stamina costs...")
@@ -741,7 +781,7 @@ class ModWorker(QThread):
                         r['d'] = 0
 
         new_pabgb = bytes(serialize('skill_info', items))
-        _deploy_overlay(self.gp, "0064", [
+        _deploy_overlay(self.gp, "0073", [
             ("skill.pabgb", new_pabgb),
             ("skill.pabgh", pabgh)])
 
